@@ -19,8 +19,8 @@ chmod +x environment_install
 **Git Tools Only:**
 ```bash
 cd ~/Documents/gitscripts/scripts
-chmod +x gitak_install
-./gitak_install
+chmod +x gitscripts_install
+./gitscripts_install
 ```
 
 ### Verify Installation
@@ -32,13 +32,13 @@ gh --version
 git lfs version
 
 # Check PAT tokens are set:
-gitak_verify_PAT
+gitscripts_verify_PAT
 
 # Check symlinks are working:
-ls -la ~/bin/gitak_*
+ls -la ~/bin/gitscripts_*
 
 # Test a script:
-gitak_create_from_remote akamlibehsafe/gitscripts
+gitscripts_create_from_remote akamlibehsafe/gitscripts
 ```
 
 ## Uninstallation
@@ -55,13 +55,13 @@ chmod +x environment_uninstall
 
 **Before uninstalling:**
 1. Check for pending changes: `cd ~/Documents/GitHub && find . -name .git -type d | while read dir; do cd "$dir/.." && git status; done`
-2. Push all pending changes using `gitak_push` or manually
+2. Push all pending changes using `gitscripts_push` or manually
 3. Backup any important uncommitted work
 
 ### Partial Uninstallation
 
 Remove individual components:
-- **Symlinks only**: `rm ~/bin/gitak_* ~/bin/zsh_install ~/bin/environment_*`
+- **Symlinks only**: `rm ~/bin/gitscripts_* ~/bin/zsh_install ~/bin/environment_*`
 - **Aliases only**: Edit `~/.zshrc` and remove lines with `alias cdg=`, `alias cda=`, etc.
 - **PAT tokens only**: Edit `~/.zshrc` and remove lines with `export GH_TOKEN_*`
 
@@ -71,13 +71,13 @@ Remove individual components:
 
 ```bash
 cd /path/to/my/project
-gitak_create_from_local akamlibehsafe/my-new-repo
+gitscripts_create_from_local akamlibehsafe/my-new-repo
 ```
 
 ### Clone Existing Repository
 
 ```bash
-gitak_create_from_remote fortegb/existing-repo
+gitscripts_create_from_remote fortegb/existing-repo
 cd existing-repo
 ```
 
@@ -85,13 +85,13 @@ cd existing-repo
 
 ```bash
 # From repository directory:
-gitak_push
+gitscripts_push
 
 # With commit message:
-gitak_push -m "Update documentation"
+gitscripts_push -m "Update documentation"
 
 # From different directory:
-gitak_push /path/to/repo -m "Fix bug"
+gitscripts_push /path/to/repo -m "Fix bug"
 ```
 
 ### Update Scripts
@@ -118,7 +118,7 @@ echo 'export GH_TOKEN_akamlibehsafe="your_token"' >> ~/.zshrc
 source ~/.zshrc
 
 # Verify:
-gitak_verify_PAT
+gitscripts_verify_PAT
 ```
 
 **Error: "401 Unauthorized"**
@@ -161,23 +161,23 @@ source ~/.zshrc
 
 # Recreate symlinks:
 cd ~/Documents/GitHub/akamlibehsafe/gitscripts
-./scripts/gitak_setup_symlinks
+./scripts/gitscripts_setup_symlinks
 ```
 
 **Symlinks broken (repository moved)**
 ```bash
 # Recreate symlinks:
 cd /path/to/new/gitscripts/location
-./scripts/gitak_setup_symlinks
+./scripts/gitscripts_setup_symlinks
 # Script will detect and fix broken symlinks
 ```
 
 **Symlink points to wrong location**
 ```bash
 # Remove and recreate:
-rm ~/bin/gitak_*
+rm ~/bin/gitscripts_*
 cd ~/Documents/GitHub/akamlibehsafe/gitscripts
-./scripts/gitak_setup_symlinks
+./scripts/gitscripts_setup_symlinks
 ```
 
 ### Shell Configuration Issues
@@ -232,11 +232,11 @@ source ~/.zshrc
 
 ```bash
 # Remove all symlinks:
-rm ~/bin/gitak_* ~/bin/zsh_install ~/bin/environment_* 2>/dev/null
+rm ~/bin/gitscripts_* ~/bin/zsh_install ~/bin/environment_* 2>/dev/null
 
 # Recreate:
 cd ~/Documents/GitHub/akamlibehsafe/gitscripts
-./scripts/gitak_setup_symlinks
+./scripts/gitscripts_setup_symlinks
 ```
 
 ### Recover from Deleted Repository
@@ -246,13 +246,13 @@ If `~/Documents/GitHub/akamlibehsafe/gitscripts` was deleted:
 ```bash
 # Clone repository:
 cd ~/Documents/GitHub/akamlibehsafe
-gitak_create_from_remote akamlibehsafe/gitscripts
+gitscripts_create_from_remote akamlibehsafe/gitscripts
 # Or manually:
 git clone https://github.com/akamlibehsafe/gitscripts.git
 
 # Recreate symlinks:
 cd gitscripts
-./scripts/gitak_setup_symlinks
+./scripts/gitscripts_setup_symlinks
 ```
 
 ### Recover PAT Tokens
@@ -276,7 +276,7 @@ If PAT tokens are lost/expired:
 
 3. **Verify:**
    ```bash
-   gitak_verify_PAT
+   gitscripts_verify_PAT
    ```
 
 ## Known Gotchas
@@ -321,15 +321,15 @@ git --version && gh --version && git lfs version
 [ -n "$GH_TOKEN_fortegb" ] && [ -n "$GH_TOKEN_akamlibehsafe" ] && echo "✓ PATs set" || echo "✗ PATs missing"
 
 # Symlinks should exist:
-ls ~/bin/gitak_* > /dev/null 2>&1 && echo "✓ Symlinks exist" || echo "✗ Symlinks missing"
+ls ~/bin/gitscripts_* > /dev/null 2>&1 && echo "✓ Symlinks exist" || echo "✗ Symlinks missing"
 
 # Scripts should be executable:
-[ -x ~/bin/gitak_push ] && echo "✓ Scripts executable" || echo "✗ Scripts not executable"
+[ -x ~/bin/gitscripts_push ] && echo "✓ Scripts executable" || echo "✗ Scripts not executable"
 ```
 
 **Full verification:**
 ```bash
-gitak_verify_PAT
+gitscripts_verify_PAT
 ```
 
 ## Maintenance
@@ -350,7 +350,7 @@ gitak_verify_PAT
 3. **Verify symlinks after moving repository:**
    ```bash
    cd /new/location/gitscripts
-   ./scripts/gitak_setup_symlinks
+   ./scripts/gitscripts_setup_symlinks
    ```
 
 4. **Check for script updates:**

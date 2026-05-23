@@ -67,7 +67,7 @@ prompt "WARNING: This script will COMPLETELY REMOVE:"
 echo "  • All Git repositories in ~/Documents/GitHub (after checking for pending pushes)"
 echo "  • Git, Git LFS, GitHub CLI tools"
 echo "  • PAT tokens from shell configuration files"
-echo "  • Symlinks in ~/bin/ (gitak_*, gitscripts_*, doc_*, environment_*)"
+echo "  • Symlinks in ~/bin/ (gitscripts_*, gitscripts_*, doc_*, environment_*)"
 echo "  • Optional: gitscripts SSH keys (~/.ssh/gitscripts) and includeIf git identity"
 echo "  • Aliases in ~/.zshrc (cdg, cda, cdf, cds)"
 echo "  • Cursor Desktop (if installed via Homebrew)"
@@ -188,11 +188,11 @@ if [ -d "$GIT_ROOT_DIR" ] && command -v git &> /dev/null; then
                 info "Processing: $repo"
                 cd "$repo" || continue
                 
-                # Try to use gitak_push if available, otherwise use git directly
-                if command -v gitak_push &> /dev/null; then
-                    info "Using gitak_push for $repo"
+                # Try to use gitscripts_push if available, otherwise use git directly
+                if command -v gitscripts_push &> /dev/null; then
+                    info "Using gitscripts_push for $repo"
                     set +e
-                    gitak_push -m "Final commit before environment uninstall - $(date '+%Y-%m-%d %H:%M:%S')" 2>&1 || info "Failed to push using gitak_push (will try git directly)"
+                    gitscripts_push -m "Final commit before environment uninstall - $(date '+%Y-%m-%d %H:%M:%S')" 2>&1 || info "Failed to push using gitscripts_push (will try git directly)"
                     set -e
                 else
                     # Use git directly (basic push - assumes PAT is configured)
@@ -320,12 +320,12 @@ for config_file in "${SHELL_CONFIGS[@]}"; do
                     sed -i '' '/^export GH_TOKEN_/d' "$config_file" 2>/dev/null || true
                     sed -i '' '/# gitscripts PAT/d' "$config_file" 2>/dev/null || true
                     sed -i '' '/# Git Automation Scripts - Personal Access Tokens/d' "$config_file" 2>/dev/null || true
-                    sed -i '' '/# Added by gitak_install script/d' "$config_file" 2>/dev/null || true
+                    sed -i '' '/# Added by gitscripts_install script/d' "$config_file" 2>/dev/null || true
                 else
                     sed -i '/^export GH_TOKEN_/d' "$config_file" 2>/dev/null || true
                     sed -i '/# gitscripts PAT/d' "$config_file" 2>/dev/null || true
                     sed -i '/# Git Automation Scripts - Personal Access Tokens/d' "$config_file" 2>/dev/null || true
-                    sed -i '/# Added by gitak_install script/d' "$config_file" 2>/dev/null || true
+                    sed -i '/# Added by gitscripts_install script/d' "$config_file" 2>/dev/null || true
                 fi
                 success "Removed PAT tokens from $config_file"
             else

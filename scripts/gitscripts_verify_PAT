@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# gitak_verify_PAT
+# gitscripts_verify_PAT
 # Helper script to verify PAT tokens are set up correctly
 
 set -e

@@ -57,7 +57,7 @@ The repository includes an orchestration script `environment_install` that insta
 
 2. **Run the installation script:**
    ```bash
-   ./scripts/gitak_install
+   ./scripts/gitscripts_install
    ```
    
    This will:
@@ -69,7 +69,7 @@ The repository includes an orchestration script `environment_install` that insta
 
 3. **If you skipped symlink setup, run manually:**
    ```bash
-   ./scripts/gitak_setup_symlinks
+   ./scripts/gitscripts_setup_symlinks
    ```
    
    This script will:
@@ -101,7 +101,7 @@ Symlinks automatically point to the updated scripts - no re-setup needed!
 ### Script Location
 - **Repository location:** `/path/to/gitscripts/` (where scripts are stored)
 - **Symlink location:** `~/bin/` (where scripts are accessed from)
-- **Usage:** Scripts are called by name (e.g., `gitak_create_from_local`) assuming `~/bin/` is in PATH
+- **Usage:** Scripts are called by name (e.g., `gitscripts_create_from_local`) assuming `~/bin/` is in PATH
 
 ## Authentication
 - **Account 1**: `fortegb` → PAT variable: `GH_TOKEN_fortegb`
@@ -145,7 +145,7 @@ Comprehensive installation script that orchestrates the installation and configu
    - Create `~/Documents/GitHub` directory if it doesn't exist
 
 4. **Git, Git LFS, GitHub CLI Installation**:
-   - Run `gitak_install` script to install Git tools
+   - Run `gitscripts_install` script to install Git tools
    - This will also clone the gitscripts repository to `~/Documents/GitHub/akamlibehsafe/gitscripts`
 
 5. **Clone All Repositories from GitHub Accounts (Optional)**:
@@ -167,7 +167,7 @@ Comprehensive installation script that orchestrates the installation and configu
 8. **Symlinks Setup**:
    - Ask if user wants to set up symlinks in `~/bin/`
    - Create `~/bin/` directory if it doesn't exist (with user confirmation)
-   - Run `gitak_setup_symlinks` to create symlinks for all scripts
+   - Run `gitscripts_setup_symlinks` to create symlinks for all scripts
 
 9. **Add Useful Aliases**:
    - Add aliases to `~/.zshrc`:
@@ -223,7 +223,7 @@ Comprehensive uninstallation script that removes all components installed by `en
 1. **Check for Pending Git Changes**:
    - Scans `~/Documents/GitHub` for Git repositories
    - Detects uncommitted changes or unpushed commits
-   - Prompts the user to push pending changes and attempts to do so using `gitak_push` or direct `git` commands
+   - Prompts the user to push pending changes and attempts to do so using `gitscripts_push` or direct `git` commands
 
 2. **Remove Symlinks**:
    - Remove symlinks in `~/bin/` for all Git automation scripts
@@ -281,14 +281,14 @@ Comprehensive uninstallation script that removes all components installed by `en
 
 ---
 
-## Script 1: `gitak_create_from_local`
+## Script 1: `gitscripts_create_from_local`
 
 ### Purpose
 Create a new GitHub repository from a local folder, initialize it, commit existing files, and push to remote.
 
 ### Usage
 ```bash
-gitak_create_from_local <user/repo>
+gitscripts_create_from_local <user/repo>
 ```
 
 ### Parameters
@@ -320,14 +320,14 @@ gitak_create_from_local <user/repo>
 
 ---
 
-## Script 2: `gitak_create_from_remote`
+## Script 2: `gitscripts_create_from_remote`
 
 ### Purpose
 Clone an existing GitHub repository to local machine and check it out for editing.
 
 ### Usage
 ```bash
-gitak_create_from_remote <user/repo>
+gitscripts_create_from_remote <user/repo>
 ```
 
 ### Parameters
@@ -356,14 +356,14 @@ gitak_create_from_remote <user/repo>
 
 ---
 
-## Script 3: `gitak_push`
+## Script 3: `gitscripts_push`
 
 ### Purpose
 Commit and push changes from a local Git repository, automatically detecting the repository owner.
 
 ### Usage
 ```bash
-gitak_push [directory]
+gitscripts_push [directory]
 ```
 
 ### Parameters
@@ -405,14 +405,14 @@ gitak_push [directory]
 
 ---
 
-## Script 4: `gitak_install`
+## Script 4: `gitscripts_install`
 
 ### Purpose
 Install Git, Git LFS (Large File Storage), GitHub CLI (`gh`), and all necessary dependencies on a new Mac computer, then provide instructions for configuring Personal Access Tokens.
 
 ### Usage
 ```bash
-gitak_install
+gitscripts_install
 ```
 
 ### Parameters
@@ -584,25 +584,25 @@ The script should output clear instructions for the user to:
 
 ## Testing Scenarios
 
-### Script 1 (`gitak_create_from_local`)
+### Script 1 (`gitscripts_create_from_local`)
 - Create repo from empty folder
 - Create repo from folder with files
 - Create repo from folder that's already a git repo
 - Test with both user accounts
 
-### Script 2 (`gitak_create_from_remote`)
+### Script 2 (`gitscripts_create_from_remote`)
 - Clone existing public repo
 - Clone existing private repo (with PAT)
 - Handle case where repo already exists locally
 - Test with both user accounts
 
-### Script 3 (`gitak_push`)
+### Script 3 (`gitscripts_push`)
 - Push from folder with uncommitted changes
 - Push from folder with no changes
 - Push from folder with remote pointing to different account
 - Test with both user accounts
 
-### Script 4 (`gitak_install`)
+### Script 4 (`gitscripts_install`)
 - Fresh Mac installation (no Git, no Git LFS, no Homebrew)
 - Mac with Homebrew but no Git/Git LFS/gh
 - Mac with Git/Git LFS/gh already installed

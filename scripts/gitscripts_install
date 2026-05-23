@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# gitak_install
+# gitscripts_install
 # Installs Git, Git LFS, GitHub CLI, and all necessary dependencies on a new Mac computer,
 # then provides instructions for configuring Personal Access Tokens.
 
@@ -525,7 +525,7 @@ if [ -f "$GITSCRIPTS_REPO/PAT.md" ]; then
                 if ! grep -q "GH_TOKEN_fortegb\|GH_TOKEN_akamlibehsafe" "$OTHER_SHELL_CONFIG" 2>/dev/null; then
                     echo "" >> "$OTHER_SHELL_CONFIG"
                     echo "# Git Automation Scripts - Personal Access Tokens" >> "$OTHER_SHELL_CONFIG"
-                    echo "# Added by gitak_install script on $(date)" >> "$OTHER_SHELL_CONFIG"
+                    echo "# Added by gitscripts_install script on $(date)" >> "$OTHER_SHELL_CONFIG"
                     echo "$PAT_EXPORTS" >> "$OTHER_SHELL_CONFIG"
                     echo "" >> "$OTHER_SHELL_CONFIG"
                     success "PAT tokens also added to $OTHER_SHELL_CONFIG"
@@ -540,7 +540,7 @@ if [ -f "$GITSCRIPTS_REPO/PAT.md" ]; then
             info "Adding PAT tokens to $SHELL_CONFIG"
             echo "" >> "$SHELL_CONFIG"
             echo "# Git Automation Scripts - Personal Access Tokens" >> "$SHELL_CONFIG"
-            echo "# Added by gitak_install script on $(date)" >> "$SHELL_CONFIG"
+            echo "# Added by gitscripts_install script on $(date)" >> "$SHELL_CONFIG"
             echo "$PAT_EXPORTS" >> "$SHELL_CONFIG"
             echo "" >> "$SHELL_CONFIG"
             
@@ -566,10 +566,10 @@ CURRENT_REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 
 # Determine which repository to use for symlink setup
 # If we're running from within the repo, use that; otherwise use the cloned repo
-if [ -f "$CURRENT_REPO_ROOT/scripts/gitak_setup_symlinks" ]; then
+if [ -f "$CURRENT_REPO_ROOT/scripts/gitscripts_setup_symlinks" ]; then
     REPO_ROOT="$CURRENT_REPO_ROOT"
     info "Using current repository at: $REPO_ROOT"
-elif [ -f "$GITSCRIPTS_REPO/scripts/gitak_setup_symlinks" ]; then
+elif [ -f "$GITSCRIPTS_REPO/scripts/gitscripts_setup_symlinks" ]; then
     REPO_ROOT="$GITSCRIPTS_REPO"
     info "Using cloned repository at: $REPO_ROOT"
 else
@@ -577,7 +577,7 @@ else
     info "Repository will be used from: $REPO_ROOT"
 fi
 
-SETUP_SCRIPT="$REPO_ROOT/scripts/gitak_setup_symlinks"
+SETUP_SCRIPT="$REPO_ROOT/scripts/gitscripts_setup_symlinks"
 
 if [ -f "$SETUP_SCRIPT" ]; then
     section "Script Symlink Setup"
@@ -599,19 +599,19 @@ if [ -f "$SETUP_SCRIPT" ]; then
     else
         info "Symlink setup skipped. You can run it later with:"
         echo "  cd $REPO_ROOT"
-        echo "  ./scripts/gitak_setup_symlinks"
+        echo "  ./scripts/gitscripts_setup_symlinks"
         echo ""
         info "For now, you can use the scripts from the repository directory:"
     fi
 else
-    info "Note: If you have the gitscripts repository, run scripts/gitak_setup_symlinks to create symlinks in ~/bin/"
+    info "Note: If you have the gitscripts repository, run scripts/gitscripts_setup_symlinks to create symlinks in ~/bin/"
     echo ""
     info "You can use the Git automation scripts:"
 fi
 
-echo "  • gitak_create_from_local <user/repo>"
-echo "  • gitak_create_from_remote <user/repo>"
-echo "  • gitak_push [directory]"
+echo "  • gitscripts_create_from_local <user/repo>"
+echo "  • gitscripts_create_from_remote <user/repo>"
+echo "  • gitscripts_push [directory]"
 echo ""
 success "Happy coding! 🚀"
 

@@ -21,7 +21,7 @@ Installs: Homebrew → Git tools → Zsh/Powerlevel10k → Cursor (optional) →
 
 **Git tools only:**
 ```bash
-./scripts/gitak_install
+./scripts/gitscripts_install
 ```
 
 ### Uninstall
@@ -33,17 +33,17 @@ Installs: Homebrew → Git tools → Zsh/Powerlevel10k → Cursor (optional) →
 ### Create from Local/Remote
 ```bash
 # Create new repo from current directory:
-gitak_create_from_local akamlibehsafe/my-repo
+gitscripts_create_from_local akamlibehsafe/my-repo
 
 # Clone existing repo:
-gitak_create_from_remote fortegb/existing-repo
+gitscripts_create_from_remote fortegb/existing-repo
 ```
 Scripts auto-detect account from `user/repo` format and use appropriate PAT.
 
 ### Push Flow
 ```bash
 # From repo directory:
-gitak_push -m "Commit message"
+gitscripts_push -m "Commit message"
 
 # Auto-detects account from remote URL, stages all changes, commits, pushes
 ```
@@ -53,12 +53,12 @@ gitak_push -m "Commit message"
 ### `scripts/` - Main Scripts
 - **`environment_install`**: Orchestrates complete macOS dev environment setup
 - **`environment_uninstall`**: Removes everything installed by environment_install
-- **`gitak_install`**: Installs Git, Git LFS, GitHub CLI, and dependencies
-- **`gitak_create_from_local`**: Creates GitHub repo from local folder
-- **`gitak_create_from_remote`**: Clones existing GitHub repository
-- **`gitak_push`**: Commits and pushes changes (auto-detects account)
-- **`gitak_verify_PAT`**: Validates PAT tokens are set and working
-- **`gitak_setup_symlinks`**: Creates symlinks in `~/bin/` for system-wide access
+- **`gitscripts_install`**: Installs Git, Git LFS, GitHub CLI, and dependencies
+- **`gitscripts_create_from_local`**: Creates GitHub repo from local folder
+- **`gitscripts_create_from_remote`**: Clones existing GitHub repository
+- **`gitscripts_push`**: Commits and pushes changes (auto-detects account)
+- **`gitscripts_verify_PAT`**: Validates PAT tokens are set and working
+- **`gitscripts_setup_symlinks`**: Creates symlinks in `~/bin/` for system-wide access
 - **`zsh_install`**: Installs and configures Zsh, Oh My Zsh, Powerlevel10k
 
 ### `config/` - Configuration Files
@@ -101,11 +101,11 @@ gitak_push -m "Commit message"
 
 3. **Scripts not found in PATH**
    - **Cause**: `~/bin/` not in PATH or symlinks not created
-   - **Fix**: Run `./scripts/gitak_setup_symlinks` to create symlinks and add to PATH
+   - **Fix**: Run `./scripts/gitscripts_setup_symlinks` to create symlinks and add to PATH
 
 4. **Symlinks broken after moving repository**
    - **Cause**: Symlinks point to old repository location
-   - **Fix**: Re-run `gitak_setup_symlinks` from new location (auto-detects and fixes)
+   - **Fix**: Re-run `gitscripts_setup_symlinks` from new location (auto-detects and fixes)
 
 5. **"dubious ownership" Git error**
    - **Cause**: Git safety check for directories outside user home
@@ -158,7 +158,7 @@ gitak_push -m "Commit message"
 
 ### Symlink System
 - Scripts in repo: `~/Documents/GitHub/akamlibehsafe/gitscripts/scripts/`
-- Symlinks in: `~/bin/gitak_*`
+- Symlinks in: `~/bin/gitscripts_*`
 - Updated via: `git pull` in repo (symlinks automatically point to new versions)
 
 ### Installation Order (environment_install)

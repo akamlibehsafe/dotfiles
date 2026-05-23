@@ -21,11 +21,12 @@ Check Progress below. Next: Execute Phase N only.
 | 1 Guide, ADR 0005, plan docs | Done | This file, guide, implementation map |
 | 2 New `gitscripts_*` scripts | Done | commit `04d6824`; agent verified preflight + dry-runs |
 | 2-test User verification | Done | PAT 3/3, SSH 3/3, remotes migrated, branch pushed |
-| 3 Update `gitak_*` + environment_install | Done | hybrid push/clone, manual create_from_local, install wizards |
-| 3-test User verification | Done | gitak_push on throwaway SSH repo |
+| 3 Update `gitscripts_*` + environment_install | Done | hybrid push/clone, manual create_from_local, install wizards |
+| 3-test User verification | Done | gitscripts_push on throwaway SSH repo |
 | 4 Orchestration polish | Done | shared manifest, setup/uninstall symlinks, SSH cleanup option |
-| 4-test User verification | **Next** | gitak_setup_symlinks refresh; optional uninstall dry-run |
-| 5 Rename `gitak_*` → `gitscripts_*` | Pending | Breaking |
+| 4-test User verification | Done | gitscripts_setup_symlinks refresh |
+| 5 Rename `gitak_*` → `gitscripts_*` | Done | breaking rename; setup removes old `~/bin/gitak_*` |
+| 5-test User verification | **Next** | `gitscripts_setup_symlinks`; no `~/bin/gitak_*` |
 | 6 Release `v0.4.0` | Pending | USER: tag + optional GitHub Release |
 
 ---
@@ -34,11 +35,11 @@ Check Progress below. Next: Execute Phase N only.
 
 - **Accounts:** `rbonon`, `fortegb`, `akamlibehsafe` + `GH_TOKEN_*` for each
 - **Auth:** SSH transport + `includeIf` identity; PAT for API/bulk clone
-- **Prefix:** `gitak_*` → `gitscripts_*` (Phase 5)
+- **Prefix:** `gitscripts_*` (renamed from `gitak_*` in 0.4.0)
 - **SSH keys:** `~/.ssh/gitscripts/`; test-first / repair mode; preflight before changes
 - **New Mac:** primary audience; `environment_install` runs preflight → PAT wizard → … → SSH wizard
 - **Rollback:** `git checkout main` + restore Desktop backup; see [Rollback](#rollback)
-- **Tests:** plain `git`/`ssh`/`curl` on throwaway repo — not `gitak_*` while developing
+- **Tests:** plain `git`/`ssh`/`curl` on throwaway repo for auth verification
 - **0.2.0:** CHANGELOG only, no git tag. **0.3.0:** tag at `5796107`. **0.4.0:** tag when released.
 
 ---
@@ -80,7 +81,7 @@ Guide, ADR 0005, this plan, VERSIONING, implementation map. README links.
 
 ### Phase 3 — Hybrid behavior
 
-Update existing `gitak_*` (keep names until Phase 5). Wire `environment_install`.
+Update existing scripts for hybrid SSH/PAT. Wire `environment_install`.
 
 ### Phase 4 — Orchestration cleanup
 
@@ -114,7 +115,7 @@ cp ~/.gitconfig-* "$BACKUP/" 2>/dev/null || true
 cp ~/.zshrc "$BACKUP/" 2>/dev/null || true
 ```
 
-**Discard 0.4.0 code:** `git checkout main && ./scripts/gitak_setup_symlinks`
+**Discard 0.4.0 code:** `git checkout main && ./scripts/gitscripts_setup_symlinks`
 
 ---
 

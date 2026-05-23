@@ -17,4 +17,4 @@ Maps [github-multiple-accounts-mac-cursor.md](guides/github-multiple-accounts-ma
 
 **Preflight:** `gitscripts_preflight` — scan → planned actions → confirm.
 
-**Status:** Phase 2–3 scripts implemented. `gitak_*` use hybrid SSH/PAT; `environment_install` wires preflight/PAT/SSH wizards. Rename to `gitscripts_*` in Phase 5.
+**Status:** All user-facing scripts use the `gitscripts_*` prefix (0.4.0).

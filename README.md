@@ -12,7 +12,7 @@
 
 **For Git-only installation:**
 
-Download the `gitak_install` script by itself and execute it. It will install and configure git on your machine. At the end it will also clone the gitscripts repo with the git scripts created to make it easier to work with git.
+Download the `gitscripts_install` script by itself and execute it. It will install and configure git on your machine. At the end it will also clone the gitscripts repo with the git scripts created to make it easier to work with git.
 
 **See `README_FIRST.md` for detailed instructions on using `environment_install`.**
 
@@ -67,7 +67,7 @@ chmod +x environment_uninstall
 
 **What it does:**
 - Checks for pending git changes in `~/Documents/GitHub` and offers to push them before deletion
-- Removes symlinks in `~/bin/` (gitak_*, zsh_install)
+- Removes symlinks in `~/bin/` (gitscripts_*, zsh_install)
 - Removes aliases from `~/.zshrc` (cdg, cda, cdf, cds)
 - Removes PAT tokens from shell configuration files (`.zshrc`, `.bashrc`, `.bash_profile`)
 - Uninstalls Cursor Desktop (if installed via Homebrew)
@@ -83,12 +83,12 @@ chmod +x environment_uninstall
 
 **Note:** The script is interactive and will prompt you before removing each component. You can skip any component removal.
 
-### 1. `gitak_install`
+### 1. `gitscripts_install`
 Installs Git, Git LFS, GitHub CLI, and all necessary dependencies on macOS.
 
 **Usage:**
 ```bash
-./scripts/gitak_install
+./scripts/gitscripts_install
 ```
 
 **What it does:**
@@ -98,18 +98,18 @@ Installs Git, Git LFS, GitHub CLI, and all necessary dependencies on macOS.
 - Configures Git user settings
 - Provides post-installation instructions for PAT setup
 
-### 2. `gitak_create_from_local`
+### 2. `gitscripts_create_from_local`
 Creates a new GitHub repository from a local folder.
 
 **Usage:**
 ```bash
-./scripts/gitak_create_from_local <user/repo>
+./scripts/gitscripts_create_from_local <user/repo>
 ```
 
 **Example:**
 ```bash
-./scripts/gitak_create_from_local fortegb/my-new-project
-./scripts/gitak_create_from_local akamlibehsafe/test-repo
+./scripts/gitscripts_create_from_local fortegb/my-new-project
+./scripts/gitscripts_create_from_local akamlibehsafe/test-repo
 ```
 
 **What it does:**
@@ -118,18 +118,18 @@ Creates a new GitHub repository from a local folder.
 - Stages and commits existing files
 - Pushes to the remote repository
 
-### 3. `gitak_create_from_remote`
+### 3. `gitscripts_create_from_remote`
 Clones an existing GitHub repository to your local machine.
 
 **Usage:**
 ```bash
-./scripts/gitak_create_from_remote <user/repo>
+./scripts/gitscripts_create_from_remote <user/repo>
 ```
 
 **Example:**
 ```bash
-./scripts/gitak_create_from_remote fortegb/existing-repo
-./scripts/gitak_create_from_remote akamlibehsafe/my-project
+./scripts/gitscripts_create_from_remote fortegb/existing-repo
+./scripts/gitscripts_create_from_remote akamlibehsafe/my-project
 ```
 
 **What it does:**
@@ -137,20 +137,20 @@ Clones an existing GitHub repository to your local machine.
 - Changes into the cloned directory
 - Handles Git safe.directory configuration for temporary directories
 
-### 4. `gitak_push`
+### 4. `gitscripts_push`
 Commits and pushes changes from a local Git repository.
 
 **Usage:**
 ```bash
-./scripts/gitak_push [directory] [-m "commit message"]
+./scripts/gitscripts_push [directory] [-m "commit message"]
 ```
 
 **Examples:**
 ```bash
-./scripts/gitak_push                              # Push from current directory
-./scripts/gitak_push /path/to/repo                 # Push from specified directory
-./scripts/gitak_push -m "Update documentation"     # Push with commit message
-./scripts/gitak_push /path/to/repo -m "Fix bug"   # Push from directory with message
+./scripts/gitscripts_push                              # Push from current directory
+./scripts/gitscripts_push /path/to/repo                 # Push from specified directory
+./scripts/gitscripts_push -m "Update documentation"     # Push with commit message
+./scripts/gitscripts_push /path/to/repo -m "Fix bug"   # Push from directory with message
 ```
 
 **What it does:**
@@ -159,12 +159,12 @@ Commits and pushes changes from a local Git repository.
 - Creates a commit (prompts for message if not provided)
 - Pushes to remote using appropriate PAT
 
-### 5. `gitak_verify_PAT`
+### 5. `gitscripts_verify_PAT`
 Helper script to verify PAT tokens are configured correctly.
 
 **Usage:**
 ```bash
-./scripts/gitak_verify_PAT
+./scripts/gitscripts_verify_PAT
 ```
 
 **What it does:**
@@ -197,7 +197,7 @@ Installs and configures a beautiful, Git-aware shell prompt with Powerlevel10k t
 
 ## Prerequisites
 
-1. **macOS** (required for `gitak_install` and `zsh_install` scripts)
+1. **macOS** (required for `gitscripts_install` and `zsh_install` scripts)
 2. **Personal Access Tokens (PATs)** for both GitHub accounts:
    - `GH_TOKEN_fortegb` - for the `fortegb` account
    - `GH_TOKEN_akamlibehsafe` - for the `akamlibehsafe` account
@@ -247,7 +247,7 @@ cd gitscripts
 
 **Then run the installation script:**
 ```bash
-./scripts/gitak_install
+./scripts/gitscripts_install
 ```
 
 This will:
@@ -255,7 +255,7 @@ This will:
 - Provide instructions for PAT configuration
 - **Automatically offer to set up symlinks** (if run from the repository directory)
 
-**Note:** If `gitak_install` detects it's in the gitscripts repository, it will automatically offer to run `gitak_setup_symlinks` at the end. You can accept this to complete the setup in one go.
+**Note:** If `gitscripts_install` detects it's in the gitscripts repository, it will automatically offer to run `gitscripts_setup_symlinks` at the end. You can accept this to complete the setup in one go.
 
 ### 2. Configure Personal Access Tokens
 
@@ -266,7 +266,7 @@ This will:
 
 2. **Store PATs in your shell configuration:**
    
-   The `gitak_install` script automatically detects your shell (bash or zsh) and configures the appropriate file:
+   The `gitscripts_install` script automatically detects your shell (bash or zsh) and configures the appropriate file:
    - **Bash**: Uses `.bash_profile` (or `.bashrc` if `.bash_profile` doesn't exist)
    - **Zsh**: Uses `.zshrc`
    
@@ -295,7 +295,7 @@ This will:
 
 4. **Verify setup:**
    ```bash
-   ./scripts/gitak_verify_PAT
+   ./scripts/gitscripts_verify_PAT
    ```
 
 ### 3. Set Up Symlinks to ~/bin/
@@ -309,7 +309,7 @@ This approach:
 
 **Automatic Setup (Recommended):**
 
-If you ran `gitak_install` from the repository directory, it will automatically offer to set up symlinks at the end. Simply accept the prompt.
+If you ran `gitscripts_install` from the repository directory, it will automatically offer to set up symlinks at the end. Simply accept the prompt.
 
 **Manual Setup:**
 
@@ -317,7 +317,7 @@ If you skipped the automatic setup or need to recreate symlinks:
 
 ```bash
 cd /path/to/gitscripts
-./scripts/gitak_setup_symlinks
+./scripts/gitscripts_setup_symlinks
 ```
 
 This script will:
@@ -338,11 +338,11 @@ mkdir -p ~/bin
 cd /path/to/gitscripts
 
 # Create symlinks
-ln -s "$(pwd)/scripts/gitak_install" ~/bin/gitak_install
-ln -s "$(pwd)/scripts/gitak_create_from_local" ~/bin/gitak_create_from_local
-ln -s "$(pwd)/scripts/gitak_create_from_remote" ~/bin/gitak_create_from_remote
-ln -s "$(pwd)/scripts/gitak_push" ~/bin/gitak_push
-ln -s "$(pwd)/scripts/gitak_verify_PAT" ~/bin/gitak_verify_PAT
+ln -s "$(pwd)/scripts/gitscripts_install" ~/bin/gitscripts_install
+ln -s "$(pwd)/scripts/gitscripts_create_from_local" ~/bin/gitscripts_create_from_local
+ln -s "$(pwd)/scripts/gitscripts_create_from_remote" ~/bin/gitscripts_create_from_remote
+ln -s "$(pwd)/scripts/gitscripts_push" ~/bin/gitscripts_push
+ln -s "$(pwd)/scripts/gitscripts_verify_PAT" ~/bin/gitscripts_verify_PAT
 ln -s "$(pwd)/scripts/zsh_install" ~/bin/zsh_install
 
 # Ensure ~/bin is in PATH (add to ~/.bashrc, ~/.bash_profile, or ~/.zshrc)
@@ -362,19 +362,19 @@ export PATH="$HOME/bin:$PATH"
 ### Create a new repository from local folder
 ```bash
 cd /path/to/my/project
-gitak_create_from_local fortegb/my-new-repo
+gitscripts_create_from_local fortegb/my-new-repo
 ```
 
 ### Clone an existing repository
 ```bash
-gitak_create_from_remote akamlibehsafe/existing-repo
+gitscripts_create_from_remote akamlibehsafe/existing-repo
 cd existing-repo
 ```
 
 ### Make changes and push
 ```bash
 echo "New content" >> README.md
-gitak_push -m "Update README"
+gitscripts_push -m "Update README"
 ```
 
 ### Set up a beautiful shell prompt
@@ -392,16 +392,16 @@ p10k configure
 mkdir my-project
 cd my-project
 echo "# My Project" > README.md
-gitak_create_from_local fortegb/my-project
+gitscripts_create_from_local fortegb/my-project
 
 # 2. Clone it elsewhere
 cd /tmp
-gitak_create_from_remote fortegb/my-project
+gitscripts_create_from_remote fortegb/my-project
 cd my-project
 
 # 3. Make changes and push
 echo "Update" >> README.md
-gitak_push -m "Add update"
+gitscripts_push -m "Add update"
 ```
 
 ## Features
@@ -459,7 +459,7 @@ gitak_push -m "Add update"
 
 Use the verification script to check your setup:
 ```bash
-gitak_verify_PAT
+gitscripts_verify_PAT
 ```
 
 ## Testing
@@ -471,15 +471,15 @@ Comprehensive test scenarios are documented in `TEST_SCENARIOS.md`. All scripts 
 ### Scripts (in `scripts/` directory)
 - `scripts/environment_install` - Complete environment installation script (orchestrates all installations)
 - `scripts/environment_uninstall` - Complete environment uninstallation script (removes components installed by environment_install)
-- `scripts/gitak_install` - Installation script for macOS (Git tools only)
-- `scripts/gitak_create_from_local` - Create repository from local folder
-- `scripts/gitak_create_from_remote` - Clone existing repository
-- `scripts/gitak_push` - Commit and push changes
-- `scripts/gitak_verify_PAT` - PAT token verification helper
+- `scripts/gitscripts_install` - Installation script for macOS (Git tools only)
+- `scripts/gitscripts_create_from_local` - Create repository from local folder
+- `scripts/gitscripts_create_from_remote` - Clone existing repository
+- `scripts/gitscripts_push` - Commit and push changes
+- `scripts/gitscripts_verify_PAT` - PAT token verification helper
 - `scripts/zsh_install` - Install and configure Powerlevel10k shell prompt
 
 ### Support Scripts
-- `gitak_setup_symlinks` - **Setup script to create symlinks in ~/bin/**
+- `gitscripts_setup_symlinks` - **Setup script to create symlinks in ~/bin/**
 
 ### Documentation Scripts
 - `doc_new_adr` - Create new Architecture Decision Record template
@@ -513,7 +513,7 @@ Since scripts are kept in the repository folder and accessed via symlinks:
 3. **If you need to recreate symlinks** (e.g., after moving the repository):
    ```bash
    cd /path/to/gitscripts
-   ./scripts/gitak_setup_symlinks
+   ./scripts/gitscripts_setup_symlinks
    ```
 
 ## License
@@ -524,10 +524,10 @@ This project is for personal use. Modify as needed for your requirements.
 
 For issues or questions:
 1. Check `TEST_SCENARIOS.md` for test scenarios
-2. Run `./scripts/gitak_verify_PAT` to check PAT configuration
+2. Run `./scripts/gitscripts_verify_PAT` to check PAT configuration
 3. Review error messages for specific troubleshooting tips
 
 ---
 
-**Note:** These scripts are designed for macOS. For Linux or Windows, you may need to modify the installation script (`gitak_install`).
+**Note:** These scripts are designed for macOS. For Linux or Windows, you may need to modify the installation script (`gitscripts_install`).
 

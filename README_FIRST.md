@@ -148,7 +148,7 @@ Once the script completes successfully:
 For detailed documentation, see `README.md` in the repository.
 
 For issues with specific components:
-- Git tools: Check `scripts/gitak_install` documentation
+- Git tools: Check `scripts/gitscripts_install` documentation
 - Zsh setup: Check `scripts/zsh_install` documentation
 - Script usage: Check `README.md` for individual script documentation
 
@@ -174,7 +174,7 @@ This repository also includes an `environment_uninstall` script that performs th
 The `environment_uninstall` script will **completely remove** all components installed by `environment_install`:
 
 - **Checks for pending git changes** in `~/Documents/GitHub` and offers to push them before deletion
-- **Removes symlinks** in `~/bin/` (gitak_*, zsh_install)
+- **Removes symlinks** in `~/bin/` (gitscripts_*, zsh_install)
 - **Removes aliases** from `~/.zshrc` (cdg, cda, cdf, cds)
 - **Removes PAT tokens** from shell configuration files (`.zshrc`, `.bashrc`, `.bash_profile`)
 - **Uninstalls Cursor Desktop** (if installed via Homebrew)

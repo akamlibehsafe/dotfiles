@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# gitak_setup_symlinks
-# Creates symlinks in ~/bin/ pointing to the git scripts in this repository.
+# gitscripts_setup_symlinks
+# Creates symlinks in ~/bin/ pointing to scripts in this repository.
+# Removes deprecated gitscripts_* symlinks (0.4.0 rename).
 
 set -e
 
@@ -77,6 +78,15 @@ else
 fi
 
 echo ""
+info "Removing deprecated gitscripts_* symlinks..."
+for old in "${GITSCRIPTS_DEPRECATED_BIN_SYMLINKS[@]}"; do
+    if [ -L "$HOME/bin/$old" ] || [ -f "$HOME/bin/$old" ]; then
+        rm -f "$HOME/bin/$old"
+        success "  removed ~/bin/$old"
+    fi
+done
+
+echo ""
 info "Creating symlinks..."
 
 SYMLINKS_CREATED=0
@@ -143,7 +153,7 @@ done
 if [ "$ALL_VALID" = true ]; then
     echo ""
     success "Setup complete!"
-    info "Try: gitscripts_preflight, gitak_push, gitak_verify_PAT"
+    info "Try: gitscripts_preflight, gitscripts_push, gitscripts_verify_PAT"
     [ -n "$SHELL_CONFIG" ] && info "Reload: source $SHELL_CONFIG"
 else
     error "Some symlinks could not be created."

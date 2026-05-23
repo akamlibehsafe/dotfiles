@@ -185,31 +185,30 @@ fi
 
 section "Step 3: Git, Git LFS, and GitHub CLI Installation"
 
-# Run gitak_install script
-GITAK_INSTALL_SCRIPT="$REPO_ROOT/scripts/gitak_install"
+# Run gitscripts_install script
+GITSCRIPTS_INSTALL_SCRIPT="$REPO_ROOT/scripts/gitscripts_install"
 
-if [ ! -f "$GITAK_INSTALL_SCRIPT" ]; then
-    # Check if we're in the gitscripts repo
-    if [ -f "$SCRIPT_DIR/gitak_install" ]; then
-        GITAK_INSTALL_SCRIPT="$SCRIPT_DIR/gitak_install"
+if [ ! -f "$GITSCRIPTS_INSTALL_SCRIPT" ]; then
+    if [ -f "$SCRIPT_DIR/gitscripts_install" ]; then
+        GITSCRIPTS_INSTALL_SCRIPT="$SCRIPT_DIR/gitscripts_install"
     else
-        error "gitak_install script not found. Expected at: $GITAK_INSTALL_SCRIPT"
+        error "gitscripts_install script not found. Expected at: $GITSCRIPTS_INSTALL_SCRIPT"
     fi
 fi
 
-info "Running gitak_install..."
-set +e  # Temporarily disable exit on error to check status
-bash "$GITAK_INSTALL_SCRIPT"
-GITAK_STATUS=$?
-set -e  # Re-enable exit on error
+info "Running gitscripts_install..."
+set +e
+bash "$GITSCRIPTS_INSTALL_SCRIPT"
+GITSCRIPTS_INSTALL_STATUS=$?
+set -e
 
-if [ $GITAK_STATUS -ne 0 ]; then
-    error "gitak_install failed with exit code $GITAK_STATUS"
+if [ $GITSCRIPTS_INSTALL_STATUS -ne 0 ]; then
+    error "gitscripts_install failed with exit code $GITSCRIPTS_INSTALL_STATUS"
 fi
 
 success "Git, Git LFS, and GitHub CLI installation completed"
 
-# Determine gitscripts repository location (gitak_install clones it)
+# Determine gitscripts repository location (gitscripts_install clones it)
 GITSCRIPTS_REPO="$GIT_ROOT_DIR/akamlibehsafe/gitscripts"
 GITSCRIPTS_LIB=""
 for _lib_candidate in "$GITSCRIPTS_REPO/scripts/lib/gitscripts_common.sh" "$REPO_ROOT/scripts/lib/gitscripts_common.sh" "$SCRIPT_DIR/lib/gitscripts_common.sh"; do
@@ -250,7 +249,7 @@ fi
 
 section "Step 4: Clone All Repositories from GitHub Accounts"
 
-# Try to load PAT tokens from shell config (they might have been added by gitak_install)
+# Try to load PAT tokens from shell config (they might have been added by gitscripts_install)
 if [ -f "$SHELL_CONFIG" ]; then
     # Source the shell config to load PAT tokens (in a subshell to avoid side effects)
     set +e
@@ -479,14 +478,14 @@ else
         fi
         
         if [[ ! "$SETUP_SYMLINKS" =~ ^[Nn]$ ]]; then
-            SETUP_SYMLINKS_SCRIPT="$GITSCRIPTS_REPO/scripts/gitak_setup_symlinks"
+            SETUP_SYMLINKS_SCRIPT="$GITSCRIPTS_REPO/scripts/gitscripts_setup_symlinks"
             
             if [ -f "$SETUP_SYMLINKS_SCRIPT" ]; then
                 info "Running symlink setup script..."
                 bash "$SETUP_SYMLINKS_SCRIPT"
                 success "Symlinks setup completed"
             else
-                error "gitak_setup_symlinks script not found at: $SETUP_SYMLINKS_SCRIPT"
+                error "gitscripts_setup_symlinks script not found at: $SETUP_SYMLINKS_SCRIPT"
             fi
         fi
     else
@@ -606,7 +605,7 @@ echo "   (or restart your terminal)"
 echo ""
 echo "2. Verify your setup:"
 echo "   - gitscripts_preflight"
-echo "   - gitak_verify_PAT"
+echo "   - gitscripts_verify_PAT"
 echo "   - Check Git: git --version"
 echo "   - Check GitHub CLI: gh --version"
 echo "   - Test aliases: cdg, cda, cdf, cds"
