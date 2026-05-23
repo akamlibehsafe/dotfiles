@@ -13,12 +13,14 @@ while [ -L "$_gitscripts_self" ]; do
     [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
 done
 SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+GIT_ROOT_DIR="${GIT_ROOT_DIR:-$HOME/Documents/GitHub}"
+GITSCRIPTS_REPO="${GITSCRIPTS_REPO:-$GIT_ROOT_DIR/akamlibehsafe/gitscripts}"
 # shellcheck source=lib/gitscripts_manifest.sh
 source "${SCRIPT_DIR}/lib/gitscripts_manifest.sh"
 # shellcheck source=lib/gitscripts_init.sh
 source "${SCRIPT_DIR}/lib/gitscripts_init.sh"
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -66,9 +68,10 @@ echo ""
 prompt "WARNING: This script will COMPLETELY REMOVE:"
 echo "  • All Git repositories in ~/Documents/GitHub (after checking for pending pushes)"
 echo "  • Git, Git LFS, GitHub CLI tools"
-echo "  • PAT tokens from shell configuration files"
-echo "  • Symlinks in ~/bin/ (gitscripts_*, gitscripts_*, doc_*, environment_*)"
-echo "  • Optional: gitscripts SSH keys (~/.ssh/gitscripts) and includeIf git identity"
+echo "  • PAT tokens from shell configuration and PAT.md on disk"
+echo "  • Symlinks in ~/bin/ (gitscripts_*, legacy gitak_*, doc_*, environment_*)"
+echo "  • gitscripts SSH keys (~/.ssh/gitscripts) and includeIf git identity"
+echo "  • jq and MesloLGS NF font (if installed by setup)"
 echo "  • Aliases in ~/.zshrc (cdg, cda, cdf, cds)"
 echo "  • Cursor Desktop (if installed via Homebrew)"
 echo "  • iTerm2 (if installed via Homebrew)"
@@ -117,7 +120,7 @@ if [ -f "$HOME/.zshrc" ] && [ "$SHELL_CONFIG" != "$HOME/.zshrc" ]; then
     SHELL_CONFIGS+=("$HOME/.zshrc")
 fi
 
-GIT_ROOT_DIR="$HOME/Documents/GitHub"
+# GIT_ROOT_DIR set at top of script
 
 # Function to check if a directory is a git repository
 is_git_repo() {
@@ -250,6 +253,15 @@ if [ -d "$HOME/bin" ]; then
             SYMLINKS_NOT_FOUND=$((SYMLINKS_NOT_FOUND + 1))
         fi
     done
+
+    for script in "${GITSCRIPTS_DEPRECATED_BIN_SYMLINKS[@]}"; do
+        SYMLINK_PATH="$HOME/bin/$script"
+        if [ -L "$SYMLINK_PATH" ] || [ -f "$SYMLINK_PATH" ]; then
+            rm -f "$SYMLINK_PATH"
+            success "Removed legacy symlink: $script"
+            SYMLINKS_REMOVED=$((SYMLINKS_REMOVED + 1))
+        fi
+    done
     
     echo ""
     info "Symlinks removed: $SYMLINKS_REMOVED"
@@ -337,7 +349,53 @@ for config_file in "${SHELL_CONFIGS[@]}"; do
     fi
 done
 
-section "Step 3b: Optional gitscripts SSH and Git identity"
+section "Step 3a: Remove PAT.md files"
+
+PAT_FILES_TO_CHECK=(
+    "$GITSCRIPTS_REPO/PAT.md"
+    "$REPO_ROOT/PAT.md"
+    "$SCRIPT_DIR/PAT.md"
+    "$GIT_ROOT_DIR/akamlibehsafe/gitscripts/PAT.md"
+)
+
+PAT_FILES_FOUND=()
+for pat_file in "${PAT_FILES_TO_CHECK[@]}"; do
+    if [ -f "$pat_file" ]; then
+        already=false
+        for existing in "${PAT_FILES_FOUND[@]}"; do
+            if [ "$existing" = "$pat_file" ]; then
+                already=true
+                break
+            fi
+        done
+        if [ "$already" = false ]; then
+            PAT_FILES_FOUND+=("$pat_file")
+        fi
+    fi
+done
+
+if [ ${#PAT_FILES_FOUND[@]} -gt 0 ]; then
+    info "Found PAT.md file(s) (contain secrets):"
+    for pat_file in "${PAT_FILES_FOUND[@]}"; do
+        echo "  • $pat_file"
+    done
+    echo ""
+    prompt "Remove these PAT.md files? (Y/n)"
+    read -r REMOVE_PAT_FILES
+    if [[ ! "$REMOVE_PAT_FILES" =~ ^[Nn]$ ]]; then
+        for pat_file in "${PAT_FILES_FOUND[@]}"; do
+            rm -f "$pat_file"
+            success "Removed $pat_file"
+        done
+    else
+        info "PAT.md removal skipped (tokens may remain on disk)"
+    fi
+else
+    info "No PAT.md files found in standard locations"
+    info "(Deleting ~/Documents/GitHub later also removes gitscripts/PAT.md if present)"
+fi
+
+section "Step 3b: gitscripts SSH and Git identity"
 
 GITSCRIPTS_SSH_DIR="${GITSCRIPTS_SSH_DIR:-$HOME/.ssh/gitscripts}"
 HAS_GITSCRIPTS_SSH=false
@@ -345,9 +403,9 @@ HAS_GITSCRIPTS_SSH=false
 [ -f "$HOME/.ssh/config" ] && grep -q "gitscripts-managed-begin" "$HOME/.ssh/config" 2>/dev/null && HAS_GITSCRIPTS_SSH=true
 
 if [ "$HAS_GITSCRIPTS_SSH" = true ] || [ -f "$HOME/.gitconfig-rbonon" ] || [ -f "$HOME/.gitconfig-fortegb" ] || [ -f "$HOME/.gitconfig-akamlibehsafe" ]; then
-    prompt "Remove gitscripts SSH keys and per-folder Git identity (includeIf)? (y/N)"
+    prompt "Remove gitscripts SSH keys and per-folder Git identity (includeIf)? (Y/n)"
     read -r REMOVE_GITSCRIPTS_AUTH
-    if [[ "$REMOVE_GITSCRIPTS_AUTH" =~ ^[Yy]$ ]]; then
+    if [[ ! "$REMOVE_GITSCRIPTS_AUTH" =~ ^[Nn]$ ]]; then
         if [ -f "$HOME/.ssh/config" ] && grep -q "gitscripts-managed-begin" "$HOME/.ssh/config" 2>/dev/null; then
             info "Removing gitscripts blocks from ~/.ssh/config..."
             awk '
@@ -461,6 +519,10 @@ if command -v brew &> /dev/null; then
     
     if brew list gh &>/dev/null 2>&1; then
         TOOLS_TO_REMOVE+=("gh")
+    fi
+
+    if brew list jq &>/dev/null 2>&1; then
+        TOOLS_TO_REMOVE+=("jq")
     fi
     
     if [ ${#TOOLS_TO_REMOVE[@]} -gt 0 ]; then
@@ -590,6 +652,24 @@ else
     info "Zsh plugins directory not found"
 fi
 
+section "Step 9b: Remove MesloLGS NF font (zsh_install)"
+
+if command -v brew &>/dev/null; then
+    if brew list --cask font-meslo-lg-nerd-font &>/dev/null 2>&1; then
+        prompt "MesloLGS NF font is installed via Homebrew. Uninstall it? (Y/n)"
+        read -r UNINSTALL_FONT
+        if [[ ! "$UNINSTALL_FONT" =~ ^[Nn]$ ]]; then
+            brew uninstall --cask font-meslo-lg-nerd-font 2>/dev/null && success "MesloLGS NF font removed" || info "Font uninstall failed (remove manually if needed)"
+        else
+            info "Font uninstall skipped"
+        fi
+    else
+        info "MesloLGS NF font cask not found via Homebrew"
+    fi
+else
+    info "Homebrew not found. Cannot check for Meslo font."
+fi
+
 section "Step 10: Remove PATH Addition for ~/bin"
 
 if [ -f "$SHELL_CONFIG" ]; then
@@ -624,9 +704,10 @@ success "Environment uninstallation completed!"
 echo ""
 
 info "Removed components:"
-echo "  ✓ Symlinks in ~/bin/"
+echo "  ✓ Symlinks in ~/bin/ (including legacy gitak_*)"
 echo "  ✓ Aliases in ~/.zshrc"
-echo "  ✓ PAT tokens from shell configuration files"
+echo "  ✓ PAT tokens and PAT.md (if confirmed)"
+echo "  ✓ gitscripts SSH / includeIf (if confirmed)"
 if [[ ! "$UNINSTALL_CURSOR" =~ ^[Nn]$ ]] 2>/dev/null; then
     echo "  ✓ Cursor Desktop"
 fi

@@ -12,7 +12,7 @@
 - `gitscripts_create_from_local` requires repo created on GitHub first (no API create)
 - `environment_install` Step 3.5: preflight → optional PAT/SSH wizards; bulk clone prefers SSH when configured
 - Shared `scripts/lib/gitscripts_manifest.sh` for ~/bin symlinks
-- `environment_uninstall`: full symlink list, optional gitscripts SSH/includeIf removal
+- `environment_uninstall`: removes legacy `gitak_*` symlinks, `PAT.md`, jq, Meslo font; SSH cleanup defaults to yes
 
 ### Breaking
 - **Renamed `gitak_*` → `gitscripts_*`** — update `~/bin` via `gitscripts_setup_symlinks` (removes old `gitak_*` symlinks)
