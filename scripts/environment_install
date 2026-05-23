@@ -6,6 +6,16 @@
 
 set -e  # Exit on error
 
+_gitscripts_self="${BASH_SOURCE[0]}"
+while [ -L "$_gitscripts_self" ]; do
+    _d="$(cd "$(dirname "$_gitscripts_self")" && pwd)"
+    _gitscripts_self="$(readlink "$_gitscripts_self")"
+    [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
+SCRIPTS_ROOT="$SCRIPT_DIR"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -68,11 +78,30 @@ fi
 info "Detected shell: $SHELL_NAME"
 info "Configuration file: $SHELL_CONFIG"
 
-# Get script directory (where the script is located)
-# This works whether the script is in a git repository or extracted from a zip file
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-# Parent directory (repository root if in git repo, or extracted folder root if from zip)
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+section "Accounts configuration"
+
+if [ ! -f "$REPO_ROOT/accounts.conf" ] && [ ! -f "$REPO_ROOT/gitscripts.accounts" ]; then
+    if [ -f "$REPO_ROOT/config/accounts.conf.example" ]; then
+        prompt "Create accounts.conf from example? (Y/n)"
+        read -r CREATE_ACCOUNTS
+        if [[ ! "$CREATE_ACCOUNTS" =~ ^[Nn]$ ]]; then
+            cp "$REPO_ROOT/config/accounts.conf.example" "$REPO_ROOT/accounts.conf"
+            success "Created $REPO_ROOT/accounts.conf"
+            info "Edit that file with your GitHub usernames and commit emails before continuing."
+            prompt "Press Enter when ready..."
+            read -r
+        else
+            error "accounts.conf is required. Copy config/accounts.conf.example to the repo root."
+        fi
+    else
+        error "accounts.conf not found. Add config/accounts.conf.example or set ACCOUNTS_CONF."
+    fi
+fi
+
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
+
+GIT_ROOT_DIR="$GITSCRIPTS_GITHUB_ROOT"
 
 section "PAT Configuration"
 
@@ -93,9 +122,11 @@ if [[ "$HAS_PATS" =~ ^[Nn]$ ]]; then
     echo "5. Select scopes: ✓ Check all checkmarks (especially 'repo' scope)"
     echo "6. Click 'Generate token' and COPY the token immediately (you won't see it again)"
     echo ""
-    echo "Required tokens:"
-    echo "  • GH_TOKEN_fortegb - for the 'fortegb' account"
-    echo "  • GH_TOKEN_akamlibehsafe - for the 'akamlibehsafe' account"
+    echo "Required tokens (one per account in accounts.conf):"
+    for _pat_user in "${GITSCRIPTS_ACCOUNTS[@]}"; do
+        echo "  • $(gitscripts_account_pat_var "$_pat_user") - for GitHub user '${_pat_user}'"
+    done
+    unset _pat_user
     echo ""
     echo "Important: Classic version, no expiration, all checkmarks checked"
     echo ""
@@ -166,8 +197,6 @@ success "Homebrew ready: $BREW_VERSION"
 
 section "Step 2: Git Root Directory Setup"
 
-GIT_ROOT_DIR="$HOME/Documents/GitHub"
-
 if [ -d "$GIT_ROOT_DIR" ]; then
     success "Git root directory already exists: $GIT_ROOT_DIR"
 else
@@ -178,36 +207,72 @@ fi
 
 section "Step 3: Git, Git LFS, and GitHub CLI Installation"
 
-# Run gitak_install script
-GITAK_INSTALL_SCRIPT="$REPO_ROOT/scripts/gitak_install"
+# Run setup_install script
+GITSCRIPTS_INSTALL_SCRIPT="$REPO_ROOT/scripts/util/setup_install"
 
-if [ ! -f "$GITAK_INSTALL_SCRIPT" ]; then
-    # Check if we're in the gitscripts repo
-    if [ -f "$SCRIPT_DIR/gitak_install" ]; then
-        GITAK_INSTALL_SCRIPT="$SCRIPT_DIR/gitak_install"
+if [ ! -f "$GITSCRIPTS_INSTALL_SCRIPT" ]; then
+    if [ -f "$SCRIPT_DIR/util/setup_install" ]; then
+        GITSCRIPTS_INSTALL_SCRIPT="$SCRIPT_DIR/util/setup_install"
     else
-        error "gitak_install script not found. Expected at: $GITAK_INSTALL_SCRIPT"
+        error "setup_install script not found. Expected at: $GITSCRIPTS_INSTALL_SCRIPT"
     fi
 fi
 
-info "Running gitak_install..."
-set +e  # Temporarily disable exit on error to check status
-bash "$GITAK_INSTALL_SCRIPT"
-GITAK_STATUS=$?
-set -e  # Re-enable exit on error
+info "Running setup_install..."
+set +e
+bash "$GITSCRIPTS_INSTALL_SCRIPT"
+GITSCRIPTS_INSTALL_STATUS=$?
+set -e
 
-if [ $GITAK_STATUS -ne 0 ]; then
-    error "gitak_install failed with exit code $GITAK_STATUS"
+if [ $GITSCRIPTS_INSTALL_STATUS -ne 0 ]; then
+    error "setup_install failed with exit code $GITSCRIPTS_INSTALL_STATUS"
 fi
 
 success "Git, Git LFS, and GitHub CLI installation completed"
 
-# Determine gitscripts repository location (gitak_install clones it)
-GITSCRIPTS_REPO="$GIT_ROOT_DIR/akamlibehsafe/gitscripts"
+# Determine gitscripts repository location (setup_install clones it)
+# This install script runs from the toolkit repo — use that tree, not a path under a GitHub user folder
+GITSCRIPTS_REPO="$REPO_ROOT"
+GITSCRIPTS_LIB=""
+for _lib_candidate in "$GITSCRIPTS_REPO/scripts/lib/common.sh" "$REPO_ROOT/scripts/lib/common.sh" "$SCRIPT_DIR/lib/common.sh"; do
+    if [ -f "$_lib_candidate" ]; then
+        GITSCRIPTS_LIB="$_lib_candidate"
+        break
+    fi
+done
+
+section "Step 3.5: Hybrid Auth Setup (SSH + PAT)"
+
+HYBRID_SCRIPTS_DIR=""
+for _scripts in "$GITSCRIPTS_REPO/scripts" "$REPO_ROOT/scripts" "$SCRIPT_DIR"; do
+    if [ -f "$_scripts/util/setup_preflight" ]; then
+        HYBRID_SCRIPTS_DIR="$_scripts"
+        break
+    fi
+done
+
+if [ -n "$HYBRID_SCRIPTS_DIR" ]; then
+    info "Scanning environment (read-only)..."
+    bash "$HYBRID_SCRIPTS_DIR/util/setup_preflight" || true
+    echo ""
+    prompt "Run PAT wizard (setup_configure_pats)? (y/N)"
+    read -r RUN_PAT_WIZARD
+    if [[ "$RUN_PAT_WIZARD" =~ ^[Yy]$ ]]; then
+        bash "$HYBRID_SCRIPTS_DIR/util/setup_configure_pats"
+    fi
+    echo ""
+    prompt "Run SSH + git identity setup (setup_ssh_setup --new-mac)? (y/N)"
+    read -r RUN_SSH_WIZARD
+    if [[ "$RUN_SSH_WIZARD" =~ ^[Yy]$ ]]; then
+        bash "$HYBRID_SCRIPTS_DIR/util/setup_ssh_setup" --new-mac
+    fi
+else
+    info "Git setup scripts not found; configure later with: scripts/util/setup_preflight"
+fi
 
 section "Step 4: Clone All Repositories from GitHub Accounts"
 
-# Try to load PAT tokens from shell config (they might have been added by gitak_install)
+# Try to load PAT tokens from shell config (they might have been added by setup_install)
 if [ -f "$SHELL_CONFIG" ]; then
     # Source the shell config to load PAT tokens (in a subshell to avoid side effects)
     set +e
@@ -216,15 +281,20 @@ if [ -f "$SHELL_CONFIG" ]; then
 fi
 
 # Check if PAT tokens are available
-GH_TOKEN_FORTEGB="${GH_TOKEN_fortegb:-}"
-GH_TOKEN_AKAMLIBEHSAFE="${GH_TOKEN_akamlibehsafe:-}"
+_ANY_PAT=false
+for _clone_user in "${GITSCRIPTS_ACCOUNTS[@]}"; do
+    _pat_var=$(gitscripts_account_pat_var "$_clone_user")
+    if [ -n "${!_pat_var:-}" ]; then
+        _ANY_PAT=true
+    fi
+done
 
-if [ -z "$GH_TOKEN_FORTEGB" ] && [ -z "$GH_TOKEN_AKAMLIBEHSAFE" ]; then
+if [ "$_ANY_PAT" = false ]; then
     info "PAT tokens not found in environment variables."
     info "Repository cloning will be skipped."
     info "You can clone repositories manually later or run this script again after configuring PAT tokens."
 else
-    prompt "Would you like to clone all repositories from both GitHub accounts? (Y/n)"
+    prompt "Would you like to clone all repositories from all GitHub accounts? (Y/n)"
     read -r CLONE_REPOS
     
     if [[ ! "$CLONE_REPOS" =~ ^[Nn]$ ]]; then
@@ -294,13 +364,29 @@ else
                         else
                             info "Cloning $username/$repo_name..."
                             set +e
-                            # Use PAT in clone URL
-                            CLONE_URL_WITH_AUTH="${clone_url/https:\/\//https://${pat}@}"
-                            git clone "$CLONE_URL_WITH_AUTH" "$repo_path" 2>&1 | grep -v "^Cloning into" || true
-                            CLONE_ERROR=$?
+                            CLONE_ERROR=1
+                            if [ -n "$GITSCRIPTS_LIB" ]; then
+                                # shellcheck source=/dev/null
+                                source "$GITSCRIPTS_LIB"
+                                SSH_CLONE=$(gitscripts_remote_ssh_url "$username" "$repo_name")
+                                if [ -f "$HOME/.ssh/config" ] && grep -q "Host github-${username}" "$HOME/.ssh/config" 2>/dev/null; then
+                                    git -c credential.helper= clone "$SSH_CLONE" "$repo_path" 2>&1 | grep -v "^Cloning into" || true
+                                    CLONE_ERROR=$?
+                                fi
+                            fi
+                            if [ "$CLONE_ERROR" -ne 0 ]; then
+                                CLONE_URL_WITH_AUTH="${clone_url/https:\/\//https://${pat}@}"
+                                git clone "$CLONE_URL_WITH_AUTH" "$repo_path" 2>&1 | grep -v "^Cloning into" || true
+                                CLONE_ERROR=$?
+                            fi
                             set -e
                             
                             if [ $CLONE_ERROR -eq 0 ]; then
+                                if [ -n "$GITSCRIPTS_LIB" ]; then
+                                    # shellcheck source=/dev/null
+                                    source "$GITSCRIPTS_LIB"
+                                    git -C "$repo_path" remote set-url origin "$(gitscripts_remote_ssh_url "$username" "$repo_name")" 2>/dev/null || true
+                                fi
                                 success "Cloned $username/$repo_name"
                             else
                                 info "Failed to clone $username/$repo_name (may require different authentication)"
@@ -325,15 +411,17 @@ else
             success "Repository cloning completed for $username"
         }
         
-        # Clone repositories for both accounts
-        if [ -n "$GH_TOKEN_FORTEGB" ]; then
-            clone_user_repos "fortegb" "$GH_TOKEN_FORTEGB"
-        fi
-        
-        if [ -n "$GH_TOKEN_AKAMLIBEHSAFE" ]; then
-            clone_user_repos "akamlibehsafe" "$GH_TOKEN_AKAMLIBEHSAFE"
-        fi
-        
+        # Clone repositories for all accounts (respect clone yes/no in accounts.conf)
+        for _clone_user in "${GITSCRIPTS_ACCOUNTS[@]}"; do
+            if ! gitscripts_account_clone_enabled "$_clone_user"; then
+                info "Skipping bulk clone for $_clone_user (clone no in accounts.conf)"
+                continue
+            fi
+            _pat_var=$(gitscripts_account_pat_var "$_clone_user")
+            clone_user_repos "$_clone_user" "${!_pat_var:-}"
+        done
+        unset _clone_user _pat_var
+
         success "Repository cloning step completed"
     else
         info "Repository cloning skipped"
@@ -342,31 +430,31 @@ fi
 
 section "Step 5: Zsh, Oh My Zsh, and Powerlevel10k Installation"
 
-# Run zsh_install script
-ZSH_INSTALL_SCRIPT="$REPO_ROOT/scripts/zsh_install"
+# Run setup_zsh_install script
+ZSH_INSTALL_SCRIPT="$REPO_ROOT/scripts/util/setup_zsh_install"
 
 if [ ! -f "$ZSH_INSTALL_SCRIPT" ]; then
     # Check if we're in the gitscripts repo
-    if [ -f "$SCRIPT_DIR/zsh_install" ]; then
-        ZSH_INSTALL_SCRIPT="$SCRIPT_DIR/zsh_install"
+    if [ -f "$SCRIPT_DIR/util/setup_zsh_install" ]; then
+        ZSH_INSTALL_SCRIPT="$SCRIPT_DIR/util/setup_zsh_install"
     else
         # Check cloned repo location
-        if [ -f "$GITSCRIPTS_REPO/scripts/zsh_install" ]; then
-            ZSH_INSTALL_SCRIPT="$GITSCRIPTS_REPO/scripts/zsh_install"
+        if [ -f "$GITSCRIPTS_REPO/scripts/util/setup_zsh_install" ]; then
+            ZSH_INSTALL_SCRIPT="$GITSCRIPTS_REPO/scripts/util/setup_zsh_install"
         else
-            error "zsh_install script not found. Expected at: $ZSH_INSTALL_SCRIPT"
+            error "setup_zsh_install script not found. Expected at: $ZSH_INSTALL_SCRIPT"
         fi
     fi
 fi
 
-info "Running zsh_install..."
+info "Running setup_zsh_install..."
 set +e  # Temporarily disable exit on error to check status
 bash "$ZSH_INSTALL_SCRIPT"
 ZSH_STATUS=$?
 set -e  # Re-enable exit on error
 
 if [ $ZSH_STATUS -ne 0 ]; then
-    error "zsh_install failed with exit code $ZSH_STATUS"
+    error "setup_zsh_install failed with exit code $ZSH_STATUS"
 fi
 
 success "Zsh, Oh My Zsh, and Powerlevel10k installation completed"
@@ -416,14 +504,14 @@ else
         fi
         
         if [[ ! "$SETUP_SYMLINKS" =~ ^[Nn]$ ]]; then
-            SETUP_SYMLINKS_SCRIPT="$GITSCRIPTS_REPO/scripts/gitak_setup_symlinks"
+            SETUP_SYMLINKS_SCRIPT="$GITSCRIPTS_REPO/scripts/util/setup_symlinks"
             
             if [ -f "$SETUP_SYMLINKS_SCRIPT" ]; then
                 info "Running symlink setup script..."
                 bash "$SETUP_SYMLINKS_SCRIPT"
                 success "Symlinks setup completed"
             else
-                error "gitak_setup_symlinks script not found at: $SETUP_SYMLINKS_SCRIPT"
+                error "setup_symlinks script not found at: $SETUP_SYMLINKS_SCRIPT"
             fi
         fi
     else
@@ -434,7 +522,7 @@ fi
 section "Adding Useful Aliases"
 
 # Add aliases to ~/.zshrc
-# Note: zsh_install should have created .zshrc by now, but handle both cases
+# Note: setup_zsh_install should have created .zshrc by now, but handle both cases
 if [ ! -f "$HOME/.zshrc" ]; then
     info "Creating ~/.zshrc file..."
     touch "$HOME/.zshrc"
@@ -449,11 +537,17 @@ else
         echo ""
         echo "# Useful aliases for Git repositories"
         echo "# Added by environment_install script on $(date)"
-        echo "alias cdg=\"cd ~/Documents/GitHub\""
-        echo "alias cda=\"cd ~/Documents/GitHub/akamlibehsafe\""
-        echo "alias cdf=\"cd ~/Documents/GitHub/fortegb\""
-        echo "alias cds=\"cd ~/Documents/GitHub/akamlibehsafe/shutterzilla\""
+        for _alias_entry in "${GITSCRIPTS_SHELL_ALIASES[@]}"; do
+            _alias_name="${_alias_entry%%|*}"
+            _alias_path="${_alias_entry#*|}"
+            if [ "$_alias_path" = "." ]; then
+                echo "alias ${_alias_name}=\"cd ${GITSCRIPTS_GITHUB_ROOT}\""
+            else
+                echo "alias ${_alias_name}=\"cd ${GITSCRIPTS_GITHUB_ROOT}/${_alias_path}\""
+            fi
+        done
     } >> "$HOME/.zshrc"
+    unset _alias_entry _alias_name _alias_path
     success "Aliases added to ~/.zshrc"
 fi
 
@@ -477,45 +571,73 @@ else
     info "You can configure Powerlevel10k anytime by running: p10k configure"
 fi
 
-section "iTerm2 Configuration Import"
+section "iTerm2 installation and profile"
 
-prompt "Would you like to import iTerm2 configuration now? (Y/n)"
-read -r IMPORT_ITERM2
+ITERM2_INSTALLED=false
+IMPORT_ITERM2="n"
+ITERM2_CONFIG_FILE=""
 
-if [[ ! "$IMPORT_ITERM2" =~ ^[Nn]$ ]]; then
-    ITERM2_CONFIG_FILE=""
-    
-    # Check in current repo location
-    if [ -f "$REPO_ROOT/config/iterm2/iTerm2 State.itermexport" ]; then
-        ITERM2_CONFIG_FILE="$REPO_ROOT/config/iterm2/iTerm2 State.itermexport"
-    elif [ -f "$GITSCRIPTS_REPO/config/iterm2/iTerm2 State.itermexport" ]; then
-        ITERM2_CONFIG_FILE="$GITSCRIPTS_REPO/config/iterm2/iTerm2 State.itermexport"
-    elif [ -f "$SCRIPT_DIR/../config/iterm2/iTerm2 State.itermexport" ]; then
-        ITERM2_CONFIG_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/config/iterm2/iTerm2 State.itermexport"
+# shellcheck source=lib/common.sh
+source "${SCRIPTS_ROOT}/lib/common.sh"
+
+prompt "Install iTerm2 (Homebrew cask) if missing? (Y/n)"
+read -r INSTALL_ITERM2_APP
+
+if [[ ! "$INSTALL_ITERM2_APP" =~ ^[Nn]$ ]]; then
+    if [ -d "/Applications/iTerm.app" ]; then
+        success "iTerm2 is already installed"
+        ITERM2_INSTALLED=true
+    else
+        info "Installing iTerm2 via Homebrew..."
+        if gitscripts_install_iterm2; then
+            success "iTerm2 installed"
+            ITERM2_INSTALLED=true
+        else
+            info "Could not install iTerm2 (Homebrew required). Skip or install manually from https://iterm2.com"
+        fi
     fi
-    
-    if [ -n "$ITERM2_CONFIG_FILE" ] && [ -f "$ITERM2_CONFIG_FILE" ]; then
-        info "Found iTerm2 configuration file: $ITERM2_CONFIG_FILE"
-        echo ""
-        prompt "To import iTerm2 configuration:"
-        echo "1. Double-click the file: $ITERM2_CONFIG_FILE"
-        echo "   OR go to iTerm2 → File → Import JSON Settings and select the file"
-        echo "2. Follow the import wizard"
-        echo ""
-        
-        # Optionally open Finder to the file location
-        prompt "Open Finder to the file location? (Y/n)"
+    if [ "$ITERM2_INSTALLED" = true ]; then
+        _iterm_ver=$(/usr/libexec/PlistBuddy -c "Print:CFBundleShortVersionString" /Applications/iTerm.app/Contents/Info.plist 2>/dev/null || echo "unknown")
+        info "iTerm2 version: $_iterm_ver"
+        unset _iterm_ver
+    fi
+else
+    info "iTerm2 app installation skipped"
+    [ -d "/Applications/iTerm.app" ] && ITERM2_INSTALLED=true
+fi
+
+ITERM2_CONFIG_FILE="$(gitscripts_iterm2_export_path "$REPO_ROOT" "${GITSCRIPTS_REPO:-}" "$REPO_ROOT")" || true
+
+if [ "$ITERM2_INSTALLED" = true ] && [ -n "$ITERM2_CONFIG_FILE" ]; then
+    info "Bundled profile: $ITERM2_CONFIG_FILE"
+    info "(See config/iterm2/README.md)"
+    echo ""
+    prompt "Import this profile into iTerm2 now? (Y/n)"
+    read -r IMPORT_ITERM2
+    if [[ ! "$IMPORT_ITERM2" =~ ^[Nn]$ ]]; then
+        info "Opening profile in iTerm2 — confirm the import in the iTerm2 dialog."
+        if gitscripts_import_iterm2_export "$ITERM2_CONFIG_FILE"; then
+            success "Profile opened in iTerm2"
+        else
+            info "Could not open iTerm2 automatically. Double-click:"
+            info "  $ITERM2_CONFIG_FILE"
+        fi
+        prompt "Open Finder to the profile file? (Y/n)"
         read -r OPEN_FINDER
         if [[ ! "$OPEN_FINDER" =~ ^[Nn]$ ]]; then
             open -R "$ITERM2_CONFIG_FILE" 2>/dev/null || info "Could not open Finder"
         fi
     else
-        info "iTerm2 configuration file not found at: config/iterm2/iTerm2 State.itermexport"
-        info "You can import iTerm2 configuration later by double-clicking: config/iterm2/iTerm2 State.itermexport"
+        info "Profile import skipped. Import later:"
+        info "  open -a iTerm \"$ITERM2_CONFIG_FILE\""
     fi
+elif [ -n "$ITERM2_CONFIG_FILE" ]; then
+    info "Profile file is in the repo but iTerm2 is not installed."
+    info "Install iTerm2, then run: open -a iTerm \"$ITERM2_CONFIG_FILE\""
+elif [ "$ITERM2_INSTALLED" = true ]; then
+    info "No bundled profile found at config/iterm2/iTerm2 State.itermexport"
 else
-    info "iTerm2 configuration import skipped"
-    info "You can import iTerm2 configuration later by double-clicking: config/iterm2/iTerm2 State.itermexport"
+    info "Skipped iTerm2 setup"
 fi
 
 section "Installation Complete!"
@@ -527,7 +649,12 @@ info "Installed/Configured components:"
 echo "  ✓ Homebrew"
 echo "  ✓ Git, Git LFS, GitHub CLI"
 echo "  ✓ Zsh, Oh My Zsh, Powerlevel10k"
-echo "  ✓ iTerm2"
+if [ "$ITERM2_INSTALLED" = true ]; then
+    echo "  ✓ iTerm2 (app)"
+    if [[ ! "$IMPORT_ITERM2" =~ ^[Nn]$ ]] && [ -n "$ITERM2_CONFIG_FILE" ]; then
+        echo "  ✓ iTerm2 profile import started (confirm in iTerm2)"
+    fi
+fi
 if [[ ! "$INSTALL_CURSOR" =~ ^[Nn]$ ]]; then
     echo "  ✓ Cursor Desktop"
 fi
@@ -542,13 +669,15 @@ echo "   source ~/.zshrc"
 echo "   (or restart your terminal)"
 echo ""
 echo "2. Verify your setup:"
+echo "   - setup_preflight"
+echo "   - setup_verify_pat"
 echo "   - Check Git: git --version"
 echo "   - Check GitHub CLI: gh --version"
 echo "   - Test aliases: cdg, cda, cdf, cds"
 echo ""
-if [ -n "$ITERM2_CONFIG_FILE" ] && [ -f "$ITERM2_CONFIG_FILE" ]; then
-    echo "3. Import iTerm2 configuration:"
-    echo "   Double-click: $ITERM2_CONFIG_FILE"
+if [ "$ITERM2_INSTALLED" = true ] && [ -n "$ITERM2_CONFIG_FILE" ] && [[ "$IMPORT_ITERM2" =~ ^[Nn]$ ]]; then
+    echo "3. Import iTerm2 profile (optional):"
+    echo "   open -a iTerm \"$ITERM2_CONFIG_FILE\""
     echo ""
 fi
 echo "4. Configure Powerlevel10k (if not done):"

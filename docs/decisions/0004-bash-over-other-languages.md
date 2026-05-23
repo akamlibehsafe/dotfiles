@@ -38,4 +38,4 @@ Use bash for all scripts. Bash is native to macOS, works with both bash and zsh 
 
 ## Links
 - Implementation: All scripts in `scripts/` directory
-- Dependencies: `jq` for JSON parsing (installed by `gitak_install`)
+- Dependencies: `jq` for JSON parsing (installed by `setup_install`)

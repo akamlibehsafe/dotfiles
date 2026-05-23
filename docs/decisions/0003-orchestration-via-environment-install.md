@@ -42,4 +42,4 @@ Create `environment_install` as an orchestration script that coordinates install
 ## Links
 - Implementation: `scripts/environment_install`
 - Reverse operation: `scripts/environment_uninstall`
-- Documentation: `README_FIRST.md`, `README.md`
+- Documentation: `README.md`

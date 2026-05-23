@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# gitak_install
+# setup_install
 # Installs Git, Git LFS, GitHub CLI, and all necessary dependencies on a new Mac computer,
 # then provides instructions for configuring Personal Access Tokens.
 
@@ -273,9 +273,10 @@ echo "   c) Give it a descriptive name (e.g., 'Git Automation Scripts')"
 echo "   d) Select scope: ✓ repo (Full control of private repositories)"
 echo "   e) Click 'Generate token' and COPY the token immediately (you won't see it again)"
 echo ""
-echo "   Required tokens:"
-echo "     • GH_TOKEN_fortegb - for the 'fortegb' account"
-echo "     • GH_TOKEN_akamlibehsafe - for the 'akamlibehsafe' account"
+echo "   Required tokens (see accounts.conf in the toolkit repo):"
+echo "     One export GH_TOKEN_<github_username> per account"
+echo ""
+echo "   Or run: setup_configure_pats"
 echo ""
 
 prompt "2. STORE PATs AS ENVIRONMENT VARIABLES"
@@ -283,9 +284,13 @@ echo ""
 echo "   Add the following to your shell configuration file:"
 echo "   File: $SHELL_CONFIG"
 echo ""
-echo "   Add these lines:"
-echo "   export GH_TOKEN_fortegb=\"your_pat_token_here\""
-echo "   export GH_TOKEN_akamlibehsafe=\"your_pat_token_here\""
+echo "   Add one line per account, for example:"
+echo "   export GH_TOKEN_<github_username>=\"your_pat_token_here\""
+echo ""
+echo "   After git clone of gitscripts, also run:"
+echo "     setup_preflight"
+echo "     setup_configure_pats"
+echo "     setup_ssh_setup --new-mac   # or --repair"
 echo ""
 
 # Check if configuration file exists
@@ -293,7 +298,7 @@ if [ ! -f "$SHELL_CONFIG" ]; then
     info "Configuration file $SHELL_CONFIG does not exist. It will be created when you add the exports."
 else
     # Check if PAT variables are already in the config
-    if grep -q "GH_TOKEN_fortegb\|GH_TOKEN_akamlibehsafe" "$SHELL_CONFIG" 2>/dev/null; then
+    if grep -qE '^export GH_TOKEN_' "$SHELL_CONFIG" 2>/dev/null; then
         prompt "Note: PAT variables may already be configured in $SHELL_CONFIG"
         prompt "Please review and update them if needed."
     fi
@@ -309,9 +314,7 @@ echo ""
 
 prompt "4. VERIFY THE SETUP"
 echo ""
-echo "   Verify that the variables are set:"
-echo "   echo \$GH_TOKEN_fortegb"
-echo "   echo \$GH_TOKEN_akamlibehsafe"
+echo "   Verify that the variables are set (one echo per account in accounts.conf)."
 echo ""
 echo "   If they show your tokens, you're all set!"
 echo ""
@@ -402,44 +405,43 @@ echo ""
 # Clone gitscripts repository and configure PATs
 section "Cloning Git Scripts Repository"
 
-GITSCRIPTS_DIR="$HOME/Documents/GitHub/akamlibehsafe"
-GITSCRIPTS_REPO="$GITSCRIPTS_DIR/gitscripts"
-REPO_URL="https://github.com/akamlibehsafe/gitscripts.git"
+_GITINSTALL_SCRIPTS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+_GITINSTALL_REPO_ROOT="$(cd "${_GITINSTALL_SCRIPTS_ROOT}/.." && pwd -P)"
+export GITSCRIPTS_REPO_ROOT="$_GITINSTALL_REPO_ROOT"
+# shellcheck source=../lib/common.sh
+source "${_GITINSTALL_SCRIPTS_ROOT}/lib/common.sh"
+gitscripts_load_accounts || { gitscripts_accounts_missing_error; exit 1; }
 
-# Create the directory if it doesn't exist
-if [ ! -d "$GITSCRIPTS_DIR" ]; then
-    info "Creating directory: $GITSCRIPTS_DIR"
-    mkdir -p "$GITSCRIPTS_DIR" || error "Failed to create directory: $GITSCRIPTS_DIR"
-fi
-
-# Check if repository already exists
-if [ -d "$GITSCRIPTS_REPO" ]; then
-    info "Repository already exists at: $GITSCRIPTS_REPO"
-    prompt "Do you want to update it? (Y/n)"
-    read -r UPDATE_REPO
-    if [[ "$UPDATE_REPO" =~ ^[Nn]$ ]]; then
-        info "Skipping repository clone/update"
-    else
-        info "Updating existing repository..."
-        cd "$GITSCRIPTS_REPO" || error "Failed to change to repository directory"
-        git pull || info "Git pull completed (may have conflicts)"
-        cd - > /dev/null
-        success "Repository updated"
-    fi
+if [ -f "${_GITINSTALL_REPO_ROOT}/scripts/util/setup_install" ]; then
+    GITSCRIPTS_REPO="$_GITINSTALL_REPO_ROOT"
+    info "Using gitscripts toolkit at: $GITSCRIPTS_REPO"
 else
-    info "Cloning gitscripts repository to: $GITSCRIPTS_REPO"
-    info "Repository URL: $REPO_URL"
-    echo ""
-    
-    # Try to clone (will work if repo is public, or prompt for credentials if private)
-    if git clone "$REPO_URL" "$GITSCRIPTS_REPO" 2>&1; then
-        success "Repository cloned successfully"
+    _upstream="$(gitscripts_toolkit_repo_slug)"
+    if [ -z "$_upstream" ]; then
+        info "gitscripts toolkit not found beside this script."
+        info "Clone it yourself, or add to accounts.conf:"
+        info "  toolkit_repo=YOUR_GITHUB_USER/YOUR_REPO_NAME"
+        GITSCRIPTS_REPO="$_GITINSTALL_REPO_ROOT"
     else
-        error "Failed to clone repository. You may need to:"
-        echo "  1. Ensure the repository exists and is accessible"
-        echo "  2. Provide credentials if it's a private repository"
-        echo "  3. Clone manually: git clone $REPO_URL $GITSCRIPTS_REPO"
+        GITSCRIPTS_REPO="${GITSCRIPTS_GITHUB_ROOT}/gitscripts"
+        REPO_URL="https://github.com/${_upstream}.git"
+        mkdir -p "${GITSCRIPTS_GITHUB_ROOT}" || error "Failed to create ${GITSCRIPTS_GITHUB_ROOT}"
+
+        if [ -d "$GITSCRIPTS_REPO" ]; then
+            info "Toolkit already exists at: $GITSCRIPTS_REPO"
+            prompt "Update with git pull? (Y/n)"
+            read -r UPDATE_REPO
+            if [[ ! "$UPDATE_REPO" =~ ^[Nn]$ ]]; then
+                (cd "$GITSCRIPTS_REPO" && git pull) || info "git pull finished (may have conflicts)"
+            fi
+        else
+            info "Cloning gitscripts from: $REPO_URL"
+            info "Into: $GITSCRIPTS_REPO"
+            git clone "$REPO_URL" "$GITSCRIPTS_REPO" || error "Clone failed. Check toolkit_repo in accounts.conf or clone manually."
+            success "Toolkit cloned"
+        fi
     fi
+    unset _upstream
 fi
 
 # Configure PATs from PAT.md file
@@ -470,7 +472,7 @@ if [ -f "$GITSCRIPTS_REPO/PAT.md" ]; then
         echo ""
         
         # Check if PATs are already in the detected shell config file
-        if grep -q "GH_TOKEN_fortegb\|GH_TOKEN_akamlibehsafe" "$SHELL_CONFIG" 2>/dev/null; then
+        if grep -qE '^export GH_TOKEN_' "$SHELL_CONFIG" 2>/dev/null; then
             prompt "PAT tokens already exist in $SHELL_CONFIG"
             prompt "Do you want to update them? (y/N)"
             read -r UPDATE_PATS
@@ -506,16 +508,16 @@ if [ -f "$GITSCRIPTS_REPO/PAT.md" ]; then
             fi
         fi
         
-        if [ -n "$OTHER_SHELL_CONFIG" ] && grep -q "GH_TOKEN_fortegb\|GH_TOKEN_akamlibehsafe" "$OTHER_SHELL_CONFIG" 2>/dev/null; then
+        if [ -n "$OTHER_SHELL_CONFIG" ] && grep -qE '^export GH_TOKEN_' "$OTHER_SHELL_CONFIG" 2>/dev/null; then
             info "Note: PAT tokens also found in $OTHER_SHELL_CONFIG"
             prompt "Do you want to add PAT tokens to $OTHER_SHELL_CONFIG as well? (y/N)"
             read -r ADD_TO_OTHER
             if [[ "$ADD_TO_OTHER" =~ ^[Yy]$ ]]; then
                 # Check if already exists in other file
-                if ! grep -q "GH_TOKEN_fortegb\|GH_TOKEN_akamlibehsafe" "$OTHER_SHELL_CONFIG" 2>/dev/null; then
+                if ! grep -qE '^export GH_TOKEN_' "$OTHER_SHELL_CONFIG" 2>/dev/null; then
                     echo "" >> "$OTHER_SHELL_CONFIG"
                     echo "# Git Automation Scripts - Personal Access Tokens" >> "$OTHER_SHELL_CONFIG"
-                    echo "# Added by gitak_install script on $(date)" >> "$OTHER_SHELL_CONFIG"
+                    echo "# Added by setup_install script on $(date)" >> "$OTHER_SHELL_CONFIG"
                     echo "$PAT_EXPORTS" >> "$OTHER_SHELL_CONFIG"
                     echo "" >> "$OTHER_SHELL_CONFIG"
                     success "PAT tokens also added to $OTHER_SHELL_CONFIG"
@@ -530,7 +532,7 @@ if [ -f "$GITSCRIPTS_REPO/PAT.md" ]; then
             info "Adding PAT tokens to $SHELL_CONFIG"
             echo "" >> "$SHELL_CONFIG"
             echo "# Git Automation Scripts - Personal Access Tokens" >> "$SHELL_CONFIG"
-            echo "# Added by gitak_install script on $(date)" >> "$SHELL_CONFIG"
+            echo "# Added by setup_install script on $(date)" >> "$SHELL_CONFIG"
             echo "$PAT_EXPORTS" >> "$SHELL_CONFIG"
             echo "" >> "$SHELL_CONFIG"
             
@@ -552,14 +554,14 @@ fi
 
 # Check if we're in the gitscripts repository and offer to set up symlinks
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-CURRENT_REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+CURRENT_REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd -P)"
 
 # Determine which repository to use for symlink setup
 # If we're running from within the repo, use that; otherwise use the cloned repo
-if [ -f "$CURRENT_REPO_ROOT/scripts/gitak_setup_symlinks" ]; then
+if [ -f "$CURRENT_REPO_ROOT/scripts/util/setup_symlinks" ]; then
     REPO_ROOT="$CURRENT_REPO_ROOT"
     info "Using current repository at: $REPO_ROOT"
-elif [ -f "$GITSCRIPTS_REPO/scripts/gitak_setup_symlinks" ]; then
+elif [ -f "$GITSCRIPTS_REPO/scripts/util/setup_symlinks" ]; then
     REPO_ROOT="$GITSCRIPTS_REPO"
     info "Using cloned repository at: $REPO_ROOT"
 else
@@ -567,7 +569,7 @@ else
     info "Repository will be used from: $REPO_ROOT"
 fi
 
-SETUP_SCRIPT="$REPO_ROOT/scripts/gitak_setup_symlinks"
+SETUP_SCRIPT="$REPO_ROOT/scripts/util/setup_symlinks"
 
 if [ -f "$SETUP_SCRIPT" ]; then
     section "Script Symlink Setup"
@@ -589,19 +591,19 @@ if [ -f "$SETUP_SCRIPT" ]; then
     else
         info "Symlink setup skipped. You can run it later with:"
         echo "  cd $REPO_ROOT"
-        echo "  ./scripts/gitak_setup_symlinks"
+        echo "  ./scripts/util/setup_symlinks"
         echo ""
         info "For now, you can use the scripts from the repository directory:"
     fi
 else
-    info "Note: If you have the gitscripts repository, run scripts/gitak_setup_symlinks to create symlinks in ~/bin/"
+    info "Note: If you have the gitscripts repository, run scripts/util/setup_symlinks to create symlinks in ~/bin/"
     echo ""
     info "You can use the Git automation scripts:"
 fi
 
-echo "  • gitak_create_from_local <user/repo>"
-echo "  • gitak_create_from_remote <user/repo>"
-echo "  • gitak_push [directory]"
+echo "  • git_create_from_local <user/repo>"
+echo "  • git_create_from_remote <user/repo>"
+echo "  • git_push [directory]"
 echo ""
 success "Happy coding! 🚀"
 

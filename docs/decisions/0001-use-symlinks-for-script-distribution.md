@@ -7,7 +7,7 @@ Accepted
 Scripts need to be accessible system-wide while remaining version-controlled in the repository. We need a way to update scripts via `git pull` without requiring users to manually copy files or reinstall.
 
 ## Decision
-Use symlinks in `~/bin/` pointing to scripts in the repository folder. Scripts remain in the repository (version-controlled), and symlinks provide system-wide access. The `gitak_setup_symlinks` script automates symlink creation and updates.
+Use symlinks in `~/bin/` pointing to scripts in the repository folder. Scripts remain in the repository (version-controlled), and symlinks provide system-wide access. The `setup_symlinks` script automates symlink creation and updates.
 
 ## Alternatives considered
 - **Copy scripts to ~/bin/**: Pros: Simple, scripts directly in PATH. Cons: Users must manually update after `git pull`, no automatic updates, risk of version drift.
@@ -28,10 +28,10 @@ Use symlinks in `~/bin/` pointing to scripts in the repository folder. Scripts r
 - Slightly more complex setup than direct copying
 
 **Risks:**
-- Users moving repository without updating symlinks (mitigated by `gitak_setup_symlinks` detecting and fixing this)
+- Users moving repository without updating symlinks (mitigated by `setup_symlinks` detecting and fixing this)
 - PATH configuration issues (mitigated by script automatically adding `~/bin/` to PATH)
 
 ## Links
-- Implementation: `scripts/gitak_setup_symlinks`
-- Used by: `environment_install`, `gitak_install`
+- Implementation: `scripts/util/setup_symlinks`
+- Used by: `environment_install`, `setup_install`
 - Documentation: `README.md` section on "Set Up Symlinks to ~/bin/"

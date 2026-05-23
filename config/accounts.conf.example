@@ -1,0 +1,32 @@
+# accounts.conf.example — template only (safe to commit)
+#
+# Create your LOCAL copy (never commit accounts.conf):
+#   cp config/accounts.conf.example accounts.conf
+#   Edit accounts.conf with YOUR GitHub usernames and commit emails.
+#
+# accounts.conf is listed in .gitignore (like PAT.md).
+#
+# PAT tokens (separate): export GH_TOKEN_<username>="..." in PAT.md or ~/.zshrc
+#
+# Search order: ./accounts.conf → ACCOUNTS_CONF → ~/.config/gitscripts/accounts.conf
+
+# Where your GitHub repositories are stored (one folder per username under here)
+github_root=~/Documents/GitHub
+
+# --- Your GitHub accounts (add as many as you need) ---
+# account GITHUB_USERNAME GIT_EMAIL [DISPLAY_NAME_FOR_GIT]
+# DISPLAY_NAME defaults to GITHUB_USERNAME if omitted
+account youruser you@example.com
+account yourotheruser other@example.com
+
+# Optional: skip bulk clone for an account during environment_install
+# clone youruser no
+
+# Optional: shell shortcuts (path under github_root, or "." = github_root itself)
+alias cdg .
+alias cda youruser
+alias cdf yourotheruser
+
+# Optional: only if setup_install must clone this toolkit from GitHub
+# (Skip if you already downloaded or cloned it.)
+# toolkit_repo=youruser/your-toolkit-repo

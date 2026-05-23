@@ -1,0 +1,212 @@
+#!/bin/bash
+# setup_ssh_setup — SSH keys, ~/.ssh/config, includeIf git identity
+
+set -euo pipefail
+
+_gitscripts_self="${BASH_SOURCE[0]}"
+while [ -L "$_gitscripts_self" ]; do
+    _d="$(cd "$(dirname "$_gitscripts_self")" && pwd)"
+    _gitscripts_self="$(readlink "$_gitscripts_self")"
+    [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
+gitscripts_ui_colors
+
+DRY_RUN=false
+MODE="repair"
+MARKER_BEGIN="# gitscripts-managed-begin"
+MARKER_END="# gitscripts-managed-end"
+
+usage() {
+    echo "Usage: setup_ssh_setup [--dry-run] [--new-mac | --repair]"
+    echo ""
+    echo "  --dry-run   Show planned changes only (default if no write flag)"
+    echo "  --new-mac   Generate missing keys; full wizard"
+    echo "  --repair    Add missing keys/config only; do not rotate working keys"
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dry-run) DRY_RUN=true; shift ;;
+        --new-mac) MODE="new-mac"; shift ;;
+        --repair) MODE="repair"; shift ;;
+        -h|--help) usage ;;
+        *) gitscripts_ui_error "Unknown option: $1"; usage ;;
+    esac
+done
+
+log_action() {
+    if [ "$DRY_RUN" = true ]; then
+        gitscripts_ui_info "[dry-run] $*"
+    else
+        gitscripts_ui_success "$*"
+    fi
+}
+
+ssh_config_block() {
+    local user="$1"
+    local host key
+    host=$(gitscripts_account_ssh_host "$user")
+    key=$(gitscripts_account_key_path "$user")
+    cat <<EOF
+Host ${host}
+  HostName ssh.github.com
+  User git
+  Port 443
+  IdentityFile ${key}
+  IdentitiesOnly yes
+  AddKeysToAgent yes
+  UseKeychain yes
+EOF
+}
+
+ensure_ssh_config_block() {
+    local user="$1"
+    local host block tmp config
+    host=$(gitscripts_account_ssh_host "$user")
+    config="$HOME/.ssh/config"
+    block=$(ssh_config_block "$user")
+
+    if [ -f "$config" ] && grep -q "Host ${host}" "$config" 2>/dev/null; then
+        log_action "SSH config already has Host ${host}"
+        return 0
+    fi
+
+    log_action "Add SSH config block for ${host}"
+    if [ "$DRY_RUN" = true ]; then
+        echo "$block"
+        return 0
+    fi
+
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+    touch "$config"
+    chmod 600 "$config"
+    {
+        echo ""
+        echo "${MARKER_BEGIN} ${host}"
+        echo "$block"
+        echo "${MARKER_END} ${host}"
+    } >>"$config"
+}
+
+generate_key() {
+    local user="$1"
+    local key email
+    key=$(gitscripts_account_key_path "$user")
+    email=$(gitscripts_account_email "$user")
+
+    if [ -f "$key" ]; then
+        if [ "$MODE" = "repair" ]; then
+            log_action "Key exists (not rotating): ${key}"
+            return 0
+        fi
+        gitscripts_ui_info "Key exists; skipping generation: ${key}"
+        return 0
+    fi
+
+    log_action "Generate SSH key: ${key}"
+    if [ "$DRY_RUN" = true ]; then
+        return 0
+    fi
+
+    mkdir -p "$GITSCRIPTS_SSH_DIR"
+    chmod 700 "$GITSCRIPTS_SSH_DIR"
+    ssh-keygen -t ed25519 -C "$email" -f "$key" -N "" -q
+    chmod 600 "$key"
+    chmod 644 "${key}.pub"
+    ssh-add --apple-use-keychain "$key" 2>/dev/null || ssh-add "$key" 2>/dev/null || true
+}
+
+prompt_github_upload() {
+    local user="$1"
+    local pub
+    pub=$(gitscripts_account_pubkey_path "$user")
+
+    if [ "$DRY_RUN" = true ]; then
+        log_action "Would copy ${pub} to clipboard and pause for GitHub upload (${user})"
+        return 0
+    fi
+
+    if [ ! -f "$pub" ]; then
+        gitscripts_ui_error "Public key missing: ${pub}"
+        return 1
+    fi
+
+    gitscripts_ui_prompt "Add SSH key to GitHub account: ${user}"
+    echo "  GitHub → Settings → SSH and GPG keys → New SSH key"
+    pbcopy <"$pub" 2>/dev/null || true
+    echo "  Public key copied to clipboard (if pbcopy available)."
+    echo "  Log into GitHub as ${user} and paste the key."
+    read -r -p "Press Enter when done..."
+}
+
+ensure_gitconfig_include() {
+  local user="$1"
+  local gitdir inc cfg global
+  gitdir=$(gitscripts_account_gitdir "$user")
+  inc="gitdir:${gitdir}"
+  cfg="$HOME/.gitconfig-${user}"
+  global="$HOME/.gitconfig"
+  local email
+  email=$(gitscripts_account_email "$user")
+
+  log_action "Ensure includeIf ${inc} and ${cfg}"
+  if [ "$DRY_RUN" = true ]; then
+    return 0
+  fi
+
+  if [ ! -f "$global" ]; then
+    cat >"$global" <<'EOF'
+[init]
+  defaultBranch = main
+EOF
+  fi
+
+  if ! grep -Fq "$inc" "$global" 2>/dev/null; then
+    {
+      echo ""
+      echo "[includeIf \"${inc}\"]"
+      echo "  path = ~/.gitconfig-${user}"
+    } >>"$global"
+  fi
+
+  cat >"$cfg" <<EOF
+[user]
+  name = $(gitscripts_account_git_name "$user")
+  email = ${email}
+EOF
+}
+
+gitscripts_ui_section "gitscripts SSH setup (mode=${MODE}, dry_run=${DRY_RUN})"
+
+for user in "${GITSCRIPTS_ACCOUNTS[@]}"; do
+    gitscripts_ui_prompt "--- ${user} ---"
+    generate_key "$user"
+    ensure_ssh_config_block "$user"
+    if [ "$DRY_RUN" = false ]; then
+        prompt_github_upload "$user" || true
+    fi
+    ensure_gitconfig_include "$user"
+done
+
+if [ "$DRY_RUN" = false ]; then
+    gitscripts_ui_section "Verify SSH"
+    for user in "${GITSCRIPTS_ACCOUNTS[@]}"; do
+        host=$(gitscripts_account_ssh_host "$user")
+        echo ""
+        gitscripts_ui_info "ssh -T git@${host}"
+        ssh -T "git@${host}" 2>&1 || true
+    done
+fi
+
+gitscripts_ui_section "Done"
+if [ "$DRY_RUN" = true ]; then
+    echo "Re-run without --dry-run: ./scripts/util/setup_ssh_setup --repair"
+else
+    echo "Run: ./scripts/util/setup_preflight"
+fi

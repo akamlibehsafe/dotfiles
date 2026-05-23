@@ -1,5 +1,9 @@
-# Personal Access Tokens - NEVER commit these!
+# Secrets and machine-local config — NEVER commit these!
 PAT.md
+accounts.conf
+config/accounts.conf
+gitscripts.accounts
+config/gitscripts.accounts
 
 # macOS
 .DS_Store

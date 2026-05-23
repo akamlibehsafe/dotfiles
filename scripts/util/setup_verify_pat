@@ -1,9 +1,20 @@
 #!/bin/bash
 
-# gitak_verify_PAT
+# setup_verify_pat
 # Helper script to verify PAT tokens are set up correctly
 
 set -e
+
+_gitscripts_self="${BASH_SOURCE[0]}"
+while [ -L "$_gitscripts_self" ]; do
+    _d="$(cd "$(dirname "$_gitscripts_self")" && pwd)"
+    _gitscripts_self="$(readlink "$_gitscripts_self")"
+    [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
 
 # Colors for output
 RED='\033[0;31m'
@@ -148,28 +159,20 @@ verify_pat() {
     fi
 }
 
-# Verify both PATs
-verify_pat "GH_TOKEN_fortegb" "fortegb"
-FORTEGB_STATUS=$?
+# Verify PAT tokens for all configured accounts
+FAILED=0
+for account in "${GITSCRIPTS_ACCOUNTS[@]}"; do
+    pat_var=$(gitscripts_account_pat_var "$account")
+    verify_pat "$pat_var" "$account" || FAILED=$((FAILED + 1))
+done
 
-verify_pat "GH_TOKEN_akamlibehsafe" "akamlibehsafe"
-AKAMLIBEH_STATUS=$?
-
-# Summary
 section "Summary"
 
-if [ $FORTEGB_STATUS -eq 0 ] && [ $AKAMLIBEH_STATUS -eq 0 ]; then
+if [ "$FAILED" -eq 0 ]; then
     success "All PAT tokens are configured correctly!"
     echo ""
     info "You should be able to use all Git automation scripts now."
-elif [ $FORTEGB_STATUS -eq 0 ]; then
-    error "GH_TOKEN_akamlibehsafe needs attention"
-    exit 1
-elif [ $AKAMLIBEH_STATUS -eq 0 ]; then
-    error "GH_TOKEN_fortegb needs attention"
-    exit 1
 else
-    error "Both PAT tokens need attention"
-    exit 1
+    error "$FAILED PAT token(s) need attention. Run: setup_configure_pats"
 fi
 

@@ -1,0 +1,108 @@
+#!/bin/bash
+# setup_migrate_remotes — HTTPS github.com origins → git@github-<user>:...
+
+set -euo pipefail
+
+_gitscripts_self="${BASH_SOURCE[0]}"
+while [ -L "$_gitscripts_self" ]; do
+    _d="$(cd "$(dirname "$_gitscripts_self")" && pwd)"
+    _gitscripts_self="$(readlink "$_gitscripts_self")"
+    [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
+gitscripts_ui_colors
+
+APPLY=false
+DRY_RUN=true
+
+usage() {
+    echo "Usage: setup_migrate_remotes [--dry-run] [--apply]"
+    echo ""
+    echo "  --dry-run   List changes only (default)"
+    echo "  --apply     Update origin URLs"
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dry-run) DRY_RUN=true; APPLY=false; shift ;;
+        --apply) APPLY=true; DRY_RUN=false; shift ;;
+        -h|--help) usage ;;
+        *) gitscripts_ui_error "Unknown option: $1"; usage ;;
+    esac
+done
+
+parse_https_origin() {
+    local url="$1"
+    if [[ "$url" =~ ^https://github\.com/([^/]+)/([^/.]+)(\.git)?$ ]]; then
+        echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]}"
+        return 0
+    fi
+    if [[ "$url" =~ ^https://[^@]+@github\.com/([^/]+)/([^/.]+)(\.git)?$ ]]; then
+        echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]}"
+        return 0
+    fi
+    return 1
+}
+
+gitscripts_ui_section "Migrate remotes (${GITSCRIPTS_GITHUB_ROOT})"
+
+if [ ! -d "$GITSCRIPTS_GITHUB_ROOT" ]; then
+    gitscripts_ui_error "GitHub root not found: ${GITSCRIPTS_GITHUB_ROOT}"
+    exit 1
+fi
+
+CHANGED=0
+SKIPPED=0
+
+while IFS= read -r git_dir; do
+    [ -z "$git_dir" ] && continue
+    repo_root=$(dirname "$git_dir")
+    origin=$(git -C "$repo_root" remote get-url origin 2>/dev/null || echo "")
+    [ -z "$origin" ] && continue
+
+    if [[ "$origin" =~ ^git@github- ]]; then
+        SKIPPED=$((SKIPPED + 1))
+        continue
+    fi
+
+    parsed=$(parse_https_origin "$origin" || true)
+    if [ -z "$parsed" ]; then
+        gitscripts_ui_info "Skip (not standard HTTPS): ${repo_root}"
+        SKIPPED=$((SKIPPED + 1))
+        continue
+    fi
+
+    user=$(echo "$parsed" | awk '{print $1}')
+    repo=$(echo "$parsed" | awk '{print $2}')
+
+    if ! gitscripts_is_known_account "$user"; then
+        gitscripts_ui_info "Skip (unknown user ${user}): ${repo_root}"
+        SKIPPED=$((SKIPPED + 1))
+        continue
+    fi
+
+    new_url=$(gitscripts_remote_ssh_url "$user" "$repo")
+    echo ""
+    echo "  ${repo_root}"
+    echo "    from: ${origin}"
+    echo "    to:   ${new_url}"
+
+    if [ "$APPLY" = true ]; then
+        git -C "$repo_root" remote set-url origin "$new_url"
+        gitscripts_ui_success "    updated"
+    fi
+    CHANGED=$((CHANGED + 1))
+done < <(find "$GITSCRIPTS_GITHUB_ROOT" -mindepth 3 -maxdepth 4 -type d -name .git 2>/dev/null)
+
+gitscripts_ui_section "Summary"
+echo "  Would change / changed: ${CHANGED}"
+echo "  Skipped: ${SKIPPED}"
+
+if [ "$DRY_RUN" = true ] && [ "$CHANGED" -gt 0 ]; then
+    echo ""
+    gitscripts_ui_info "Run with --apply to update remotes."
+fi

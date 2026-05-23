@@ -1,0 +1,166 @@
+#!/bin/bash
+
+# setup_symlinks
+# Creates symlinks in ~/bin/ pointing to scripts in this repository.
+# Removes deprecated symlinks (gitak_*, gitscripts_*, environment_*).
+
+set -e
+
+_gitscripts_self="${BASH_SOURCE[0]}"
+while [ -L "$_gitscripts_self" ]; do
+    _d="$(cd "$(dirname "$_gitscripts_self")" && pwd)"
+    _gitscripts_self="$(readlink "$_gitscripts_self")"
+    [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/manifest.sh
+source "${SCRIPTS_ROOT}/lib/manifest.sh"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+error() { echo -e "${RED}Error: $1${NC}" >&2; exit 1; }
+success() { echo -e "${GREEN}$1${NC}"; }
+info() { echo -e "${YELLOW}$1${NC}"; }
+prompt() { echo -e "${BLUE}$1${NC}"; }
+
+_symlink_target_path() {
+    local link="$1"
+    local target dir
+    target=$(readlink "$link")
+    if [[ "$target" != /* ]]; then
+        dir=$(cd "$(dirname "$link")" && pwd)
+        target="${dir}/${target}"
+    fi
+    echo "$(cd "$(dirname "$target")" && pwd -P)/$(basename "$target")"
+}
+
+info "Git Scripts Symlink Setup"
+info "=========================="
+echo ""
+info "Symlinks in ~/bin/ → ${SCRIPTS_ROOT}"
+echo ""
+
+if [ ! -d "$HOME/bin" ]; then
+    info "Creating ~/bin directory..."
+    mkdir -p "$HOME/bin"
+    success "Created ~/bin directory"
+fi
+
+SHELL_CONFIG=""
+SHELL_NAME=$(basename "$SHELL")
+if [ "$SHELL_NAME" = "zsh" ]; then
+    SHELL_CONFIG="$HOME/.zshrc"
+elif [ "$SHELL_NAME" = "bash" ]; then
+    SHELL_CONFIG="${HOME}/.bash_profile"
+    [ ! -f "$SHELL_CONFIG" ] && SHELL_CONFIG="$HOME/.bashrc"
+else
+    SHELL_CONFIG="$HOME/.profile"
+fi
+
+if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+    info "Adding ~/bin to PATH..."
+    if [ -f "$SHELL_CONFIG" ]; then
+        if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$SHELL_CONFIG"; then
+            {
+                echo ''
+                echo '# Add ~/bin to PATH for git scripts'
+                echo 'export PATH="$HOME/bin:$PATH"'
+            } >>"$SHELL_CONFIG"
+            success "Added ~/bin to PATH in $SHELL_CONFIG"
+        fi
+    fi
+else
+    info "~/bin is already in PATH"
+fi
+
+echo ""
+info "Removing deprecated ~/bin symlinks..."
+for old in "${GITSCRIPTS_DEPRECATED_BIN_SYMLINKS[@]}"; do
+    if [ -L "$HOME/bin/$old" ] || [ -f "$HOME/bin/$old" ]; then
+        rm -f "$HOME/bin/$old"
+        success "  removed ~/bin/$old"
+    fi
+done
+
+echo ""
+info "Creating symlinks..."
+
+SYMLINKS_CREATED=0
+SYMLINKS_UPDATED=0
+SYMLINKS_SKIPPED=0
+
+for entry in "${GITSCRIPTS_BIN_ENTRIES[@]}"; do
+    script="${entry%%:*}"
+    rel="${entry#*:}"
+    SCRIPT_PATH="$SCRIPTS_ROOT/$rel"
+    SYMLINK_PATH="$HOME/bin/$script"
+
+    if [ ! -f "$SCRIPT_PATH" ]; then
+        info "  ⚠ Skipping $script (not found at $rel)"
+        SYMLINKS_SKIPPED=$((SYMLINKS_SKIPPED + 1))
+        continue
+    fi
+
+    if [ -L "$SYMLINK_PATH" ]; then
+        ABSOLUTE_TARGET=$(_symlink_target_path "$SYMLINK_PATH")
+        ABSOLUTE_SCRIPT="$(cd "$(dirname "$SCRIPT_PATH")" && pwd -P)/$(basename "$SCRIPT_PATH")"
+        if [ "$ABSOLUTE_TARGET" = "$ABSOLUTE_SCRIPT" ]; then
+            info "  ✓ $script (already correct)"
+            SYMLINKS_SKIPPED=$((SYMLINKS_SKIPPED + 1))
+        else
+            rm "$SYMLINK_PATH"
+            ln -s "$SCRIPT_PATH" "$SYMLINK_PATH"
+            success "  ↻ Updated $script"
+            SYMLINKS_UPDATED=$((SYMLINKS_UPDATED + 1))
+        fi
+    elif [ -f "$SYMLINK_PATH" ]; then
+        prompt "  ⚠ $script exists as a file in ~/bin. Overwrite? (y/N): "
+        read -r response
+        if [[ "$response" =~ ^[Yy]$ ]]; then
+            rm "$SYMLINK_PATH"
+            ln -s "$SCRIPT_PATH" "$SYMLINK_PATH"
+            SYMLINKS_CREATED=$((SYMLINKS_CREATED + 1))
+        else
+            SYMLINKS_SKIPPED=$((SYMLINKS_SKIPPED + 1))
+        fi
+    else
+        ln -s "$SCRIPT_PATH" "$SYMLINK_PATH"
+        success "  ✓ $script"
+        SYMLINKS_CREATED=$((SYMLINKS_CREATED + 1))
+    fi
+done
+
+echo ""
+info "Summary: created=$SYMLINKS_CREATED updated=$SYMLINKS_UPDATED skipped=$SYMLINKS_SKIPPED"
+
+info "Verifying symlinks..."
+ALL_VALID=true
+for entry in "${GITSCRIPTS_BIN_ENTRIES[@]}"; do
+    script="${entry%%:*}"
+    rel="${entry#*:}"
+    SYMLINK_PATH="$HOME/bin/$script"
+    if [ ! -f "$SCRIPTS_ROOT/$rel" ]; then
+        continue
+    fi
+    if [ -L "$SYMLINK_PATH" ] && [ -f "$(_symlink_target_path "$SYMLINK_PATH")" ]; then
+        success "  ✓ $script"
+    else
+        error "  ✗ $script missing or invalid"
+        ALL_VALID=false
+    fi
+done
+
+if [ "$ALL_VALID" = true ]; then
+    echo ""
+    success "Setup complete!"
+    info "Product 2: git_push, git_create_from_remote, git_create_from_local"
+    info "Setup helpers: ./scripts/util/setup_preflight (not on ~/bin by default)"
+    [ -n "$SHELL_CONFIG" ] && info "Reload: source $SHELL_CONFIG"
+else
+    error "Some symlinks could not be created."
+fi
