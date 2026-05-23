@@ -16,8 +16,7 @@ Download the `gitak_install` script by itself and execute it. It will install an
 
 **See `README_FIRST.md` for detailed instructions on using `environment_install`.**
 
-
-
+**Multi-account Cursor setup (in progress → 0.4.0):** [docs/guides/github-multiple-accounts-mac-cursor.md](docs/guides/github-multiple-accounts-mac-cursor.md) · [docs/PLAN-0.4.0-gitscripts.md](docs/PLAN-0.4.0-gitscripts.md)
 
 # Git Automation Scripts
 

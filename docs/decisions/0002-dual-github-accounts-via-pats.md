@@ -1,7 +1,7 @@
 # 0002 - Dual GitHub Accounts via PATs
 
 ## Status
-Accepted
+Superseded by [0005-hybrid-ssh-and-pat-auth.md](0005-hybrid-ssh-and-pat-auth.md)
 
 ## Context
 The project needs to support operations across two GitHub accounts (`fortegb` and `akamlibehsafe`). We need a way to authenticate with the correct account based on which repository we're working with, without requiring users to manually switch credentials.
