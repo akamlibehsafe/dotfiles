@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# gitscripts_verify_PAT
+# setup_verify_pat
 # Helper script to verify PAT tokens are set up correctly
 
 set -e
@@ -12,8 +12,9 @@ while [ -L "$_gitscripts_self" ]; do
     [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
 done
 SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
-# shellcheck source=lib/gitscripts_init.sh
-source "${SCRIPT_DIR}/lib/gitscripts_init.sh"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
 
 # Colors for output
 RED='\033[0;31m'
@@ -172,6 +173,6 @@ if [ "$FAILED" -eq 0 ]; then
     echo ""
     info "You should be able to use all Git automation scripts now."
 else
-    error "$FAILED PAT token(s) need attention. Run: gitscripts_configure_pats"
+    error "$FAILED PAT token(s) need attention. Run: setup_configure_pats"
 fi
 

@@ -15,9 +15,9 @@ Use a **hybrid** model:
 | Git transport (clone/push/pull) | SSH Host aliases (`git@github-<user>:...`) and keys under `~/.ssh/gitscripts/` |
 | API / bulk listing | `GH_TOKEN_<user>` environment variables |
 
-Orchestration: `gitscripts_preflight` → planned actions → user confirm → `gitscripts_configure_pats` / `gitscripts_ssh_setup`. Primary install path: new Mac (`environment_install`).
+Orchestration: `setup_preflight` → planned actions → user confirm → `setup_configure_pats` / `setup_ssh_setup`. Primary install path: new Mac (`environment_install`).
 
-Script prefix: **`gitscripts_*`** (renamed from `gitak_*` in 0.4.0). `gitscripts_create_from_local` requires repo created on GitHub first (no API create).
+Script prefix: **`gitscripts_*`** (renamed from `gitak_*` in 0.4.0). `git_create_from_local` requires repo created on GitHub first (no API create).
 
 ## Alternatives considered
 - **PAT-only (0002)**: Fails Cursor commit/push UX; kept only for API.

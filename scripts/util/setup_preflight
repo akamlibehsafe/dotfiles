@@ -1,5 +1,5 @@
 #!/bin/bash
-# gitscripts_preflight — read-only scan of PAT, SSH, gitconfig, and remotes
+# setup_preflight — read-only scan of PAT, SSH, gitconfig, and remotes
 
 set -euo pipefail
 
@@ -10,11 +10,12 @@ while [ -L "$_gitscripts_self" ]; do
     [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
 done
 SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
-# shellcheck source=lib/gitscripts_init.sh
-source "${SCRIPT_DIR}/lib/gitscripts_init.sh"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
 gitscripts_ui_colors
 
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+REPO_ROOT="${GITSCRIPTS_REPO_ROOT}"
 PAT_FILE="${GITSCRIPTS_PAT_FILE:-${REPO_ROOT}/PAT.md}"
 
 gitscripts_load_pat_file "$PAT_FILE" 2>/dev/null || true
@@ -30,7 +31,7 @@ HTTPS_REMOTES=0
 SSH_REMOTES=0
 REPO_COUNT=0
 
-gitscripts_ui_section "gitscripts preflight (read-only)"
+gitscripts_ui_section "setup preflight (read-only)"
 
 echo "Repository: ${REPO_ROOT}"
 echo "GitHub root: ${GITSCRIPTS_GITHUB_ROOT}"
@@ -170,10 +171,10 @@ if [ ${#ACTIONS[@]} -gt 0 ]; then
         [ -n "$action" ] && echo "  - ${action}"
     done < <(printf '%s\n' "${ACTIONS[@]}" | sort -u)
     echo ""
-    echo "  ./scripts/gitscripts_configure_pats    # if PATs missing"
-    echo "  ./scripts/gitscripts_ssh_setup --dry-run"
-    echo "  ./scripts/gitscripts_ssh_setup --repair   # after dry-run OK"
-    echo "  ./scripts/gitscripts_migrate_remotes --dry-run"
+    echo "  ./scripts/util/setup_configure_pats    # if PATs missing"
+    echo "  ./scripts/util/setup_ssh_setup --dry-run"
+    echo "  ./scripts/util/setup_ssh_setup --repair   # after dry-run OK"
+    echo "  ./scripts/util/setup_migrate_remotes --dry-run"
 else
     gitscripts_ui_success "No actions required — environment looks ready."
 fi

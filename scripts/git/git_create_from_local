@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# gitscripts_create_from_local
+# git_create_from_local
 # Initializes a local folder and pushes to an existing GitHub repo (create repo on GitHub first).
 
 set -e
@@ -12,9 +12,10 @@ while [ -L "$_gitscripts_self" ]; do
     [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
 done
 SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
-# shellcheck source=lib/gitscripts_init.sh
-source "${SCRIPT_DIR}/lib/gitscripts_init.sh"
-gitscripts_load_pat_file "${SCRIPT_DIR}/../PAT.md" 2>/dev/null || true
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
+gitscripts_load_pat_file "${GITSCRIPTS_REPO_ROOT}/PAT.md" 2>/dev/null || true
 gitscripts_load_pat_from_shell_configs
 
 RED='\033[0;31m'
@@ -29,7 +30,7 @@ info() { echo -e "${YELLOW}$1${NC}"; }
 prompt() { echo -e "${BLUE}$1${NC}"; }
 
 if [ $# -ne 1 ]; then
-    error "Usage: gitscripts_create_from_local <user/repo>\nExample: gitscripts_create_from_local akamlibehsafe/myproject"
+    error "Usage: git_create_from_local <user/repo>\nExample: git_create_from_local akamlibehsafe/myproject"
 fi
 
 USER_REPO="$1"
@@ -50,7 +51,7 @@ info "Repository: $USER_REPO"
 info "SSH remote: $SSH_REMOTE"
 
 if ! command -v git &>/dev/null; then
-    error "Git is not installed. Run gitscripts_install first."
+    error "Git is not installed. Run setup_install first."
 fi
 
 CURRENT_DIR=$(pwd -P)
@@ -73,7 +74,7 @@ git ls-remote "$SSH_REMOTE" &>/dev/null
 REMOTE_OK=$?
 set -e
 if [ "$REMOTE_OK" -ne 0 ]; then
-    error "Cannot reach $SSH_REMOTE.\nCreate the repo on GitHub and ensure SSH is set up: gitscripts_ssh_setup --repair"
+    error "Cannot reach $SSH_REMOTE.\nCreate the repo on GitHub and ensure SSH is set up: setup_ssh_setup --repair"
 fi
 success "Remote repository found"
 

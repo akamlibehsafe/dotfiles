@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# gitscripts_setup_symlinks
+# setup_symlinks
 # Creates symlinks in ~/bin/ pointing to scripts in this repository.
-# Removes deprecated gitscripts_* symlinks (0.4.0 rename).
+# Removes deprecated symlinks (gitak_*, gitscripts_*, environment_*).
 
 set -e
 
@@ -13,8 +13,9 @@ while [ -L "$_gitscripts_self" ]; do
     [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
 done
 SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
-# shellcheck source=lib/gitscripts_manifest.sh
-source "${SCRIPT_DIR}/lib/gitscripts_manifest.sh"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/manifest.sh
+source "${SCRIPTS_ROOT}/lib/manifest.sh"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -41,7 +42,7 @@ _symlink_target_path() {
 info "Git Scripts Symlink Setup"
 info "=========================="
 echo ""
-info "Symlinks in ~/bin/ → ${SCRIPT_DIR}"
+info "Symlinks in ~/bin/ → ${SCRIPTS_ROOT}"
 echo ""
 
 if [ ! -d "$HOME/bin" ]; then
@@ -78,7 +79,7 @@ else
 fi
 
 echo ""
-info "Removing deprecated gitscripts_* symlinks..."
+info "Removing deprecated ~/bin symlinks..."
 for old in "${GITSCRIPTS_DEPRECATED_BIN_SYMLINKS[@]}"; do
     if [ -L "$HOME/bin/$old" ] || [ -f "$HOME/bin/$old" ]; then
         rm -f "$HOME/bin/$old"
@@ -93,12 +94,14 @@ SYMLINKS_CREATED=0
 SYMLINKS_UPDATED=0
 SYMLINKS_SKIPPED=0
 
-for script in "${GITSCRIPTS_BIN_SYMLINKS[@]}"; do
-    SCRIPT_PATH="$SCRIPT_DIR/$script"
+for entry in "${GITSCRIPTS_BIN_ENTRIES[@]}"; do
+    script="${entry%%:*}"
+    rel="${entry#*:}"
+    SCRIPT_PATH="$SCRIPTS_ROOT/$rel"
     SYMLINK_PATH="$HOME/bin/$script"
 
     if [ ! -f "$SCRIPT_PATH" ]; then
-        info "  ⚠ Skipping $script (not found)"
+        info "  ⚠ Skipping $script (not found at $rel)"
         SYMLINKS_SKIPPED=$((SYMLINKS_SKIPPED + 1))
         continue
     fi
@@ -137,9 +140,11 @@ info "Summary: created=$SYMLINKS_CREATED updated=$SYMLINKS_UPDATED skipped=$SYML
 
 info "Verifying symlinks..."
 ALL_VALID=true
-for script in "${GITSCRIPTS_BIN_SYMLINKS[@]}"; do
+for entry in "${GITSCRIPTS_BIN_ENTRIES[@]}"; do
+    script="${entry%%:*}"
+    rel="${entry#*:}"
     SYMLINK_PATH="$HOME/bin/$script"
-    if [ ! -f "$SCRIPT_DIR/$script" ]; then
+    if [ ! -f "$SCRIPTS_ROOT/$rel" ]; then
         continue
     fi
     if [ -L "$SYMLINK_PATH" ] && [ -f "$(_symlink_target_path "$SYMLINK_PATH")" ]; then
@@ -153,7 +158,8 @@ done
 if [ "$ALL_VALID" = true ]; then
     echo ""
     success "Setup complete!"
-    info "Try: gitscripts_preflight, gitscripts_push, gitscripts_verify_PAT"
+    info "Product 2: git_push, git_create_from_remote, git_create_from_local"
+    info "Setup helpers: ./scripts/util/setup_preflight (not on ~/bin by default)"
     [ -n "$SHELL_CONFIG" ] && info "Reload: source $SHELL_CONFIG"
 else
     error "Some symlinks could not be created."

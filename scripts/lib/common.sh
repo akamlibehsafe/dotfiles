@@ -1,32 +1,26 @@
 #!/bin/bash
-# gitscripts_common.sh — shared account map and helpers (source only)
-
-GITSCRIPTS_ACCOUNTS=(rbonon fortegb akamlibehsafe)
+# common.sh — shared helpers (source only; do not execute)
 
 GITSCRIPTS_GITHUB_ROOT="${GITSCRIPTS_GITHUB_ROOT:-$HOME/Documents/GitHub}"
 GITSCRIPTS_SSH_DIR="${GITSCRIPTS_SSH_DIR:-$HOME/.ssh/gitscripts}"
 GITSCRIPTS_SSH_ARCHIVE="${GITSCRIPTS_SSH_ARCHIVE:-$GITSCRIPTS_SSH_DIR/archive}"
 
-gitscripts_repo_root() {
-    local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")/.." && pwd -P)"
-    echo "$script_dir"
+gitscripts_scripts_root() {
+    echo "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 }
+
+gitscripts_repo_root() {
+    echo "$(cd "$(gitscripts_scripts_root)/.." && pwd -P)"
+}
+
+# shellcheck source=accounts.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/accounts.sh"
 
 gitscripts_source_common() {
     local here
     here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
     # shellcheck disable=SC1091
-    source "${here}/gitscripts_common.sh"
-}
-
-gitscripts_account_email() {
-    case "$1" in
-        rbonon) echo "ricardobonon@gmail.com" ;;
-        fortegb) echo "contato@fortegb.com" ;;
-        akamlibehsafe) echo "akamlibeh.safe@gmail.com" ;;
-        *) return 1 ;;
-    esac
+    source "${here}/common.sh"
 }
 
 gitscripts_account_pat_var() {
@@ -184,4 +178,40 @@ gitscripts_ui_section() {
     echo ""
     echo -e "${BLUE}=== $1 ===${NC}"
     echo ""
+}
+
+# Path to bundled iTerm2 profile export (repo-relative)
+gitscripts_iterm2_export_path() {
+    local root
+    for root in "$@"; do
+        [ -n "$root" ] || continue
+        if [ -f "${root}/config/iterm2/iTerm2 State.itermexport" ]; then
+            echo "${root}/config/iterm2/iTerm2 State.itermexport"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Install iTerm2 via Homebrew Cask if missing. Returns 0 if app is present afterward.
+gitscripts_install_iterm2() {
+    if [ -d "/Applications/iTerm.app" ]; then
+        return 0
+    fi
+    if ! command -v brew &>/dev/null; then
+        echo "Homebrew is required to install iTerm2." >&2
+        return 1
+    fi
+    brew install --cask iterm2
+}
+
+# Open bundled .itermexport in iTerm2 (user confirms import in the app).
+gitscripts_import_iterm2_export() {
+    local export_file="$1"
+    [ -f "$export_file" ] || return 1
+    if [ ! -d "/Applications/iTerm.app" ]; then
+        return 1
+    fi
+    open -a iTerm "$export_file" 2>/dev/null || open "$export_file"
+    return 0
 }

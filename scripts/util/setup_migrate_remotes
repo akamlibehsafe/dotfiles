@@ -1,5 +1,5 @@
 #!/bin/bash
-# gitscripts_migrate_remotes — HTTPS github.com origins → git@github-<user>:...
+# setup_migrate_remotes — HTTPS github.com origins → git@github-<user>:...
 
 set -euo pipefail
 
@@ -10,15 +10,16 @@ while [ -L "$_gitscripts_self" ]; do
     [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
 done
 SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
-# shellcheck source=lib/gitscripts_init.sh
-source "${SCRIPT_DIR}/lib/gitscripts_init.sh"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
 gitscripts_ui_colors
 
 APPLY=false
 DRY_RUN=true
 
 usage() {
-    echo "Usage: gitscripts_migrate_remotes [--dry-run] [--apply]"
+    echo "Usage: setup_migrate_remotes [--dry-run] [--apply]"
     echo ""
     echo "  --dry-run   List changes only (default)"
     echo "  --apply     Update origin URLs"

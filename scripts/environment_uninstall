@@ -13,13 +13,15 @@ while [ -L "$_gitscripts_self" ]; do
     [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
 done
 SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
+SCRIPTS_ROOT="$SCRIPT_DIR"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
-GIT_ROOT_DIR="${GIT_ROOT_DIR:-$HOME/Documents/GitHub}"
-GITSCRIPTS_REPO="${GITSCRIPTS_REPO:-$GIT_ROOT_DIR/akamlibehsafe/gitscripts}"
-# shellcheck source=lib/gitscripts_manifest.sh
-source "${SCRIPT_DIR}/lib/gitscripts_manifest.sh"
-# shellcheck source=lib/gitscripts_init.sh
-source "${SCRIPT_DIR}/lib/gitscripts_init.sh"
+# shellcheck source=lib/manifest.sh
+source "${SCRIPTS_ROOT}/lib/manifest.sh"
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
+
+GIT_ROOT_DIR="${GIT_ROOT_DIR:-$GITSCRIPTS_GITHUB_ROOT}"
+GITSCRIPTS_REPO="${GITSCRIPTS_REPO:-$GITSCRIPTS_REPO_ROOT}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -72,7 +74,7 @@ echo ""
 warn "╔══════════════════════════════════════════════════════════════════════╗"
 warn "║  DANGER: FULL ENVIRONMENT UNINSTALL                                  ║"
 warn "║                                                                      ║"
-warn "║  This reverses what environment_install configured on this Mac.      ║"
+warn "║  This reverses what environment_install configured on this Mac.                ║"
 warn "║  YOU MAY LOSE LOCAL GIT REPOSITORIES AND UNCOMMITTED WORK.           ║"
 warn "╚══════════════════════════════════════════════════════════════════════╝"
 echo ""
@@ -80,7 +82,7 @@ echo ""
 warn "CRITICAL — ALL REPOSITORIES UNDER:"
 warn "  ${GIT_ROOT_DIR}/"
 warn "can be PERMANENTLY DELETED (Step 7), including every cloned project"
-warn "for rbonon, fortegb, and akamlibehsafe — not just gitscripts."
+warn "for configured GitHub accounts ($(gitscripts_supported_accounts_list)) — not just gitscripts."
 echo ""
 
 # Show repo footprint if present
@@ -113,17 +115,18 @@ echo "  Step 0   Push pending changes in ${GIT_ROOT_DIR} (optional, before delet
 echo "  Step 1   Remove ALL ~/bin/ symlinks:"
 echo "             • gitscripts_* (${#GITSCRIPTS_BIN_SYMLINKS[@]} scripts)"
 echo "             • legacy gitak_* (${#GITSCRIPTS_DEPRECATED_BIN_SYMLINKS[@]} names)"
-echo "             • environment_install, environment_uninstall, zsh_install, doc_*"
+echo "             • environment_install, environment_uninstall, setup_symlinks, setup_zsh_install"
+echo "             • git_push, git_create_from_remote, git_create_from_local"
+echo "             • deprecated git_* / gitscripts_* setup helper names on ~/bin"
 echo "             • Optionally remove empty ~/bin/"
-echo "  Step 2   Remove shell aliases: cdg, cda, cdf, cds from ~/.zshrc"
-echo "  Step 3   Remove PAT exports (GH_TOKEN_rbonon, GH_TOKEN_fortegb,"
-echo "             GH_TOKEN_akamlibehsafe) from shell config files"
+echo "  Step 2   Remove shell aliases from accounts.conf from ~/.zshrc"
+echo "  Step 3   Remove PAT exports ($(gitscripts_pat_var_names_list)) from shell config files"
 echo "  Step 3a  Delete PAT.md files on disk (secrets) — default YES"
 echo "             • ${GITSCRIPTS_REPO}/PAT.md and other known paths"
 echo "  Step 3b  Remove gitscripts SSH + Git identity — default YES"
 echo "             • ~/.ssh/gitscripts/ keys (archived)"
 echo "             • gitscripts blocks in ~/.ssh/config"
-echo "             • includeIf entries and ~/.gitconfig-{rbonon,fortegb,akamlibehsafe}"
+echo "             • includeIf entries and ~/.gitconfig-{$(gitscripts_supported_accounts_list)}"
 echo "  Step 4   Uninstall Cursor Desktop (Homebrew cask, optional)"
 echo "  Step 5   Uninstall iTerm2 (optional)"
 echo "  Step 6   Uninstall Git, Git LFS, GitHub CLI, jq (Homebrew, optional)"
@@ -253,18 +256,18 @@ if [ -d "$GIT_ROOT_DIR" ] && command -v git &> /dev/null; then
                 info "Processing: $repo"
                 cd "$repo" || continue
                 
-                # Try to use gitscripts_push if available, otherwise use git directly
-                if command -v gitscripts_push &> /dev/null; then
-                    info "Using gitscripts_push for $repo"
+                # Try to use git_push if available, otherwise use git directly
+                if command -v git_push &> /dev/null; then
+                    info "Using git_push for $repo"
                     set +e
-                    gitscripts_push -m "Final commit before environment uninstall - $(date '+%Y-%m-%d %H:%M:%S')" 2>&1 || info "Failed to push using gitscripts_push (will try git directly)"
+                    git_push -m "Final commit before environment_uninstall - $(date '+%Y-%m-%d %H:%M:%S')" 2>&1 || info "Failed to push using git_push (will try git directly)"
                     set -e
                 else
                     # Use git directly (basic push - assumes PAT is configured)
                     info "Using git push for $repo"
                     set +e
                     git add . 2>/dev/null || true
-                    git commit -m "Final commit before environment uninstall - $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
+                    git commit -m "Final commit before environment_uninstall - $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
                     git push 2>&1 || info "Note: Push may have failed (PAT may not be configured)"
                     set -e
                 fi
@@ -350,7 +353,7 @@ if [ -f "$HOME/.zshrc" ]; then
     info "Checking for aliases in ~/.zshrc..."
     
     # Check if aliases section exists
-    if grep -q "# Added by environment_install script" "$HOME/.zshrc" 2>/dev/null; then
+    if grep -qE "# Added by (environment_install|dev_install) script" "$HOME/.zshrc" 2>/dev/null; then
         prompt "Found aliases added by environment_install. Remove them? (Y/n)"
         read -r REMOVE_ALIASES
         
@@ -362,11 +365,13 @@ if [ -f "$HOME/.zshrc" ]; then
                 sed -i '/# Useful aliases for Git repositories/,/alias cds=/d' "$HOME/.zshrc" 2>/dev/null || true
             fi
             
-            # Also remove the "Added by environment_install" comment line if it exists
+            # Also remove install marker comment lines (legacy + current)
             if [[ "$OSTYPE" == "darwin"* ]]; then
                 sed -i '' '/# Added by environment_install script/d' "$HOME/.zshrc" 2>/dev/null || true
+                sed -i '' '/# Added by dev_install script/d' "$HOME/.zshrc" 2>/dev/null || true
             else
                 sed -i '/# Added by environment_install script/d' "$HOME/.zshrc" 2>/dev/null || true
+                sed -i '/# Added by dev_install script/d' "$HOME/.zshrc" 2>/dev/null || true
             fi
             
             success "Removed aliases from ~/.zshrc"
@@ -384,7 +389,7 @@ section "Step 3: Remove PAT Tokens from Shell Configuration"
 
 for config_file in "${SHELL_CONFIGS[@]}"; do
     if [ -f "$config_file" ]; then
-        if grep -q "GH_TOKEN_fortegb\|GH_TOKEN_akamlibehsafe\|GH_TOKEN_rbonon" "$config_file" 2>/dev/null; then
+        if grep -qE "$(gitscripts_pat_grep_pattern)" "$config_file" 2>/dev/null; then
             prompt "Found PAT tokens in $config_file. Remove them? (Y/n)"
             read -r REMOVE_PATS
             
@@ -394,12 +399,12 @@ for config_file in "${SHELL_CONFIGS[@]}"; do
                     sed -i '' '/^export GH_TOKEN_/d' "$config_file" 2>/dev/null || true
                     sed -i '' '/# gitscripts PAT/d' "$config_file" 2>/dev/null || true
                     sed -i '' '/# Git Automation Scripts - Personal Access Tokens/d' "$config_file" 2>/dev/null || true
-                    sed -i '' '/# Added by gitscripts_install script/d' "$config_file" 2>/dev/null || true
+                    sed -i '' '/# Added by setup_install script/d' "$config_file" 2>/dev/null || true
                 else
                     sed -i '/^export GH_TOKEN_/d' "$config_file" 2>/dev/null || true
                     sed -i '/# gitscripts PAT/d' "$config_file" 2>/dev/null || true
                     sed -i '/# Git Automation Scripts - Personal Access Tokens/d' "$config_file" 2>/dev/null || true
-                    sed -i '/# Added by gitscripts_install script/d' "$config_file" 2>/dev/null || true
+                    sed -i '/# Added by setup_install script/d' "$config_file" 2>/dev/null || true
                 fi
                 success "Removed PAT tokens from $config_file"
             else
@@ -417,7 +422,7 @@ PAT_FILES_TO_CHECK=(
     "$GITSCRIPTS_REPO/PAT.md"
     "$REPO_ROOT/PAT.md"
     "$SCRIPT_DIR/PAT.md"
-    "$GIT_ROOT_DIR/akamlibehsafe/gitscripts/PAT.md"
+    "$GITSCRIPTS_REPO_ROOT/PAT.md"
 )
 
 PAT_FILES_FOUND=()
@@ -714,7 +719,7 @@ else
     info "Zsh plugins directory not found"
 fi
 
-section "Step 9b: Remove MesloLGS NF font (zsh_install)"
+section "Step 9b: Remove MesloLGS NF font (setup_zsh_install)"
 
 if command -v brew &>/dev/null; then
     if brew list --cask font-meslo-lg-nerd-font &>/dev/null 2>&1; then

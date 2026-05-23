@@ -19,8 +19,8 @@ chmod +x environment_install
 **Git Tools Only:**
 ```bash
 cd ~/Documents/gitscripts/scripts
-chmod +x gitscripts_install
-./gitscripts_install
+chmod +x setup_install
+./setup_install
 ```
 
 ### Verify Installation
@@ -32,13 +32,13 @@ gh --version
 git lfs version
 
 # Check PAT tokens are set:
-gitscripts_verify_PAT
+setup_verify_pat
 
 # Check symlinks are working:
 ls -la ~/bin/gitscripts_*
 
 # Test a script:
-gitscripts_create_from_remote akamlibehsafe/gitscripts
+git_create_from_remote akamlibehsafe/gitscripts
 ```
 
 ## Uninstallation
@@ -55,13 +55,13 @@ chmod +x environment_uninstall
 
 **Before uninstalling:**
 1. Check for pending changes: `cd ~/Documents/GitHub && find . -name .git -type d | while read dir; do cd "$dir/.." && git status; done`
-2. Push all pending changes using `gitscripts_push` or manually
+2. Push all pending changes using `git_push` or manually
 3. Backup any important uncommitted work
 
 ### Partial Uninstallation
 
 Remove individual components:
-- **Symlinks only**: `rm ~/bin/gitscripts_* ~/bin/zsh_install ~/bin/environment_*`
+- **Symlinks only**: `rm ~/bin/gitscripts_* ~/bin/setup_zsh_install ~/bin/dev_* ~/bin/environment_*`
 - **Aliases only**: Edit `~/.zshrc` and remove lines with `alias cdg=`, `alias cda=`, etc.
 - **PAT tokens only**: Edit `~/.zshrc` and remove lines with `export GH_TOKEN_*`
 
@@ -71,13 +71,13 @@ Remove individual components:
 
 ```bash
 cd /path/to/my/project
-gitscripts_create_from_local akamlibehsafe/my-new-repo
+git_create_from_local akamlibehsafe/my-new-repo
 ```
 
 ### Clone Existing Repository
 
 ```bash
-gitscripts_create_from_remote fortegb/existing-repo
+git_create_from_remote fortegb/existing-repo
 cd existing-repo
 ```
 
@@ -85,13 +85,13 @@ cd existing-repo
 
 ```bash
 # From repository directory:
-gitscripts_push
+git_push
 
 # With commit message:
-gitscripts_push -m "Update documentation"
+git_push -m "Update documentation"
 
 # From different directory:
-gitscripts_push /path/to/repo -m "Fix bug"
+git_push /path/to/repo -m "Fix bug"
 ```
 
 ### Update Scripts
@@ -118,7 +118,7 @@ echo 'export GH_TOKEN_akamlibehsafe="your_token"' >> ~/.zshrc
 source ~/.zshrc
 
 # Verify:
-gitscripts_verify_PAT
+setup_verify_pat
 ```
 
 **Error: "401 Unauthorized"**
@@ -161,14 +161,14 @@ source ~/.zshrc
 
 # Recreate symlinks:
 cd ~/Documents/GitHub/akamlibehsafe/gitscripts
-./scripts/gitscripts_setup_symlinks
+./scripts/util/setup_symlinks
 ```
 
 **Symlinks broken (repository moved)**
 ```bash
 # Recreate symlinks:
 cd /path/to/new/gitscripts/location
-./scripts/gitscripts_setup_symlinks
+./scripts/util/setup_symlinks
 # Script will detect and fix broken symlinks
 ```
 
@@ -177,7 +177,7 @@ cd /path/to/new/gitscripts/location
 # Remove and recreate:
 rm ~/bin/gitscripts_*
 cd ~/Documents/GitHub/akamlibehsafe/gitscripts
-./scripts/gitscripts_setup_symlinks
+./scripts/util/setup_symlinks
 ```
 
 ### Shell Configuration Issues
@@ -232,11 +232,11 @@ source ~/.zshrc
 
 ```bash
 # Remove all symlinks:
-rm ~/bin/gitscripts_* ~/bin/zsh_install ~/bin/environment_* 2>/dev/null
+rm ~/bin/gitscripts_* ~/bin/setup_zsh_install ~/bin/dev_* ~/bin/environment_* 2>/dev/null
 
 # Recreate:
 cd ~/Documents/GitHub/akamlibehsafe/gitscripts
-./scripts/gitscripts_setup_symlinks
+./scripts/util/setup_symlinks
 ```
 
 ### Recover from Deleted Repository
@@ -246,13 +246,13 @@ If `~/Documents/GitHub/akamlibehsafe/gitscripts` was deleted:
 ```bash
 # Clone repository:
 cd ~/Documents/GitHub/akamlibehsafe
-gitscripts_create_from_remote akamlibehsafe/gitscripts
+git_create_from_remote akamlibehsafe/gitscripts
 # Or manually:
 git clone https://github.com/akamlibehsafe/gitscripts.git
 
 # Recreate symlinks:
 cd gitscripts
-./scripts/gitscripts_setup_symlinks
+./scripts/util/setup_symlinks
 ```
 
 ### Recover PAT Tokens
@@ -276,7 +276,7 @@ If PAT tokens are lost/expired:
 
 3. **Verify:**
    ```bash
-   gitscripts_verify_PAT
+   setup_verify_pat
    ```
 
 ## Known Gotchas
@@ -297,8 +297,8 @@ If PAT tokens are lost/expired:
    - Run `p10k configure` to customize prompt
    - Configuration persists in `~/.p10k.zsh`
 
-5. **iTerm2 configuration import is manual**
-   - Must import `config/iterm2/iTerm2 State.itermexport` manually
+5. **iTerm2 profile import needs confirmation in the app**
+   - `environment_install` installs iTerm2 and can `open` the bundled `config/iterm2/iTerm2 State.itermexport`; approve the import dialog in iTerm2
    - Script provides instructions but doesn't automate import
 
 6. **Repository cloning during environment_install is optional**
@@ -324,12 +324,12 @@ git --version && gh --version && git lfs version
 ls ~/bin/gitscripts_* > /dev/null 2>&1 && echo "✓ Symlinks exist" || echo "✗ Symlinks missing"
 
 # Scripts should be executable:
-[ -x ~/bin/gitscripts_push ] && echo "✓ Scripts executable" || echo "✗ Scripts not executable"
+[ -x ~/bin/git_push ] && echo "✓ Scripts executable" || echo "✗ Scripts not executable"
 ```
 
 **Full verification:**
 ```bash
-gitscripts_verify_PAT
+setup_verify_pat
 ```
 
 ## Maintenance
@@ -350,7 +350,7 @@ gitscripts_verify_PAT
 3. **Verify symlinks after moving repository:**
    ```bash
    cd /new/location/gitscripts
-   ./scripts/gitscripts_setup_symlinks
+   ./scripts/util/setup_symlinks
    ```
 
 4. **Check for script updates:**

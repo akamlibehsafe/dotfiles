@@ -1,10 +1,19 @@
 #!/bin/bash
 
-# zsh_install
+# setup_zsh_install
 # Installs and configures iTerm2, Zsh, Oh My Zsh, Powerlevel10k theme, and MesloLGS NF font
 # to create a beautiful, Git-aware shell prompt with icons.
 
 set -e  # Exit on error
+
+_zsh_self="${BASH_SOURCE[0]}"
+while [ -L "$_zsh_self" ]; do
+    _d="$(cd "$(dirname "$_zsh_self")" && pwd)"
+    _zsh_self="$(readlink "$_zsh_self")"
+    [[ "$_zsh_self" != /* ]] && _zsh_self="$_d/$_zsh_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_zsh_self")/.." && pwd -P)"
+SCRIPTS_ROOT="$SCRIPT_DIR"
 
 # Colors for output
 RED='\033[0;31m'
@@ -118,17 +127,19 @@ fi
 
 section "Step 3: iTerm2 Installation"
 
-# Check if iTerm2 is already installed
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
+
 if [ -d "/Applications/iTerm.app" ]; then
     success "iTerm2 is already installed"
-    ITERM_VERSION=$(/usr/libexec/PlistBuddy -c "Print:CFBundleShortVersionString" /Applications/iTerm.app/Contents/Info.plist 2>/dev/null || echo "unknown")
-    info "iTerm2 version: $ITERM_VERSION"
 else
-    info "iTerm2 is not installed. Installing via Homebrew Cask..."
-    brew install --cask iterm2 || error "Failed to install iTerm2"
+    info "Installing iTerm2 via Homebrew Cask..."
+    gitscripts_install_iterm2 || error "Failed to install iTerm2 (is Homebrew available?)"
     success "iTerm2 installed successfully"
-    info "Note: You may need to open iTerm2 manually after this script completes."
 fi
+ITERM_VERSION=$(/usr/libexec/PlistBuddy -c "Print:CFBundleShortVersionString" /Applications/iTerm.app/Contents/Info.plist 2>/dev/null || echo "unknown")
+info "iTerm2 version: $ITERM_VERSION"
+info "Bundled profile: config/iterm2/iTerm2 State.itermexport (import via environment_install or open manually)"
 
 section "Step 4: Zsh Configuration"
 

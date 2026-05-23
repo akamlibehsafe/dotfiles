@@ -1,5 +1,5 @@
 #!/bin/bash
-# gitscripts_ssh_setup — SSH keys, ~/.ssh/config, includeIf git identity
+# setup_ssh_setup — SSH keys, ~/.ssh/config, includeIf git identity
 
 set -euo pipefail
 
@@ -10,8 +10,9 @@ while [ -L "$_gitscripts_self" ]; do
     [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
 done
 SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
-# shellcheck source=lib/gitscripts_init.sh
-source "${SCRIPT_DIR}/lib/gitscripts_init.sh"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
 gitscripts_ui_colors
 
 DRY_RUN=false
@@ -20,7 +21,7 @@ MARKER_BEGIN="# gitscripts-managed-begin"
 MARKER_END="# gitscripts-managed-end"
 
 usage() {
-    echo "Usage: gitscripts_ssh_setup [--dry-run] [--new-mac | --repair]"
+    echo "Usage: setup_ssh_setup [--dry-run] [--new-mac | --repair]"
     echo ""
     echo "  --dry-run   Show planned changes only (default if no write flag)"
     echo "  --new-mac   Generate missing keys; full wizard"
@@ -176,7 +177,7 @@ EOF
 
   cat >"$cfg" <<EOF
 [user]
-  name = ${user}
+  name = $(gitscripts_account_git_name "$user")
   email = ${email}
 EOF
 }
@@ -205,7 +206,7 @@ fi
 
 gitscripts_ui_section "Done"
 if [ "$DRY_RUN" = true ]; then
-    echo "Re-run without --dry-run: ./scripts/gitscripts_ssh_setup --repair"
+    echo "Re-run without --dry-run: ./scripts/util/setup_ssh_setup --repair"
 else
-    echo "Run: ./scripts/gitscripts_preflight"
+    echo "Run: ./scripts/util/setup_preflight"
 fi

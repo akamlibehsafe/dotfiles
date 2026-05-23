@@ -306,8 +306,8 @@ git push origin v0.4.0
 ## Troubleshooting
 
 **"doc_check: command not found"**
-- Make scripts executable: `chmod +x scripts/doc_*`
-- Add scripts to PATH or use `./scripts/doc_check`
+- Make scripts executable: `chmod +x scripts/maintainer/doc_*`
+- Add scripts to PATH or use `./scripts/maintainer/doc_check`
 
 **"CHANGELOG.md missing Unreleased section"**
 - Manually add: `## Unreleased\n` to top of CHANGELOG.md

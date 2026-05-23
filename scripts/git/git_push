@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# gitscripts_push
+# git_push
 # Commits and pushes changes from a local Git repository,
 # automatically detecting the repository owner.
 
@@ -13,9 +13,10 @@ while [ -L "$_gitscripts_self" ]; do
     [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
 done
 SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
-# shellcheck source=lib/gitscripts_init.sh
-source "${SCRIPT_DIR}/lib/gitscripts_init.sh"
-gitscripts_load_pat_file "${SCRIPT_DIR}/../PAT.md" 2>/dev/null || true
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
+gitscripts_load_pat_file "${GITSCRIPTS_REPO_ROOT}/PAT.md" 2>/dev/null || true
 gitscripts_load_pat_from_shell_configs
 
 # Colors for output
@@ -57,7 +58,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            echo "Usage: gitscripts_push [directory] [-m|--message \"commit message\"]"
+            echo "Usage: git_push [directory] [-m|--message \"commit message\"]"
             echo ""
             echo "Options:"
             echo "  directory              Path to git-enabled folder (defaults to current directory)"
@@ -110,7 +111,7 @@ info "Working in: $(pwd)"
 
 # Check if git is installed
 if ! command -v git &> /dev/null; then
-    error "Git is not installed. Please run gitscripts_install first."
+    error "Git is not installed. Please run setup_install first."
 fi
 
 # Check if remote is configured
@@ -144,7 +145,7 @@ else
     PAT_VAR=$(gitscripts_account_pat_var "$USERNAME")
     PAT="${!PAT_VAR}"
     if [ -z "$PAT" ]; then
-        error "HTTPS remote requires PAT variable $PAT_VAR.\nRun: gitscripts_configure_pats\nOr migrate remote: gitscripts_migrate_remotes --apply"
+        error "HTTPS remote requires PAT variable $PAT_VAR.\nRun: setup_configure_pats\nOr migrate remote: setup_migrate_remotes --apply"
     fi
     info "Using PAT from: $PAT_VAR (HTTPS fallback)"
 fi

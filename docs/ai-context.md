@@ -1,12 +1,13 @@
 # AI / Contributor Context (gitscripts)
 
 ## Goal
-Personal Git automation toolkit for managing multiple GitHub accounts on macOS.
 
-- Automate common Git/GitHub operations (create repo, clone, push) across two accounts
-- Provide one-command development environment setup on macOS
-- Support dual GitHub account workflow (fortegb, akamlibehsafe) via PAT authentication
-- Keep scripts version-controlled while providing system-wide access via symlinks
+Two products in one repo — see [PRODUCTS.md](PRODUCTS.md):
+
+1. **Dev environment bootstrap** — `environment_install` / `environment_uninstall` at `scripts/` root
+2. **Git toolkit** — `git_push`, `git_create_from_remote`, `git_create_from_local` in `scripts/git/`
+
+Utilities: `scripts/util/`. Accounts: `rbonon`, `fortegb`, `akamlibehsafe` (hybrid SSH + PAT).
 
 ## Key Workflows
 
@@ -21,7 +22,7 @@ Installs: Homebrew → Git tools → Zsh/Powerlevel10k → Cursor (optional) →
 
 **Git tools only:**
 ```bash
-./scripts/gitscripts_install
+./scripts/util/setup_install
 ```
 
 ### Uninstall
@@ -33,17 +34,17 @@ Installs: Homebrew → Git tools → Zsh/Powerlevel10k → Cursor (optional) →
 ### Create from Local/Remote
 ```bash
 # Create new repo from current directory:
-gitscripts_create_from_local akamlibehsafe/my-repo
+git_create_from_local akamlibehsafe/my-repo
 
 # Clone existing repo:
-gitscripts_create_from_remote fortegb/existing-repo
+git_create_from_remote fortegb/existing-repo
 ```
 Scripts auto-detect account from `user/repo` format and use appropriate PAT.
 
 ### Push Flow
 ```bash
 # From repo directory:
-gitscripts_push -m "Commit message"
+git_push -m "Commit message"
 
 # Auto-detects account from remote URL, stages all changes, commits, pushes
 ```
@@ -53,13 +54,13 @@ gitscripts_push -m "Commit message"
 ### `scripts/` - Main Scripts
 - **`environment_install`**: Orchestrates complete macOS dev environment setup
 - **`environment_uninstall`**: Removes everything installed by environment_install
-- **`gitscripts_install`**: Installs Git, Git LFS, GitHub CLI, and dependencies
-- **`gitscripts_create_from_local`**: Creates GitHub repo from local folder
-- **`gitscripts_create_from_remote`**: Clones existing GitHub repository
-- **`gitscripts_push`**: Commits and pushes changes (auto-detects account)
-- **`gitscripts_verify_PAT`**: Validates PAT tokens are set and working
-- **`gitscripts_setup_symlinks`**: Creates symlinks in `~/bin/` for system-wide access
-- **`zsh_install`**: Installs and configures Zsh, Oh My Zsh, Powerlevel10k
+- **`setup_install`**: Installs Git, Git LFS, GitHub CLI, and dependencies
+- **`git_create_from_local`**: Creates GitHub repo from local folder
+- **`git_create_from_remote`**: Clones existing GitHub repository
+- **`git_push`**: Commits and pushes changes (auto-detects account)
+- **`setup_verify_pat`**: Validates PAT tokens are set and working
+- **`setup_symlinks`**: Creates symlinks in `~/bin/` for system-wide access
+- **`setup_zsh_install`**: Installs and configures Zsh, Oh My Zsh, Powerlevel10k
 
 ### `config/` - Configuration Files
 - **`config/iterm2/`**: iTerm2 configuration export (manual import required)
@@ -101,11 +102,11 @@ gitscripts_push -m "Commit message"
 
 3. **Scripts not found in PATH**
    - **Cause**: `~/bin/` not in PATH or symlinks not created
-   - **Fix**: Run `./scripts/gitscripts_setup_symlinks` to create symlinks and add to PATH
+   - **Fix**: Run `./scripts/util/setup_symlinks` to create symlinks and add to PATH
 
 4. **Symlinks broken after moving repository**
    - **Cause**: Symlinks point to old repository location
-   - **Fix**: Re-run `gitscripts_setup_symlinks` from new location (auto-detects and fixes)
+   - **Fix**: Re-run `setup_symlinks` from new location (auto-detects and fixes)
 
 5. **"dubious ownership" Git error**
    - **Cause**: Git safety check for directories outside user home

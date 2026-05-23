@@ -22,12 +22,12 @@ Check Progress below. Next: Execute Phase N only.
 | 2 New `gitscripts_*` scripts | Done | commit `04d6824`; agent verified preflight + dry-runs |
 | 2-test User verification | Done | PAT 3/3, SSH 3/3, remotes migrated, branch pushed |
 | 3 Update `gitscripts_*` + environment_install | Done | hybrid push/clone, manual create_from_local, install wizards |
-| 3-test User verification | Done | gitscripts_push on throwaway SSH repo |
+| 3-test User verification | Done | git_push on throwaway SSH repo |
 | 4 Orchestration polish | Done | shared manifest, setup/uninstall symlinks, SSH cleanup option |
-| 4-test User verification | Done | gitscripts_setup_symlinks refresh |
+| 4-test User verification | Done | setup_symlinks refresh |
 | 5 Rename `gitak_*` → `gitscripts_*` | Done | breaking rename; setup removes old `~/bin/gitak_*` |
-| 5-test User verification | **Next** | `gitscripts_setup_symlinks`; no `~/bin/gitak_*` |
-| 6 Release `v0.4.0` | Pending | USER: tag + optional GitHub Release |
+| 5-test User verification | **Next** | `setup_symlinks`; no `~/bin/gitak_*` |
+| 6 Release `v0.4.0` | Done | Tagged `v0.4.0` 2026-05-23; push branch + tag to origin |
 
 ---
 
@@ -76,8 +76,8 @@ Guide, ADR 0005, this plan, VERSIONING, implementation map. README links.
 
 ### Phase 2 — New scripts
 
-- `scripts/lib/gitscripts_common.sh`
-- `gitscripts_preflight`, `gitscripts_configure_pats`, `gitscripts_ssh_setup`, `gitscripts_migrate_remotes`
+- `scripts/lib/common.sh`
+- `setup_preflight`, `setup_configure_pats`, `setup_ssh_setup`, `setup_migrate_remotes`
 
 ### Phase 3 — Hybrid behavior
 
@@ -89,7 +89,7 @@ Update existing scripts for hybrid SSH/PAT. Wire `environment_install`.
 
 ### Phase 5 — Rename (breaking)
 
-`git mv` all `gitak_*` → `gitscripts_*`; `gitscripts_setup_symlinks`; remove `~/bin/gitak_*`.
+`git mv` all `gitak_*` → `gitscripts_*`; `setup_symlinks`; remove `~/bin/gitak_*`.
 
 ### Phase 6 — Release (USER)
 
@@ -115,7 +115,7 @@ cp ~/.gitconfig-* "$BACKUP/" 2>/dev/null || true
 cp ~/.zshrc "$BACKUP/" 2>/dev/null || true
 ```
 
-**Discard 0.4.0 code:** `git checkout main && ./scripts/gitscripts_setup_symlinks`
+**Discard 0.4.0 code:** `git checkout main && ./scripts/util/setup_symlinks`
 
 ---
 

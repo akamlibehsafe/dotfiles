@@ -20,7 +20,7 @@ Use Personal Access Tokens (PATs) stored as environment variables (`GH_TOKEN_for
 - No manual token switching required
 - Works seamlessly with GitHub API for repository creation
 - Simple environment variable storage
-- Easy to verify with `gitscripts_verify_PAT`
+- Easy to verify with `setup_verify_pat`
 
 **Negative:**
 - Requires users to generate and store PATs securely
@@ -37,5 +37,5 @@ Use Personal Access Tokens (PATs) stored as environment variables (`GH_TOKEN_for
 
 ## Links
 - Implementation: All gitscripts_* scripts detect account from user/repo or remote URL
-- Verification: `scripts/gitscripts_verify_PAT`
+- Verification: `scripts/util/setup_verify_pat`
 - Documentation: `README.md` "Prerequisites" and "Configure Personal Access Tokens" sections

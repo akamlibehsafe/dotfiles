@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# gitscripts_create_from_remote
+# git_create_from_remote
 # Clones an existing GitHub repository via SSH alias.
 
 set -e
@@ -12,8 +12,9 @@ while [ -L "$_gitscripts_self" ]; do
     [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
 done
 SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
-# shellcheck source=lib/gitscripts_init.sh
-source "${SCRIPT_DIR}/lib/gitscripts_init.sh"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+# shellcheck source=lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -25,7 +26,7 @@ success() { echo -e "${GREEN}$1${NC}"; }
 info() { echo -e "${YELLOW}$1${NC}"; }
 
 if [ $# -ne 1 ]; then
-    error "Usage: gitscripts_create_from_remote <user/repo>\nExample: gitscripts_create_from_remote akamlibehsafe/myproject"
+    error "Usage: git_create_from_remote <user/repo>\nExample: git_create_from_remote akamlibehsafe/myproject"
 fi
 
 USER_REPO="$1"
@@ -46,7 +47,7 @@ info "Cloning: $USER_REPO"
 info "SSH URL: $CLONE_URL"
 
 if ! command -v git &>/dev/null; then
-    error "Git is not installed. Run gitscripts_install first."
+    error "Git is not installed. Run setup_install first."
 fi
 
 HAS_LFS=false
