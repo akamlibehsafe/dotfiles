@@ -16,9 +16,10 @@ Check Progress below. Next: Execute Phase N only.
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0 Docs + VERSIONING | Done | CHANGELOG, VERSIONING.md |
-| 0-git Tag v0.3.0 | **USER** | See [Phase 0-git](#phase-0-git-your-actions) |
+| 0-git Tags + remote | Done | Local `v0.3.0` at `5796107`; remote tag `v0.3.0` pushed; branch `feat/0.4.0-gitscripts` on GitHub |
+| 0-git PAT + push | Done | `PAT.md` + HTTPS push via `GH_TOKEN_akamlibehsafe`; tracking `origin/feat/0.4.0-gitscripts` |
 | 1 Guide, ADR 0005, plan docs | Done | This file, guide, implementation map |
-| 2 New `gitscripts_*` scripts | Pending | preflight, PAT, SSH, migrate, common lib |
+| 2 New `gitscripts_*` scripts | **Next** | preflight, PAT, SSH, migrate, common lib |
 | 3 Update `gitak_*` + environment_install | Pending | |
 | 4 Orchestration polish | Pending | |
 | 5 Rename `gitak_*` → `gitscripts_*` | Pending | Breaking |
@@ -43,7 +44,9 @@ Check Progress below. Next: Execute Phase N only.
 
 ### Phase 0-git (YOUR actions)
 
-Align git tag with CHANGELOG 0.3.0. **Run locally** (review before paste):
+**Completed (2026-05-23):** `v0.1.0` removed locally; `v0.3.0` tagged at `5796107`; `feat/0.4.0-gitscripts` pushed; remote `v0.3.0` pushed with PAT URL push. Optional if not done: delete remote `v0.1.0` (see below).
+
+Align git tag with CHANGELOG 0.3.0. **Reference** (already done):
 
 ```bash
 cd ~/Documents/GitHub/akamlibehsafe/gitscripts
