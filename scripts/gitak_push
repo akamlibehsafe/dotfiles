@@ -6,9 +6,9 @@
 
 set -e  # Exit on error
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-# shellcheck source=lib/gitscripts_common.sh
-source "${SCRIPT_DIR}/lib/gitscripts_common.sh"
+_gitscripts_entry="${BASH_SOURCE[0]}"
+# shellcheck source=lib/gitscripts_init.sh
+source "${_gitscripts_entry%/*}/lib/gitscripts_init.sh"
 gitscripts_load_pat_file "${SCRIPT_DIR}/../PAT.md" 2>/dev/null || true
 gitscripts_load_pat_from_shell_configs
 
