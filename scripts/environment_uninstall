@@ -6,6 +6,18 @@
 
 set -e  # Exit on error
 
+_gitscripts_self="${BASH_SOURCE[0]}"
+while [ -L "$_gitscripts_self" ]; do
+    _d="$(cd "$(dirname "$_gitscripts_self")" && pwd)"
+    _gitscripts_self="$(readlink "$_gitscripts_self")"
+    [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
+# shellcheck source=lib/gitscripts_manifest.sh
+source "${SCRIPT_DIR}/lib/gitscripts_manifest.sh"
+# shellcheck source=lib/gitscripts_init.sh
+source "${SCRIPT_DIR}/lib/gitscripts_init.sh"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -55,7 +67,8 @@ prompt "WARNING: This script will COMPLETELY REMOVE:"
 echo "  • All Git repositories in ~/Documents/GitHub (after checking for pending pushes)"
 echo "  • Git, Git LFS, GitHub CLI tools"
 echo "  • PAT tokens from shell configuration files"
-echo "  • Symlinks in ~/bin/ (gitak_*, zsh_install)"
+echo "  • Symlinks in ~/bin/ (gitak_*, gitscripts_*, doc_*, environment_*)"
+echo "  • Optional: gitscripts SSH keys (~/.ssh/gitscripts) and includeIf git identity"
 echo "  • Aliases in ~/.zshrc (cdg, cda, cdf, cds)"
 echo "  • Cursor Desktop (if installed via Homebrew)"
 echo "  • iTerm2 (if installed via Homebrew)"
@@ -209,23 +222,13 @@ fi
 
 section "Step 1: Remove Symlinks"
 
-# List of scripts that were symlinked
-SCRIPTS=(
-    "gitak_install"
-    "gitak_create_from_local"
-    "gitak_create_from_remote"
-    "gitak_push"
-    "gitak_verify_PAT"
-    "zsh_install"
-)
-
 SYMLINKS_REMOVED=0
 SYMLINKS_NOT_FOUND=0
 
 if [ -d "$HOME/bin" ]; then
     info "Checking for symlinks in ~/bin/..."
     
-    for script in "${SCRIPTS[@]}"; do
+    for script in "${GITSCRIPTS_BIN_SYMLINKS[@]}"; do
         SYMLINK_PATH="$HOME/bin/$script"
         
         if [ -L "$SYMLINK_PATH" ]; then
@@ -307,7 +310,7 @@ section "Step 3: Remove PAT Tokens from Shell Configuration"
 
 for config_file in "${SHELL_CONFIGS[@]}"; do
     if [ -f "$config_file" ]; then
-        if grep -q "GH_TOKEN_fortegb\|GH_TOKEN_akamlibehsafe" "$config_file" 2>/dev/null; then
+        if grep -q "GH_TOKEN_fortegb\|GH_TOKEN_akamlibehsafe\|GH_TOKEN_rbonon" "$config_file" 2>/dev/null; then
             prompt "Found PAT tokens in $config_file. Remove them? (Y/n)"
             read -r REMOVE_PATS
             
@@ -315,10 +318,12 @@ for config_file in "${SHELL_CONFIGS[@]}"; do
                 # Remove PAT export lines and related comments
                 if [[ "$OSTYPE" == "darwin"* ]]; then
                     sed -i '' '/^export GH_TOKEN_/d' "$config_file" 2>/dev/null || true
+                    sed -i '' '/# gitscripts PAT/d' "$config_file" 2>/dev/null || true
                     sed -i '' '/# Git Automation Scripts - Personal Access Tokens/d' "$config_file" 2>/dev/null || true
                     sed -i '' '/# Added by gitak_install script/d' "$config_file" 2>/dev/null || true
                 else
                     sed -i '/^export GH_TOKEN_/d' "$config_file" 2>/dev/null || true
+                    sed -i '/# gitscripts PAT/d' "$config_file" 2>/dev/null || true
                     sed -i '/# Git Automation Scripts - Personal Access Tokens/d' "$config_file" 2>/dev/null || true
                     sed -i '/# Added by gitak_install script/d' "$config_file" 2>/dev/null || true
                 fi
@@ -331,6 +336,55 @@ for config_file in "${SHELL_CONFIGS[@]}"; do
         fi
     fi
 done
+
+section "Step 3b: Optional gitscripts SSH and Git identity"
+
+GITSCRIPTS_SSH_DIR="${GITSCRIPTS_SSH_DIR:-$HOME/.ssh/gitscripts}"
+HAS_GITSCRIPTS_SSH=false
+[ -d "$GITSCRIPTS_SSH_DIR" ] && HAS_GITSCRIPTS_SSH=true
+[ -f "$HOME/.ssh/config" ] && grep -q "gitscripts-managed-begin" "$HOME/.ssh/config" 2>/dev/null && HAS_GITSCRIPTS_SSH=true
+
+if [ "$HAS_GITSCRIPTS_SSH" = true ] || [ -f "$HOME/.gitconfig-rbonon" ] || [ -f "$HOME/.gitconfig-fortegb" ] || [ -f "$HOME/.gitconfig-akamlibehsafe" ]; then
+    prompt "Remove gitscripts SSH keys and per-folder Git identity (includeIf)? (y/N)"
+    read -r REMOVE_GITSCRIPTS_AUTH
+    if [[ "$REMOVE_GITSCRIPTS_AUTH" =~ ^[Yy]$ ]]; then
+        if [ -f "$HOME/.ssh/config" ] && grep -q "gitscripts-managed-begin" "$HOME/.ssh/config" 2>/dev/null; then
+            info "Removing gitscripts blocks from ~/.ssh/config..."
+            awk '
+                /^# gitscripts-managed-begin/ { skip=1; next }
+                /^# gitscripts-managed-end/ { skip=0; next }
+                skip { next }
+                { print }
+            ' "$HOME/.ssh/config" >"${HOME}/.ssh/config.gitscripts_tmp" && mv "${HOME}/.ssh/config.gitscripts_tmp" "$HOME/.ssh/config"
+            success "Cleaned ~/.ssh/config"
+        fi
+        if [ -d "$GITSCRIPTS_SSH_DIR" ]; then
+            ARCHIVE="${GITSCRIPTS_SSH_DIR}/../gitscripts_keys_removed_$(date +%Y%m%d)"
+            info "Archiving ${GITSCRIPTS_SSH_DIR} → ${ARCHIVE}"
+            mv "$GITSCRIPTS_SSH_DIR" "$ARCHIVE" 2>/dev/null && success "SSH keys archived" || info "Could not archive SSH dir"
+        fi
+        for user in "${GITSCRIPTS_ACCOUNTS[@]}"; do
+            gitdir=$(gitscripts_account_gitdir "$user")
+            cfg="$HOME/.gitconfig-${user}"
+            if [ -f "$HOME/.gitconfig" ]; then
+                awk -v g="$gitdir" '
+                    /\[includeIf/ && index($0, g) { skip=2; next }
+                    skip>0 { skip--; next }
+                    { print }
+                ' "$HOME/.gitconfig" >"${HOME}/.gitconfig.gitscripts_tmp" && mv "${HOME}/.gitconfig.gitscripts_tmp" "$HOME/.gitconfig"
+            fi
+            if [ -f "$cfg" ]; then
+                rm -f "$cfg"
+                info "Removed $cfg"
+            fi
+        done
+        success "Git identity files removed"
+    else
+        info "gitscripts SSH/git identity removal skipped"
+    fi
+else
+    info "No gitscripts SSH or includeIf configuration detected"
+fi
 
 section "Step 4: Uninstall Cursor Desktop"
 

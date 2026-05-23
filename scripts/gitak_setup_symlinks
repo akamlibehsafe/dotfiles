@@ -2,88 +2,75 @@
 
 # gitak_setup_symlinks
 # Creates symlinks in ~/bin/ pointing to the git scripts in this repository.
-# This allows you to keep the scripts in the repo folder while using them from anywhere.
 
 set -e
 
-# Colors for output
+_gitscripts_self="${BASH_SOURCE[0]}"
+while [ -L "$_gitscripts_self" ]; do
+    _d="$(cd "$(dirname "$_gitscripts_self")" && pwd)"
+    _gitscripts_self="$(readlink "$_gitscripts_self")"
+    [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
+# shellcheck source=lib/gitscripts_manifest.sh
+source "${SCRIPT_DIR}/lib/gitscripts_manifest.sh"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Function to print error messages
-error() {
-    echo -e "${RED}Error: $1${NC}" >&2
-    exit 1
+error() { echo -e "${RED}Error: $1${NC}" >&2; exit 1; }
+success() { echo -e "${GREEN}$1${NC}"; }
+info() { echo -e "${YELLOW}$1${NC}"; }
+prompt() { echo -e "${BLUE}$1${NC}"; }
+
+_symlink_target_path() {
+    local link="$1"
+    local target dir
+    target=$(readlink "$link")
+    if [[ "$target" != /* ]]; then
+        dir=$(cd "$(dirname "$link")" && pwd)
+        target="${dir}/${target}"
+    fi
+    echo "$(cd "$(dirname "$target")" && pwd -P)/$(basename "$target")"
 }
-
-# Function to print success messages
-success() {
-    echo -e "${GREEN}$1${NC}"
-}
-
-# Function to print info messages
-info() {
-    echo -e "${YELLOW}$1${NC}"
-}
-
-# Function to print prompt messages
-prompt() {
-    echo -e "${BLUE}$1${NC}"
-}
-
-# Get the directory where this script is located (the repository root)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 info "Git Scripts Symlink Setup"
 info "=========================="
 echo ""
-info "This script will create symlinks in ~/bin/ pointing to the scripts in:"
-echo "  $SCRIPT_DIR"
+info "Symlinks in ~/bin/ → ${SCRIPT_DIR}"
 echo ""
 
-# Check if ~/bin exists, create if not
 if [ ! -d "$HOME/bin" ]; then
     info "Creating ~/bin directory..."
     mkdir -p "$HOME/bin"
     success "Created ~/bin directory"
-else
-    info "~/bin directory already exists"
 fi
 
-# Ensure ~/bin is in PATH
+SHELL_CONFIG=""
+SHELL_NAME=$(basename "$SHELL")
+if [ "$SHELL_NAME" = "zsh" ]; then
+    SHELL_CONFIG="$HOME/.zshrc"
+elif [ "$SHELL_NAME" = "bash" ]; then
+    SHELL_CONFIG="${HOME}/.bash_profile"
+    [ ! -f "$SHELL_CONFIG" ] && SHELL_CONFIG="$HOME/.bashrc"
+else
+    SHELL_CONFIG="$HOME/.profile"
+fi
+
 if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
     info "Adding ~/bin to PATH..."
-    
-    # Detect shell
-    SHELL_NAME=$(basename "$SHELL")
-    if [ "$SHELL_NAME" = "zsh" ]; then
-        SHELL_CONFIG="$HOME/.zshrc"
-    elif [ "$SHELL_NAME" = "bash" ]; then
-        if [ -f "$HOME/.bash_profile" ]; then
-            SHELL_CONFIG="$HOME/.bash_profile"
-        else
-            SHELL_CONFIG="$HOME/.bashrc"
-        fi
-    else
-        SHELL_CONFIG="$HOME/.profile"
-    fi
-    
     if [ -f "$SHELL_CONFIG" ]; then
         if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$SHELL_CONFIG"; then
-            echo '' >> "$SHELL_CONFIG"
-            echo '# Add ~/bin to PATH for git scripts' >> "$SHELL_CONFIG"
-            echo 'export PATH="$HOME/bin:$PATH"' >> "$SHELL_CONFIG"
+            {
+                echo ''
+                echo '# Add ~/bin to PATH for git scripts'
+                echo 'export PATH="$HOME/bin:$PATH"'
+            } >>"$SHELL_CONFIG"
             success "Added ~/bin to PATH in $SHELL_CONFIG"
-            info "Run: source $SHELL_CONFIG (or restart your terminal)"
-        else
-            info "~/bin is already in PATH in $SHELL_CONFIG"
         fi
-    else
-        info "Could not detect shell config file. Please manually add to your shell config:"
-        echo "  export PATH=\"\$HOME/bin:\$PATH\""
     fi
 else
     info "~/bin is already in PATH"
@@ -92,121 +79,72 @@ fi
 echo ""
 info "Creating symlinks..."
 
-# List of scripts to symlink (located in scripts/ subdirectory)
-SCRIPTS=(
-    "gitak_install"
-    "gitak_create_from_local"
-    "gitak_create_from_remote"
-    "gitak_push"
-    "gitak_verify_PAT"
-    "gitscripts_preflight"
-    "gitscripts_configure_pats"
-    "gitscripts_ssh_setup"
-    "gitscripts_migrate_remotes"
-    "zsh_install"
-    "doc_new_adr"
-    "doc_update_changelog"
-    "doc_check"
-    "doc_release"
-)
-
 SYMLINKS_CREATED=0
 SYMLINKS_UPDATED=0
 SYMLINKS_SKIPPED=0
 
-for script in "${SCRIPTS[@]}"; do
+for script in "${GITSCRIPTS_BIN_SYMLINKS[@]}"; do
     SCRIPT_PATH="$SCRIPT_DIR/$script"
     SYMLINK_PATH="$HOME/bin/$script"
-    
-    # Check if script exists in repo
+
     if [ ! -f "$SCRIPT_PATH" ]; then
-        info "  ⚠ Skipping $script (not found in repository)"
+        info "  ⚠ Skipping $script (not found)"
         SYMLINKS_SKIPPED=$((SYMLINKS_SKIPPED + 1))
         continue
     fi
-    
-    # Check if symlink already exists
+
     if [ -L "$SYMLINK_PATH" ]; then
-        # Check if it points to the correct location
-        CURRENT_TARGET=$(readlink "$SYMLINK_PATH")
-        ABSOLUTE_TARGET=$(cd "$(dirname "$SYMLINK_PATH")" && cd "$(dirname "$CURRENT_TARGET")" && pwd)/$(basename "$CURRENT_TARGET")
-        ABSOLUTE_SCRIPT=$(cd "$(dirname "$SCRIPT_PATH")" && pwd)/$(basename "$SCRIPT_PATH")
-        
+        ABSOLUTE_TARGET=$(_symlink_target_path "$SYMLINK_PATH")
+        ABSOLUTE_SCRIPT="$(cd "$(dirname "$SCRIPT_PATH")" && pwd -P)/$(basename "$SCRIPT_PATH")"
         if [ "$ABSOLUTE_TARGET" = "$ABSOLUTE_SCRIPT" ]; then
-            info "  ✓ $script (symlink already exists and points to correct location)"
+            info "  ✓ $script (already correct)"
             SYMLINKS_SKIPPED=$((SYMLINKS_SKIPPED + 1))
         else
-            info "  ↻ Updating $script (symlink exists but points elsewhere)"
             rm "$SYMLINK_PATH"
             ln -s "$SCRIPT_PATH" "$SYMLINK_PATH"
-            success "    Created symlink: $SYMLINK_PATH -> $SCRIPT_PATH"
+            success "  ↻ Updated $script"
             SYMLINKS_UPDATED=$((SYMLINKS_UPDATED + 1))
         fi
     elif [ -f "$SYMLINK_PATH" ]; then
-        # File exists but is not a symlink
-        info "  ⚠ $script (file exists at ~/bin/$script, not a symlink)"
-        prompt "    Overwrite? (y/N): "
+        prompt "  ⚠ $script exists as a file in ~/bin. Overwrite? (y/N): "
         read -r response
         if [[ "$response" =~ ^[Yy]$ ]]; then
             rm "$SYMLINK_PATH"
             ln -s "$SCRIPT_PATH" "$SYMLINK_PATH"
-            success "    Created symlink: $SYMLINK_PATH -> $SCRIPT_PATH"
             SYMLINKS_CREATED=$((SYMLINKS_CREATED + 1))
         else
-            info "    Skipped $script"
             SYMLINKS_SKIPPED=$((SYMLINKS_SKIPPED + 1))
         fi
     else
-        # Create new symlink
         ln -s "$SCRIPT_PATH" "$SYMLINK_PATH"
-        success "  ✓ Created symlink: $script"
+        success "  ✓ $script"
         SYMLINKS_CREATED=$((SYMLINKS_CREATED + 1))
     fi
 done
 
 echo ""
-info "Summary:"
-echo "  Created: $SYMLINKS_CREATED"
-echo "  Updated: $SYMLINKS_UPDATED"
-echo "  Skipped: $SYMLINKS_SKIPPED"
-echo ""
+info "Summary: created=$SYMLINKS_CREATED updated=$SYMLINKS_UPDATED skipped=$SYMLINKS_SKIPPED"
 
-# Verify symlinks
 info "Verifying symlinks..."
 ALL_VALID=true
-for script in "${SCRIPTS[@]}"; do
+for script in "${GITSCRIPTS_BIN_SYMLINKS[@]}"; do
     SYMLINK_PATH="$HOME/bin/$script"
-    if [ -L "$SYMLINK_PATH" ]; then
-        if [ -f "$(readlink -f "$SYMLINK_PATH")" ]; then
-            success "  ✓ $script is valid"
-        else
-            error "  ✗ $script points to non-existent file"
-            ALL_VALID=false
-        fi
-    elif [ ! -f "$SCRIPT_DIR/$script" ]; then
-        # Script doesn't exist in repo, that's okay
-        true
+    if [ ! -f "$SCRIPT_DIR/$script" ]; then
+        continue
+    fi
+    if [ -L "$SYMLINK_PATH" ] && [ -f "$(_symlink_target_path "$SYMLINK_PATH")" ]; then
+        success "  ✓ $script"
     else
-        error "  ✗ $script symlink was not created"
+        error "  ✗ $script missing or invalid"
         ALL_VALID=false
     fi
 done
 
 if [ "$ALL_VALID" = true ]; then
     echo ""
-    success "Setup complete! ✓"
-    echo ""
-    info "You can now use the scripts from anywhere:"
-    echo "  gitak_create_from_local <user/repo>"
-    echo "  gitak_create_from_remote <user/repo>"
-    echo "  gitak_push [directory] [-m \"message\"]"
-    echo "  gitak_install"
-    echo "  gitak_verify_PAT"
-    echo "  zsh_install"
-    echo ""
-    info "Note: If ~/bin was just added to PATH, you may need to:"
-    echo "  source $SHELL_CONFIG"
-    echo "  (or restart your terminal)"
+    success "Setup complete!"
+    info "Try: gitscripts_preflight, gitak_push, gitak_verify_PAT"
+    [ -n "$SHELL_CONFIG" ] && info "Reload: source $SHELL_CONFIG"
 else
-    error "Some symlinks could not be created. Please check the errors above."
+    error "Some symlinks could not be created."
 fi

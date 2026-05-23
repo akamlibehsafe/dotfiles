@@ -11,6 +11,8 @@
 - Hybrid auth in `gitak_push`, `gitak_create_from_local`, `gitak_create_from_remote`, `gitak_verify_PAT` (SSH transport + PAT HTTPS fallback; accounts `rbonon`, `fortegb`, `akamlibehsafe`)
 - `gitak_create_from_local` requires repo created on GitHub first (no API create)
 - `environment_install` Step 3.5: preflight → optional PAT/SSH wizards; bulk clone prefers SSH when configured
+- Shared `scripts/lib/gitscripts_manifest.sh` for ~/bin symlinks; `environment_install`/`environment_uninstall` in PATH
+- `environment_uninstall`: full symlink list, `GH_TOKEN_rbonon`, optional gitscripts SSH/includeIf removal
 
 ### Breaking
 - (Planned) Rename `gitak_*` → `gitscripts_*` in release 0.4.0

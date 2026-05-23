@@ -23,7 +23,8 @@ Check Progress below. Next: Execute Phase N only.
 | 2-test User verification | Done | PAT 3/3, SSH 3/3, remotes migrated, branch pushed |
 | 3 Update `gitak_*` + environment_install | Done | hybrid push/clone, manual create_from_local, install wizards |
 | 3-test User verification | Done | gitak_push on throwaway SSH repo |
-| 4 Orchestration polish | **Next** | uninstall/symlink polish |
+| 4 Orchestration polish | Done | shared manifest, setup/uninstall symlinks, SSH cleanup option |
+| 4-test User verification | **Next** | gitak_setup_symlinks refresh; optional uninstall dry-run |
 | 5 Rename `gitak_*` → `gitscripts_*` | Pending | Breaking |
 | 6 Release `v0.4.0` | Pending | USER: tag + optional GitHub Release |
 

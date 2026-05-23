@@ -6,6 +6,15 @@
 
 set -e  # Exit on error
 
+_gitscripts_self="${BASH_SOURCE[0]}"
+while [ -L "$_gitscripts_self" ]; do
+    _d="$(cd "$(dirname "$_gitscripts_self")" && pwd)"
+    _gitscripts_self="$(readlink "$_gitscripts_self")"
+    [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -69,10 +78,7 @@ info "Detected shell: $SHELL_NAME"
 info "Configuration file: $SHELL_CONFIG"
 
 # Get script directory (where the script is located)
-# This works whether the script is in a git repository or extracted from a zip file
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-# Parent directory (repository root if in git repo, or extracted folder root if from zip)
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+# REPO_ROOT and SCRIPT_DIR set above (symlink-safe)
 
 section "PAT Configuration"
 
@@ -599,6 +605,8 @@ echo "   source ~/.zshrc"
 echo "   (or restart your terminal)"
 echo ""
 echo "2. Verify your setup:"
+echo "   - gitscripts_preflight"
+echo "   - gitak_verify_PAT"
 echo "   - Check Git: git --version"
 echo "   - Check GitHub CLI: gh --version"
 echo "   - Test aliases: cdg, cda, cdf, cds"
