@@ -6,9 +6,15 @@
 
 set -e  # Exit on error
 
-_gitscripts_entry="${BASH_SOURCE[0]}"
+_gitscripts_self="${BASH_SOURCE[0]}"
+while [ -L "$_gitscripts_self" ]; do
+    _d="$(cd "$(dirname "$_gitscripts_self")" && pwd)"
+    _gitscripts_self="$(readlink "$_gitscripts_self")"
+    [[ "$_gitscripts_self" != /* ]] && _gitscripts_self="$_d/$_gitscripts_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_gitscripts_self")" && pwd -P)"
 # shellcheck source=lib/gitscripts_init.sh
-source "${_gitscripts_entry%/*}/lib/gitscripts_init.sh"
+source "${SCRIPT_DIR}/lib/gitscripts_init.sh"
 gitscripts_load_pat_file "${SCRIPT_DIR}/../PAT.md" 2>/dev/null || true
 gitscripts_load_pat_from_shell_configs
 
