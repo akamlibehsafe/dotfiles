@@ -48,6 +48,11 @@ prompt() {
     echo -e "${BLUE}$1${NC}"
 }
 
+# Function to print critical warnings
+warn() {
+    echo -e "${RED}$1${NC}"
+}
+
 # Function to print section headers
 section() {
     echo ""
@@ -61,33 +66,90 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
 fi
 
 info "Starting Environment Uninstallation for macOS..."
-info "This script will remove ALL components installed by environment_install."
 echo ""
 
-# Warning message
-prompt "WARNING: This script will COMPLETELY REMOVE:"
-echo "  • All Git repositories in ~/Documents/GitHub (after checking for pending pushes)"
-echo "  • Git, Git LFS, GitHub CLI tools"
-echo "  • PAT tokens from shell configuration and PAT.md on disk"
-echo "  • Symlinks in ~/bin/ (gitscripts_*, legacy gitak_*, doc_*, environment_*)"
-echo "  • gitscripts SSH keys (~/.ssh/gitscripts) and includeIf git identity"
-echo "  • jq and MesloLGS NF font (if installed by setup)"
-echo "  • Aliases in ~/.zshrc (cdg, cda, cdf, cds)"
-echo "  • Cursor Desktop (if installed via Homebrew)"
-echo "  • iTerm2 (if installed via Homebrew)"
-echo "  • Oh My Zsh and Powerlevel10k theme"
-echo "  • Zsh plugins (zsh-autosuggestions, zsh-syntax-highlighting)"
+# --- Hard warning: read before continuing ---
+warn "╔══════════════════════════════════════════════════════════════════════╗"
+warn "║  DANGER: FULL ENVIRONMENT UNINSTALL                                  ║"
+warn "║                                                                      ║"
+warn "║  This reverses what environment_install configured on this Mac.      ║"
+warn "║  YOU MAY LOSE LOCAL GIT REPOSITORIES AND UNCOMMITTED WORK.           ║"
+warn "╚══════════════════════════════════════════════════════════════════════╝"
 echo ""
-info "This script will NOT remove:"
-echo "  • Homebrew (system package manager)"
+
+warn "CRITICAL — ALL REPOSITORIES UNDER:"
+warn "  ${GIT_ROOT_DIR}/"
+warn "can be PERMANENTLY DELETED (Step 7), including every cloned project"
+warn "for rbonon, fortegb, and akamlibehsafe — not just gitscripts."
 echo ""
-prompt "Continue with complete uninstallation? (y/N)"
+
+# Show repo footprint if present
+if [ -d "$GIT_ROOT_DIR" ]; then
+    REPO_DIRS=()
+    while IFS= read -r repo_dir; do
+        [ -n "$repo_dir" ] && REPO_DIRS+=("$repo_dir")
+    done < <(find "$GIT_ROOT_DIR" -type d -name ".git" 2>/dev/null | sed 's|/.git$||' | head -20)
+    REPO_TOTAL=$(find "$GIT_ROOT_DIR" -type d -name ".git" 2>/dev/null | wc -l | tr -d ' ')
+    warn "Detected ${REPO_TOTAL} git repository/repositories under ${GIT_ROOT_DIR}:"
+    if [ ${#REPO_DIRS[@]} -gt 0 ]; then
+        for repo_dir in "${REPO_DIRS[@]}"; do
+            echo "    • ${repo_dir}"
+        done
+        if [ "$REPO_TOTAL" -gt 20 ]; then
+            warn "    … and $((REPO_TOTAL - 20)) more (not listed)"
+        fi
+    else
+        info "  (no .git directories found — folder may still be removed)"
+    fi
+    echo ""
+else
+    info "Git root ${GIT_ROOT_DIR} not found (Step 7 will be skipped)."
+    echo ""
+fi
+
+prompt "DETAILED REMOVAL PLAN (each step asks for confirmation unless noted):"
+echo ""
+echo "  Step 0   Push pending changes in ${GIT_ROOT_DIR} (optional, before delete)"
+echo "  Step 1   Remove ALL ~/bin/ symlinks:"
+echo "             • gitscripts_* (${#GITSCRIPTS_BIN_SYMLINKS[@]} scripts)"
+echo "             • legacy gitak_* (${#GITSCRIPTS_DEPRECATED_BIN_SYMLINKS[@]} names)"
+echo "             • environment_install, environment_uninstall, zsh_install, doc_*"
+echo "             • Optionally remove empty ~/bin/"
+echo "  Step 2   Remove shell aliases: cdg, cda, cdf, cds from ~/.zshrc"
+echo "  Step 3   Remove PAT exports (GH_TOKEN_rbonon, GH_TOKEN_fortegb,"
+echo "             GH_TOKEN_akamlibehsafe) from shell config files"
+echo "  Step 3a  Delete PAT.md files on disk (secrets) — default YES"
+echo "             • ${GITSCRIPTS_REPO}/PAT.md and other known paths"
+echo "  Step 3b  Remove gitscripts SSH + Git identity — default YES"
+echo "             • ~/.ssh/gitscripts/ keys (archived)"
+echo "             • gitscripts blocks in ~/.ssh/config"
+echo "             • includeIf entries and ~/.gitconfig-{rbonon,fortegb,akamlibehsafe}"
+echo "  Step 4   Uninstall Cursor Desktop (Homebrew cask, optional)"
+echo "  Step 5   Uninstall iTerm2 (optional)"
+echo "  Step 6   Uninstall Git, Git LFS, GitHub CLI, jq (Homebrew, optional)"
+echo "  Step 7   DELETE ENTIRE ${GIT_ROOT_DIR}/ tree — ALL LOCAL REPOS (optional)"
+echo "  Step 8   Remove Oh My Zsh and Powerlevel10k (optional)"
+echo "  Step 9   Remove zsh-autosuggestions and zsh-syntax-highlighting (optional)"
+echo "  Step 9b  Uninstall MesloLGS NF font cask (optional)"
+echo "  Step 10  Remove ~/bin PATH line from shell config (optional)"
+echo ""
+info "NOT removed by this script:"
+echo "  • Homebrew (brew itself stays installed)"
+echo "  • Global git user.name/user.email (unless only set via removed includeIf files)"
+echo "  • Repositories outside ${GIT_ROOT_DIR}/"
+echo ""
+warn "Back up ${GIT_ROOT_DIR} and ~/.ssh before continuing if you need to keep anything."
+echo ""
+prompt "Type YES in capital letters to start uninstallation (anything else cancels):"
 read -r CONFIRM
 
-if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-    info "Uninstallation cancelled."
+if [ "$CONFIRM" != "YES" ]; then
+    info "Uninstallation cancelled (confirmation was not YES)."
     exit 0
 fi
+
+echo ""
+success "Confirmation received. Starting uninstall steps…"
 
 # Detect shell type for configuration file
 SHELL_NAME=$(basename "$SHELL")
