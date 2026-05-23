@@ -6,7 +6,7 @@
 |------|--------|
 | **Released versions** | Must have both a dated section in [CHANGELOG.md](../CHANGELOG.md) and a git tag `vX.Y.Z` on the same commit. |
 | **0.2.0** | Documented in CHANGELOG only (development milestone). **No git tag.** |
-| **Pre-1.0** | Breaking changes may ship in `0.x` (e.g. `0.4.0` renames `gitak_*` → `gitscripts_*`). |
+| **Pre-1.0** | Breaking changes may ship in `0.x` (e.g. `0.4.0`: `gitak_*`/`gitscripts_*` → `git_*` + `setup_*`). |
 | **1.0.0** | Reserved until [PLAN-0.4.0-gitscripts.md](PLAN-0.4.0-gitscripts.md) readiness criteria are met. |
 
 ## Current state (verify locally)

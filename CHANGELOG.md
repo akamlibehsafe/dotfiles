@@ -4,6 +4,9 @@
 
 - (Add short notes here; run `doc_release X.Y.Z` when tagging.)
 
+### Changed
+- Post-0.4.0 doc cleanup: `docs/ai-context.md`, `docs/PLAN-0.4.0-gitscripts.md`, ADR 0005, ssh map; removed obsolete `context mgt.txt`
+
 ## 0.4.0 - 2026-05-23
 
 ### Added

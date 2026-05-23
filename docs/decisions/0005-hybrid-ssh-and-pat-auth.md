@@ -17,7 +17,7 @@ Use a **hybrid** model:
 
 Orchestration: `setup_preflight` → planned actions → user confirm → `setup_configure_pats` / `setup_ssh_setup`. Primary install path: new Mac (`environment_install`).
 
-Script prefix: **`gitscripts_*`** (renamed from `gitak_*` in 0.4.0). `git_create_from_local` requires repo created on GitHub first (no API create).
+**Command names (0.4.0):** daily `git_push`, `git_create_from_remote`, `git_create_from_local`; setup `setup_preflight`, `setup_configure_pats`, `setup_ssh_setup`, etc. Accounts listed in local `accounts.conf`. `git_create_from_local` requires repo created on GitHub first (no API create).
 
 ## Alternatives considered
 - **PAT-only (0002)**: Fails Cursor commit/push UX; kept only for API.

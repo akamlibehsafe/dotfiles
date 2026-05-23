@@ -46,13 +46,13 @@ Git accounts: `rbonon`, `fortegb`, `akamlibehsafe`. PATs: `GH_TOKEN_<user>`. Hyb
    - Install Homebrew
    - Set up Git root directory (`~/Documents/GitHub`)
    - Install Git, Git LFS, GitHub CLI, and dependencies
-   - Automatically clone all repositories from both GitHub accounts (optional)
+   - Optionally clone repositories for each account in `accounts.conf`
    - Install and configure Zsh, Oh My Zsh, Powerlevel10k
    - Optionally install Cursor Desktop
    - Set up symlinks for all scripts
    - Add useful aliases (cdg, cda, cdf, cds)
    - Configure Powerlevel10k (optional, at the end)
-   - Guide through iTerm2 configuration import
+   - Install iTerm2 (Homebrew) and offer import of bundled profile (`config/iterm2/`)
    
    **Note:** See `README.md` for instructions on using `environment_install`.
 

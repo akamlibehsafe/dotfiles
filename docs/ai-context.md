@@ -1,5 +1,7 @@
 # AI / Contributor Context (gitscripts)
 
+**Release:** `0.4.0` on `main` (tag `v0.4.0`). Start here for agents and contributors.
+
 ## Goal
 
 Two products in one repo — see [PRODUCTS.md](PRODUCTS.md):
@@ -7,170 +9,114 @@ Two products in one repo — see [PRODUCTS.md](PRODUCTS.md):
 1. **Dev environment bootstrap** — `environment_install` / `environment_uninstall` at `scripts/` root
 2. **Git toolkit** — `git_push`, `git_create_from_remote`, `git_create_from_local` in `scripts/git/`
 
-Utilities: `scripts/util/`. Accounts: `rbonon`, `fortegb`, `akamlibehsafe` (hybrid SSH + PAT).
+**Setup helpers:** `scripts/util/` (`setup_*`). **Shared code (source only):** `scripts/lib/` (`common.sh`, `accounts.sh`, `init.sh`, `manifest.sh`).
+
+## Configuration
+
+| File | Purpose |
+|------|---------|
+| `accounts.conf` | Local only (from `config/accounts.conf.example`) — GitHub usernames, emails, `github_root`, aliases |
+| `PAT.md` / `~/.zshrc` | `export GH_TOKEN_<username>` per account line in `accounts.conf` |
+
+Example accounts on maintainer machine: `rbonon`, `fortegb`, `akamlibehsafe`. **Any number of accounts** via `account USER EMAIL` lines.
 
 ## Key Workflows
 
 ### Install
-**Complete installation:**
 ```bash
 cd /path/to/gitscripts/scripts
 chmod +x environment_install
 ./environment_install
 ```
-Installs: Homebrew → Git tools → Zsh/Powerlevel10k → Cursor (optional) → Symlinks → Aliases
+Homebrew → Git tools → optional bulk clone → Zsh/P10k → optional Cursor → iTerm2 (install + bundled profile) → symlinks → aliases.
 
-**Git tools only:**
-```bash
-./scripts/util/setup_install
-```
+**Git tools only:** `./scripts/util/setup_install`
 
 ### Uninstall
 ```bash
 ./scripts/environment_uninstall
 ```
-⚠️ Destructive: Removes everything installed by `environment_install` including `~/Documents/GitHub`.
+Destructive; prompts before removing `~/Documents/GitHub`, SSH identity, PAT exports, etc.
 
-### Create from Local/Remote
+### Daily Git
 ```bash
-# Create new repo from current directory:
-git_create_from_local akamlibehsafe/my-repo
-
-# Clone existing repo:
-git_create_from_remote fortegb/existing-repo
-```
-Scripts auto-detect account from `user/repo` format and use appropriate PAT.
-
-### Push Flow
-```bash
-# From repo directory:
+git_create_from_remote akamlibehsafe/my-repo
 git_push -m "Commit message"
+git_create_from_local fortegb/new-repo   # create empty repo on GitHub first
+```
+Account from `user/repo` or remote URL. Transport: SSH aliases when configured; PAT fallback for HTTPS.
 
-# Auto-detects account from remote URL, stages all changes, commits, pushes
+### After pull or merge
+```bash
+./scripts/util/setup_symlinks
+source ~/.zshrc
 ```
 
-## Repo Layout
+## `~/bin` commands (symlinked)
 
-### `scripts/` - Main Scripts
-- **`environment_install`**: Orchestrates complete macOS dev environment setup
-- **`environment_uninstall`**: Removes everything installed by environment_install
-- **`setup_install`**: Installs Git, Git LFS, GitHub CLI, and dependencies
-- **`git_create_from_local`**: Creates GitHub repo from local folder
-- **`git_create_from_remote`**: Clones existing GitHub repository
-- **`git_push`**: Commits and pushes changes (auto-detects account)
-- **`setup_verify_pat`**: Validates PAT tokens are set and working
-- **`setup_symlinks`**: Creates symlinks in `~/bin/` for system-wide access
-- **`setup_zsh_install`**: Installs and configures Zsh, Oh My Zsh, Powerlevel10k
+| On PATH | Role |
+|---------|------|
+| `git_push`, `git_create_from_remote`, `git_create_from_local` | Daily Git |
+| `environment_install`, `environment_uninstall` | Full Mac setup / teardown |
+| `setup_symlinks`, `setup_zsh_install` | Symlinks; Zsh stack (when run standalone) |
 
-### `config/` - Configuration Files
-- **`config/iterm2/`**: iTerm2 configuration export (manual import required)
+**Not on `~/bin` by default:** `setup_install`, `setup_preflight`, `setup_configure_pats`, `setup_ssh_setup`, `setup_verify_pat`, `setup_migrate_remotes` — run from `scripts/util/`.
 
-### `docs/` - Documentation
-- **`docs/decisions/`**: Architecture Decision Records (ADRs)
-- **`docs/runbook.md`**: Operational procedures and troubleshooting
-- **`docs/ai-context.md`**: This file - AI/contributor briefing
+## Repo layout (scripts)
+
+```
+scripts/
+├── environment_install, environment_uninstall
+├── git/           # git_push, git_create_from_*
+├── util/          # setup_* (runnable)
+├── lib/           # source-only modules
+└── maintainer/    # doc_*
+```
 
 ## Invariants / Rules
 
-### Compatibility
-- **macOS only**: Scripts use Homebrew, macOS-specific paths (`~/Documents/GitHub`), and assume Unix shell
-- **Shell assumptions**: Works with both bash and zsh; detects shell automatically for config file placement
+- **macOS only** — Homebrew, `~/Documents/GitHub` default layout
+- **Never commit** `accounts.conf` or `PAT.md` (`.gitignore`)
+- **Idempotent** install scripts
+- **Account detection** from repo path / remote owner — not interactive account picker
+- **Symlinks, not copies** — ADR 0001; refresh with `setup_symlinks` after moves
 
-### Safety Rules
-- **No destructive operations without prompts**: `environment_uninstall` prompts before deletion
-- **PAT tokens never committed**: `PAT.md` is in `.gitignore`
-- **Idempotent installations**: All install scripts can be re-run safely
-- **Account auto-detection**: Never prompts for account - detects from repo name/URL
+## Architecture (read ADRs)
 
-### Architecture Decisions
-- **Symlinks, not copies**: Scripts stay in repo, symlinked to `~/bin/` (see ADR 0001)
-- **PAT-based auth**: Environment variables, not GitHub CLI auth (see ADR 0002)
-- **Bash scripting**: Native macOS, no external dependencies (see ADR 0004)
-- **Orchestration script**: Single entry point for installation (see ADR 0003)
+- **0001** Symlinks · **0002** PATs (API) · **0003** `environment_install` · **0004** Bash · **0005** Hybrid SSH + PAT
 
-## Known Sharp Edges
+## Sharp edges
 
-### Common Failure Modes + Fixes
+| Problem | Fix |
+|---------|-----|
+| PAT not set | `export GH_TOKEN_<user>` in `~/.zshrc` or `setup_configure_pats` |
+| 401/403 | Regenerate classic PAT with `repo` scope |
+| Command not found | `setup_symlinks`; `source ~/.zshrc` |
+| Broken symlinks after move | Re-run `setup_symlinks` from repo root |
+| Wrong GitHub user on push | Check remote (`git@github-<user>:…`) and `includeIf`; see multi-account guide |
+| p10k missing | `source ~/.zshrc` or `p10k configure` |
 
-1. **"PAT variable not set"**
-   - **Cause**: Tokens not exported in shell config
-   - **Fix**: Add `export GH_TOKEN_*="..."` to `~/.zshrc`, then `source ~/.zshrc`
+## Docs maintenance (`scripts/maintainer/`)
 
-2. **"403 Forbidden" / "401 Unauthorized"**
-   - **Cause**: Expired/invalid token or missing `repo` scope
-   - **Fix**: Regenerate PAT with `repo` scope at https://github.com/settings/tokens
+- `doc_new_adr`, `doc_update_changelog`, `doc_check`, `doc_release` — see [DOCUMENTATION_WORKFLOW.md](DOCUMENTATION_WORKFLOW.md)
 
-3. **Scripts not found in PATH**
-   - **Cause**: `~/bin/` not in PATH or symlinks not created
-   - **Fix**: Run `./scripts/util/setup_symlinks` to create symlinks and add to PATH
+## Post-0.4.0 priorities (optional)
 
-4. **Symlinks broken after moving repository**
-   - **Cause**: Symlinks point to old repository location
-   - **Fix**: Re-run `setup_symlinks` from new location (auto-detects and fixes)
+- Clearer errors in edge cases · broader test docs · Linux port (large) · LFS migration helper
 
-5. **"dubious ownership" Git error**
-   - **Cause**: Git safety check for directories outside user home
-   - **Fix**: Scripts handle `/tmp` automatically; for others: `git config --global --add safe.directory /path/to/repo`
+## Do not change without design discussion
 
-6. **Partial installation failure**
-   - **Cause**: Network issue or user interruption
-   - **Fix**: Re-run installation script (idempotent - skips already-installed components)
+- Symlink distribution model
+- `accounts.conf` + `GH_TOKEN_*` pairing convention
+- Non-idempotent install steps
+- macOS-only assumptions in orchestration scripts
 
-7. **Powerlevel10k prompt not showing**
-   - **Cause**: Zsh config not loaded or `p10k configure` not run
-   - **Fix**: `source ~/.zshrc` or run `p10k configure`
+## Technical notes
 
-## Documentation Maintenance
+**PAT:** `GH_TOKEN_<github_username>` must match `account` lines in `accounts.conf`.
 
-**Automated Documentation Tools:**
-- `doc_new_adr <title>` - Create new ADR template
-- `doc_update_changelog <category> <description>` - Add changelog entry
-- `doc_check` - Check documentation status (runs in pre-commit hook)
-- `doc_release <version>` - Move unreleased entries to version
+**SSH:** Keys under `~/.ssh/gitscripts/`; Host `github-<user>` in `~/.ssh/config`.
 
-**See `docs/DOCUMENTATION_WORKFLOW.md` for complete guide.**
+**iTerm2:** Bundled export `config/iterm2/iTerm2 State.itermexport`; `environment_install` installs app and can `open` export for user confirmation.
 
-## Current Priorities
-
-### What's Next
-- Improve error messages with actionable steps
-- Add more comprehensive testing/documentation
-- Consider Linux support (currently macOS-only)
-- Add Git LFS migration helper for existing repos
-
-### What Not to Change
-- **Don't switch from symlinks to copies**: Breaks auto-update mechanism
-- **Don't add more GitHub accounts without refactoring**: Current design assumes exactly 2 accounts
-- **Don't remove PAT environment variable approach**: Central to account auto-detection
-- **Don't make scripts non-idempotent**: Re-runnability is key feature
-- **Don't remove macOS focus**: Would require significant refactoring
-
-## Technical Notes
-
-### PAT Token Storage
-- Stored as environment variables: `GH_TOKEN_fortegb`, `GH_TOKEN_akamlibehsafe`
-- Added to `~/.zshrc` (or `~/.bashrc`/`~/.bash_profile` for bash)
-- Can be provided via `PAT.md` file during installation (auto-loaded)
-
-### Account Detection Logic
-1. Parse `user/repo` argument → extract username
-2. If no argument, parse remote URL → extract username
-3. Map username to PAT: `fortegb` → `GH_TOKEN_fortegb`, `akamlibehsafe` → `GH_TOKEN_akamlibehsafe`
-
-### Symlink System
-- Scripts in repo: `~/Documents/GitHub/akamlibehsafe/gitscripts/scripts/`
-- Symlinks in: `~/bin/gitscripts_*`
-- Updated via: `git pull` in repo (symlinks automatically point to new versions)
-
-### Installation Order (environment_install)
-1. PAT configuration (first - needed for repo cloning)
-2. Homebrew installation/update
-3. Git root directory creation (`~/Documents/GitHub`)
-4. Git tools installation (Git, Git LFS, GitHub CLI)
-5. Optional: Clone all repos from both accounts
-6. Zsh environment setup (Oh My Zsh, Powerlevel10k)
-7. Optional: Cursor Desktop installation
-8. Symlink setup
-9. Alias addition (cdg, cda, cdf, cds)
-10. Optional: Powerlevel10k configuration
-11. iTerm2 configuration import instructions
+**Spec for all scripts:** [agents.md](../agents.md) at repo root.

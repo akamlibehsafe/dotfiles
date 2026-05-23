@@ -1,129 +1,64 @@
-# Plan: gitscripts 0.4.0 (multi-account SSH + `gitscripts_*`)
+# Plan: gitscripts 0.4.0 (multi-account SSH + layout)
 
-**Branch:** `feat/0.4.0-gitscripts`  
-**Target release:** `0.4.0` (not 1.0.0 — project still maturing)  
-**Resume prompt for agent:**
+**Status:** **Released** — merged to `main` (PR #1), tag **`v0.4.0`** (2026-05-23).
 
-```text
-Continue gitscripts 0.4.0 per docs/PLAN-0.4.0-gitscripts.md.
-Check Progress below. Next: Execute Phase N only.
-```
+**Branch history:** developed on `feat/0.4.0-gitscripts`; do not use that branch for new work — use `main`.
 
 ---
 
-## Progress (update each phase)
+## Progress (final)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0 Docs + VERSIONING | Done | CHANGELOG, VERSIONING.md |
-| 0-git Tags + remote | Done | Local `v0.3.0` at `5796107`; remote tag `v0.3.0` pushed; branch `feat/0.4.0-gitscripts` on GitHub |
-| 0-git PAT + push | Done | `PAT.md` + HTTPS push via `GH_TOKEN_akamlibehsafe`; tracking `origin/feat/0.4.0-gitscripts` |
-| 1 Guide, ADR 0005, plan docs | Done | This file, guide, implementation map |
-| 2 New `gitscripts_*` scripts | Done | commit `04d6824`; agent verified preflight + dry-runs |
-| 2-test User verification | Done | PAT 3/3, SSH 3/3, remotes migrated, branch pushed |
-| 3 Update `gitscripts_*` + environment_install | Done | hybrid push/clone, manual create_from_local, install wizards |
-| 3-test User verification | Done | git_push on throwaway SSH repo |
-| 4 Orchestration polish | Done | shared manifest, setup/uninstall symlinks, SSH cleanup option |
-| 4-test User verification | Done | setup_symlinks refresh |
-| 5 Rename `gitak_*` → `gitscripts_*` | Done | breaking rename; setup removes old `~/bin/gitak_*` |
-| 5-test User verification | **Next** | `setup_symlinks`; no `~/bin/gitak_*` |
-| 6 Release `v0.4.0` | Done | Tagged `v0.4.0` 2026-05-23; push branch + tag to origin |
+| 0-git Tags + remote | Done | `v0.3.0`, `v0.4.0` on origin |
+| 1 Guide, ADR 0005, plan docs | Done | Multi-account guide, implementation map |
+| 2 Setup scripts | Done | `setup_preflight`, `setup_configure_pats`, `setup_ssh_setup`, `setup_migrate_remotes`; `lib/common.sh` |
+| 2-test | Done | PAT/SSH verified |
+| 3 Hybrid in git_* + environment_install | Done | SSH push/clone; PAT fallback |
+| 3-test | Done | `git_push` on throwaway repo |
+| 4 Orchestration | Done | `lib/manifest.sh`, uninstall parity |
+| 5 Layout + renames | Done | `git/`, `util/`, `lib/`; `git_*` daily; `setup_*` helpers; `accounts.conf` |
+| 5-test | Done | `setup_symlinks`; legacy `gitak_*` / `gitscripts_*` removed from `~/bin` |
+| 6 Release | Done | PR #1 merged; `v0.4.0` tagged |
 
 ---
 
-## Locked decisions
+## Locked decisions (0.4.0)
 
-- **Accounts:** `rbonon`, `fortegb`, `akamlibehsafe` + `GH_TOKEN_*` for each
-- **Auth:** SSH transport + `includeIf` identity; PAT for API/bulk clone
-- **Prefix:** `gitscripts_*` (renamed from `gitak_*` in 0.4.0)
-- **SSH keys:** `~/.ssh/gitscripts/`; test-first / repair mode; preflight before changes
-- **New Mac:** primary audience; `environment_install` runs preflight → PAT wizard → … → SSH wizard
-- **Rollback:** `git checkout main` + restore Desktop backup; see [Rollback](#rollback)
-- **Tests:** plain `git`/`ssh`/`curl` on throwaway repo for auth verification
-- **0.2.0:** CHANGELOG only, no git tag. **0.3.0:** tag at `5796107`. **0.4.0:** tag when released.
+- **Accounts:** `accounts.conf` (local) — any number of `account USER EMAIL` lines; maintainer uses `rbonon`, `fortegb`, `akamlibehsafe`
+- **Auth:** SSH transport + `includeIf`; PAT (`GH_TOKEN_<user>`) for API / HTTPS fallback
+- **Command names:** Daily **`git_*`** on `~/bin`; setup **`setup_*`** in `scripts/util/`; orchestration **`environment_*`**
+- **SSH keys:** `~/.ssh/gitscripts/`; `setup_preflight` before invasive changes
+- **New Mac:** `environment_install` — PAT → tools → clone → Zsh → Cursor (opt) → iTerm2 → symlinks
+- **0.3.0:** tag `5796107` · **0.4.0:** tag on merge commit
 
 ---
 
-## Phases (execute one at a time)
+## Delivered layout
 
-### Phase 0-git (YOUR actions)
-
-**Completed (2026-05-23):** `v0.1.0` removed locally; `v0.3.0` tagged at `5796107`; `feat/0.4.0-gitscripts` pushed; remote `v0.3.0` pushed with PAT URL push. Optional if not done: delete remote `v0.1.0` (see below).
-
-Align git tag with CHANGELOG 0.3.0. **Reference** (already done):
-
-```bash
-cd ~/Documents/GitHub/akamlibehsafe/gitscripts
-git log -1 --oneline 5796107   # should exist: environment_uninstall script updated
-git tag -l
-
-# Local fix (if v0.1.0 points to 5796107):
-git tag -d v0.1.0
-git tag -a v0.3.0 5796107 -m "Release 0.3.0"
-
-# If v0.1.0 was pushed to GitHub (check first):
-# git push origin :refs/tags/v0.1.0
-# git push origin v0.3.0
-
-git describe --tags
+```
+scripts/
+├── environment_install, environment_uninstall
+├── git/              git_push, git_create_from_remote, git_create_from_local
+├── util/             setup_install, setup_preflight, setup_configure_pats, …
+├── lib/              common.sh, accounts.sh, init.sh, manifest.sh
+└── maintainer/       doc_*
 ```
 
-Do **not** tag 0.4.0 until Phase 6.
+Config: `config/accounts.conf.example` → local `accounts.conf`; `config/iterm2/iTerm2 State.itermexport`.
 
-### Phase 1 — Documentation
-
-Guide, ADR 0005, this plan, VERSIONING, implementation map. README links.
-
-### Phase 2 — New scripts
-
-- `scripts/lib/common.sh`
-- `setup_preflight`, `setup_configure_pats`, `setup_ssh_setup`, `setup_migrate_remotes`
-
-### Phase 3 — Hybrid behavior
-
-Update existing scripts for hybrid SSH/PAT. Wire `environment_install`.
-
-### Phase 4 — Orchestration cleanup
-
-`environment_uninstall` symlink list, etc.
-
-### Phase 5 — Rename (breaking)
-
-`git mv` all `gitak_*` → `gitscripts_*`; `setup_symlinks`; remove `~/bin/gitak_*`.
-
-### Phase 6 — Release (USER)
-
-```bash
-doc_release 0.4.0 YYYY-MM-DD
-git commit -m "chore: release 0.4.0"
-git tag v0.4.0
-git push && git push origin v0.4.0
-```
+User docs: [README.md](../README.md). AI brief: [ai-context.md](ai-context.md). Spec: [agents.md](../agents.md).
 
 ---
 
-## Rollback
+## After 0.4.0
 
-**Before Phase 2 SSH/PAT:**
+New work: add entries under `## Unreleased` in CHANGELOG.md; optional GitHub Release from tag `v0.4.0`.
 
-```bash
-BACKUP=~/Desktop/gitscripts-rollback-$(date +%Y%m%d)
-mkdir -p "$BACKUP"
-cp -a ~/.ssh "$BACKUP/ssh" 2>/dev/null || true
-cp ~/.gitconfig "$BACKUP/" 2>/dev/null || true
-cp ~/.gitconfig-* "$BACKUP/" 2>/dev/null || true
-cp ~/.zshrc "$BACKUP/" 2>/dev/null || true
-```
+**Rollback (config only):** backup `~/.ssh`, `~/.gitconfig*`, `~/.zshrc` before SSH experiments.
 
-**Discard 0.4.0 code:** `git checkout main && ./scripts/util/setup_symlinks`
-
----
-
-## Manual git test (throwaway repo)
-
-Do **not** test push in `gitscripts` repo. Use `akamlibehsafe/git-push-test` or similar.
-
-See full commands in agent plan or ask: *"Show manual git verification playbook"*.
+**Rollback (code):** stay on `main`; run `setup_symlinks` after checkout.
 
 ---
 

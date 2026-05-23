@@ -1,6 +1,6 @@
 # SSH guide → gitscripts implementation map
 
-Maps [github-multiple-accounts-mac-cursor.md](guides/github-multiple-accounts-mac-cursor.md) to scripts (planned / in progress for **0.4.0**).
+Maps [github-multiple-accounts-mac-cursor.md](guides/github-multiple-accounts-mac-cursor.md) to scripts (**0.4.0** on `main`).
 
 | Guide § | Topic | Automation |
 |---------|--------|------------|
@@ -17,4 +17,4 @@ Maps [github-multiple-accounts-mac-cursor.md](guides/github-multiple-accounts-ma
 
 **Preflight:** `setup_preflight` — scan → planned actions → confirm.
 
-**Status:** All user-facing scripts use the `gitscripts_*` prefix (0.4.0).
+**Status (0.4.0):** Daily commands `git_*` on `~/bin`; setup `setup_*` under `scripts/util/`; config via `accounts.conf`.
