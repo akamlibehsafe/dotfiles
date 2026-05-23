@@ -19,7 +19,7 @@ Check Progress below. Next: Execute Phase N only.
 | 0-git Tags + remote | Done | Local `v0.3.0` at `5796107`; remote tag `v0.3.0` pushed; branch `feat/0.4.0-gitscripts` on GitHub |
 | 0-git PAT + push | Done | `PAT.md` + HTTPS push via `GH_TOKEN_akamlibehsafe`; tracking `origin/feat/0.4.0-gitscripts` |
 | 1 Guide, ADR 0005, plan docs | Done | This file, guide, implementation map |
-| 2 New `gitscripts_*` scripts | **Next** | preflight, PAT, SSH, migrate, common lib |
+| 2 New `gitscripts_*` scripts | Done | preflight, PAT, SSH, migrate, common lib |
 | 3 Update `gitak_*` + environment_install | Pending | |
 | 4 Orchestration polish | Pending | |
 | 5 Rename `gitak_*` → `gitscripts_*` | Pending | Breaking |

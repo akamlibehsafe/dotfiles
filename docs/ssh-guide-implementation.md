@@ -17,4 +17,4 @@ Maps [github-multiple-accounts-mac-cursor.md](guides/github-multiple-accounts-ma
 
 **Preflight:** `gitscripts_preflight` — scan → planned actions → confirm.
 
-**Status:** Scripts not yet implemented on branch `feat/0.4.0-gitscripts` (Phase 2+). Current commands remain `gitak_*` until Phase 5 rename.
+**Status:** Phase 2 scripts implemented (`gitscripts_preflight`, `gitscripts_configure_pats`, `gitscripts_ssh_setup`, `gitscripts_migrate_remotes`). Current day-to-day commands remain `gitak_*` until Phase 5 rename.

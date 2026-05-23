@@ -5,7 +5,7 @@
 ### Added
 - Multi-account SSH + Cursor setup guide (`docs/guides/github-multiple-accounts-mac-cursor.md`)
 - Execution plan `docs/PLAN-0.4.0-gitscripts.md` and `docs/VERSIONING.md`
-- (Planned) `gitscripts_*` scripts: preflight, PAT/SSH wizards, hybrid auth — see plan
+- `gitscripts_*` Phase 2: `gitscripts_preflight`, `gitscripts_configure_pats`, `gitscripts_ssh_setup`, `gitscripts_migrate_remotes`, `scripts/lib/gitscripts_common.sh`
 
 ### Changed
 - (Planned) Hybrid authentication: SSH for git transport; PAT for API and bulk clone

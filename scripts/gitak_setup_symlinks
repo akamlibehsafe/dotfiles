@@ -41,7 +41,7 @@ info "Git Scripts Symlink Setup"
 info "=========================="
 echo ""
 info "This script will create symlinks in ~/bin/ pointing to the scripts in:"
-echo "  $SCRIPT_DIR/scripts"
+echo "  $SCRIPT_DIR"
 echo ""
 
 # Check if ~/bin exists, create if not
@@ -99,6 +99,10 @@ SCRIPTS=(
     "gitak_create_from_remote"
     "gitak_push"
     "gitak_verify_PAT"
+    "gitscripts_preflight"
+    "gitscripts_configure_pats"
+    "gitscripts_ssh_setup"
+    "gitscripts_migrate_remotes"
     "zsh_install"
     "doc_new_adr"
     "doc_update_changelog"
@@ -111,7 +115,7 @@ SYMLINKS_UPDATED=0
 SYMLINKS_SKIPPED=0
 
 for script in "${SCRIPTS[@]}"; do
-    SCRIPT_PATH="$SCRIPT_DIR/scripts/$script"
+    SCRIPT_PATH="$SCRIPT_DIR/$script"
     SYMLINK_PATH="$HOME/bin/$script"
     
     # Check if script exists in repo
@@ -179,7 +183,7 @@ for script in "${SCRIPTS[@]}"; do
             error "  ✗ $script points to non-existent file"
             ALL_VALID=false
         fi
-    elif [ ! -f "$SCRIPT_DIR/scripts/$script" ]; then
+    elif [ ! -f "$SCRIPT_DIR/$script" ]; then
         # Script doesn't exist in repo, that's okay
         true
     else
