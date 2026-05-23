@@ -36,6 +36,6 @@ Use Personal Access Tokens (PATs) stored as environment variables (`GH_TOKEN_for
 - Token expiration: If tokens expire, scripts fail. Mitigated by verification script and clear error messages.
 
 ## Links
-- Implementation: All gitscripts_* scripts detect account from user/repo or remote URL
+- Implementation: Git scripts detect account from user/repo or remote URL; PAT via `GH_TOKEN_<user>`
 - Verification: `scripts/util/setup_verify_pat`
 - Documentation: `README.md` "Prerequisites" and "Configure Personal Access Tokens" sections

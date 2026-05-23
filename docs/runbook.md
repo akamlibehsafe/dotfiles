@@ -35,7 +35,7 @@ git lfs version
 setup_verify_pat
 
 # Check symlinks are working:
-ls -la ~/bin/gitscripts_*
+ls -la ~/bin/git_* ~/bin/setup_* ~/bin/environment_*
 
 # Test a script:
 git_create_from_remote akamlibehsafe/gitscripts
@@ -61,7 +61,7 @@ chmod +x environment_uninstall
 ### Partial Uninstallation
 
 Remove individual components:
-- **Symlinks only**: `rm ~/bin/gitscripts_* ~/bin/setup_zsh_install ~/bin/dev_* ~/bin/environment_*`
+- **Symlinks only**: run `setup_symlinks` to refresh, or remove `~/bin/git_*`, `~/bin/setup_*`, `~/bin/environment_*` manually
 - **Aliases only**: Edit `~/.zshrc` and remove lines with `alias cdg=`, `alias cda=`, etc.
 - **PAT tokens only**: Edit `~/.zshrc` and remove lines with `export GH_TOKEN_*`
 
@@ -175,7 +175,8 @@ cd /path/to/new/gitscripts/location
 **Symlink points to wrong location**
 ```bash
 # Remove and recreate:
-rm ~/bin/gitscripts_*
+# Prefer: ./scripts/util/setup_symlinks (removes deprecated names)
+# Or manually: rm ~/bin/git_* ~/bin/setup_* ~/bin/environment_* 2>/dev/null
 cd ~/Documents/GitHub/akamlibehsafe/gitscripts
 ./scripts/util/setup_symlinks
 ```
@@ -232,7 +233,8 @@ source ~/.zshrc
 
 ```bash
 # Remove all symlinks:
-rm ~/bin/gitscripts_* ~/bin/setup_zsh_install ~/bin/dev_* ~/bin/environment_* 2>/dev/null
+# Prefer: ./scripts/util/setup_symlinks (removes deprecated names)
+# Or manually: rm ~/bin/git_* ~/bin/setup_* ~/bin/environment_* 2>/dev/null ~/bin/setup_zsh_install ~/bin/dev_* ~/bin/environment_* 2>/dev/null
 
 # Recreate:
 cd ~/Documents/GitHub/akamlibehsafe/gitscripts
@@ -321,7 +323,7 @@ git --version && gh --version && git lfs version
 [ -n "$GH_TOKEN_fortegb" ] && [ -n "$GH_TOKEN_akamlibehsafe" ] && echo "✓ PATs set" || echo "✗ PATs missing"
 
 # Symlinks should exist:
-ls ~/bin/gitscripts_* > /dev/null 2>&1 && echo "✓ Symlinks exist" || echo "✗ Symlinks missing"
+command -v git_push >/dev/null && echo "✓ git_push on PATH" || echo "✗ run setup_symlinks"
 
 # Scripts should be executable:
 [ -x ~/bin/git_push ] && echo "✓ Scripts executable" || echo "✗ Scripts not executable"

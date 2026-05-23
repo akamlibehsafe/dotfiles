@@ -123,7 +123,7 @@ Symlinks automatically point to the updated scripts - no re-setup needed!
 ## Script 0: `environment_install`
 
 ### Purpose
-Comprehensive installation script that orchestrates the installation and configuration of all development tools and settings for macOS. This script installs Homebrew, Git, Git LFS, GitHub CLI, Zsh, Oh My Zsh, Powerlevel10k, iTerm2 configuration, Cursor Desktop (optional), automatically clones all repositories from both GitHub accounts, and sets up all Git automation scripts with symlinks.
+Comprehensive installation script that orchestrates the installation and configuration of all development tools and settings for macOS. This script installs Homebrew, Git, Git LFS, GitHub CLI, Zsh, Oh My Zsh, Powerlevel10k, iTerm2 (app + bundled profile), Cursor Desktop (optional), optionally clones repositories per account in `accounts.conf`, and sets up Git automation scripts with symlinks.
 
 ### Usage
 ```bash
@@ -454,7 +454,7 @@ setup_install
 6. Configure Git basic settings (if not already configured):
    - Prompt user for name and email, or skip if already configured
 7. Display post-installation instructions:
-   - Instructions for obtaining PATs from both GitHub accounts
+   - Instructions for obtaining PATs for each account in `accounts.conf`
    - Instructions for storing PATs as bash environment variables
    - Instructions for making variables persistent across shell sessions
 
