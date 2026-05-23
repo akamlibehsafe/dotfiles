@@ -20,8 +20,9 @@ Check Progress below. Next: Execute Phase N only.
 | 0-git PAT + push | Done | `PAT.md` + HTTPS push via `GH_TOKEN_akamlibehsafe`; tracking `origin/feat/0.4.0-gitscripts` |
 | 1 Guide, ADR 0005, plan docs | Done | This file, guide, implementation map |
 | 2 New `gitscripts_*` scripts | Done | commit `04d6824`; agent verified preflight + dry-runs |
-| 2-test User verification | **Next** | backup → PAT/SSH/migrate apply → push branch |
-| 3 Update `gitak_*` + environment_install | Pending | After Phase 2-test pass |
+| 2-test User verification | Done | PAT 3/3, SSH 3/3, remotes migrated, branch pushed |
+| 3 Update `gitak_*` + environment_install | Done | hybrid push/clone, manual create_from_local, install wizards |
+| 3-test User verification | **Next** | gitak_push on throwaway SSH repo |
 | 4 Orchestration polish | Pending | |
 | 5 Rename `gitak_*` → `gitscripts_*` | Pending | Breaking |
 | 6 Release `v0.4.0` | Pending | USER: tag + optional GitHub Release |

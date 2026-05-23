@@ -94,6 +94,7 @@ if [[ "$HAS_PATS" =~ ^[Nn]$ ]]; then
     echo "6. Click 'Generate token' and COPY the token immediately (you won't see it again)"
     echo ""
     echo "Required tokens:"
+    echo "  • GH_TOKEN_rbonon - for the 'rbonon' account"
     echo "  • GH_TOKEN_fortegb - for the 'fortegb' account"
     echo "  • GH_TOKEN_akamlibehsafe - for the 'akamlibehsafe' account"
     echo ""
@@ -204,6 +205,42 @@ success "Git, Git LFS, and GitHub CLI installation completed"
 
 # Determine gitscripts repository location (gitak_install clones it)
 GITSCRIPTS_REPO="$GIT_ROOT_DIR/akamlibehsafe/gitscripts"
+GITSCRIPTS_LIB=""
+for _lib_candidate in "$GITSCRIPTS_REPO/scripts/lib/gitscripts_common.sh" "$REPO_ROOT/scripts/lib/gitscripts_common.sh" "$SCRIPT_DIR/lib/gitscripts_common.sh"; do
+    if [ -f "$_lib_candidate" ]; then
+        GITSCRIPTS_LIB="$_lib_candidate"
+        break
+    fi
+done
+
+section "Step 3.5: Hybrid Auth Setup (SSH + PAT)"
+
+HYBRID_SCRIPTS_DIR=""
+for _scripts in "$GITSCRIPTS_REPO/scripts" "$REPO_ROOT/scripts" "$SCRIPT_DIR"; do
+    if [ -f "$_scripts/gitscripts_preflight" ]; then
+        HYBRID_SCRIPTS_DIR="$_scripts"
+        break
+    fi
+done
+
+if [ -n "$HYBRID_SCRIPTS_DIR" ]; then
+    info "Scanning environment (read-only)..."
+    bash "$HYBRID_SCRIPTS_DIR/gitscripts_preflight" || true
+    echo ""
+    prompt "Run PAT wizard (gitscripts_configure_pats)? (y/N)"
+    read -r RUN_PAT_WIZARD
+    if [[ "$RUN_PAT_WIZARD" =~ ^[Yy]$ ]]; then
+        bash "$HYBRID_SCRIPTS_DIR/gitscripts_configure_pats"
+    fi
+    echo ""
+    prompt "Run SSH + git identity setup (gitscripts_ssh_setup --new-mac)? (y/N)"
+    read -r RUN_SSH_WIZARD
+    if [[ "$RUN_SSH_WIZARD" =~ ^[Yy]$ ]]; then
+        bash "$HYBRID_SCRIPTS_DIR/gitscripts_ssh_setup" --new-mac
+    fi
+else
+    info "gitscripts setup scripts not found; configure later with gitscripts_preflight"
+fi
 
 section "Step 4: Clone All Repositories from GitHub Accounts"
 
@@ -216,15 +253,16 @@ if [ -f "$SHELL_CONFIG" ]; then
 fi
 
 # Check if PAT tokens are available
+GH_TOKEN_RBONON="${GH_TOKEN_rbonon:-}"
 GH_TOKEN_FORTEGB="${GH_TOKEN_fortegb:-}"
 GH_TOKEN_AKAMLIBEHSAFE="${GH_TOKEN_akamlibehsafe:-}"
 
-if [ -z "$GH_TOKEN_FORTEGB" ] && [ -z "$GH_TOKEN_AKAMLIBEHSAFE" ]; then
+if [ -z "$GH_TOKEN_RBONON" ] && [ -z "$GH_TOKEN_FORTEGB" ] && [ -z "$GH_TOKEN_AKAMLIBEHSAFE" ]; then
     info "PAT tokens not found in environment variables."
     info "Repository cloning will be skipped."
     info "You can clone repositories manually later or run this script again after configuring PAT tokens."
 else
-    prompt "Would you like to clone all repositories from both GitHub accounts? (Y/n)"
+    prompt "Would you like to clone all repositories from all GitHub accounts? (Y/n)"
     read -r CLONE_REPOS
     
     if [[ ! "$CLONE_REPOS" =~ ^[Nn]$ ]]; then
@@ -294,13 +332,29 @@ else
                         else
                             info "Cloning $username/$repo_name..."
                             set +e
-                            # Use PAT in clone URL
-                            CLONE_URL_WITH_AUTH="${clone_url/https:\/\//https://${pat}@}"
-                            git clone "$CLONE_URL_WITH_AUTH" "$repo_path" 2>&1 | grep -v "^Cloning into" || true
-                            CLONE_ERROR=$?
+                            CLONE_ERROR=1
+                            if [ -n "$GITSCRIPTS_LIB" ]; then
+                                # shellcheck source=/dev/null
+                                source "$GITSCRIPTS_LIB"
+                                SSH_CLONE=$(gitscripts_remote_ssh_url "$username" "$repo_name")
+                                if [ -f "$HOME/.ssh/config" ] && grep -q "Host github-${username}" "$HOME/.ssh/config" 2>/dev/null; then
+                                    git -c credential.helper= clone "$SSH_CLONE" "$repo_path" 2>&1 | grep -v "^Cloning into" || true
+                                    CLONE_ERROR=$?
+                                fi
+                            fi
+                            if [ "$CLONE_ERROR" -ne 0 ]; then
+                                CLONE_URL_WITH_AUTH="${clone_url/https:\/\//https://${pat}@}"
+                                git clone "$CLONE_URL_WITH_AUTH" "$repo_path" 2>&1 | grep -v "^Cloning into" || true
+                                CLONE_ERROR=$?
+                            fi
                             set -e
                             
                             if [ $CLONE_ERROR -eq 0 ]; then
+                                if [ -n "$GITSCRIPTS_LIB" ]; then
+                                    # shellcheck source=/dev/null
+                                    source "$GITSCRIPTS_LIB"
+                                    git -C "$repo_path" remote set-url origin "$(gitscripts_remote_ssh_url "$username" "$repo_name")" 2>/dev/null || true
+                                fi
                                 success "Cloned $username/$repo_name"
                             else
                                 info "Failed to clone $username/$repo_name (may require different authentication)"
@@ -325,7 +379,10 @@ else
             success "Repository cloning completed for $username"
         }
         
-        # Clone repositories for both accounts
+        # Clone repositories for all accounts
+        if [ -n "$GH_TOKEN_RBONON" ]; then
+            clone_user_repos "rbonon" "$GH_TOKEN_RBONON"
+        fi
         if [ -n "$GH_TOKEN_FORTEGB" ]; then
             clone_user_repos "fortegb" "$GH_TOKEN_FORTEGB"
         fi

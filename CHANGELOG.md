@@ -8,8 +8,9 @@
 - `gitscripts_*` Phase 2: `gitscripts_preflight`, `gitscripts_configure_pats`, `gitscripts_ssh_setup`, `gitscripts_migrate_remotes`, `scripts/lib/gitscripts_common.sh`
 
 ### Changed
-- (Planned) Hybrid authentication: SSH for git transport; PAT for API and bulk clone
-- (Planned) Third GitHub account `rbonon`
+- Hybrid auth in `gitak_push`, `gitak_create_from_local`, `gitak_create_from_remote`, `gitak_verify_PAT` (SSH transport + PAT HTTPS fallback; accounts `rbonon`, `fortegb`, `akamlibehsafe`)
+- `gitak_create_from_local` requires repo created on GitHub first (no API create)
+- `environment_install` Step 3.5: preflight → optional PAT/SSH wizards; bulk clone prefers SSH when configured
 
 ### Breaking
 - (Planned) Rename `gitak_*` → `gitscripts_*` in release 0.4.0

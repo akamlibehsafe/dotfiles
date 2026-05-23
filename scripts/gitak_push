@@ -6,6 +6,12 @@
 
 set -e  # Exit on error
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+# shellcheck source=lib/gitscripts_common.sh
+source "${SCRIPT_DIR}/lib/gitscripts_common.sh"
+gitscripts_load_pat_file "${SCRIPT_DIR}/../PAT.md" 2>/dev/null || true
+gitscripts_load_pat_from_shell_configs
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -110,81 +116,31 @@ fi
 REMOTE_URL=$(git remote get-url origin)
 info "Remote URL: $REMOTE_URL"
 
-# Extract username and repository name from remote URL
-# Handle both HTTPS and SSH formats:
-# https://github.com/user/repo.git
-# https://user@github.com/user/repo.git
-# https://token@github.com/user/repo.git
-# git@github.com:user/repo.git
-
-USERNAME=""
-REPO_NAME=""
-
-# Try to extract from HTTPS URL
-if [[ "$REMOTE_URL" =~ https://.*github\.com[:/]([^/]+)/([^/]+)(\.git)?$ ]]; then
-    USERNAME="${BASH_REMATCH[1]}"
-    REPO_NAME="${BASH_REMATCH[2]}"
-    # Remove .git suffix if present
-    REPO_NAME="${REPO_NAME%.git}"
-# Try to extract from SSH URL
-elif [[ "$REMOTE_URL" =~ git@github\.com:([^/]+)/([^/]+)(\.git)?$ ]]; then
-    USERNAME="${BASH_REMATCH[1]}"
-    REPO_NAME="${BASH_REMATCH[2]}"
-    # Remove .git suffix if present
-    REPO_NAME="${REPO_NAME%.git}"
-else
-    error "Could not parse remote URL: $REMOTE_URL\nExpected format: https://github.com/user/repo.git or git@github.com:user/repo.git"
+PARSED=$(gitscripts_parse_remote "$REMOTE_URL" || true)
+if [ -z "$PARSED" ]; then
+    error "Could not parse remote URL: $REMOTE_URL\nExpected: git@github-<user>:user/repo.git or https://github.com/user/repo.git"
 fi
 
-if [ -z "$USERNAME" ] || [ -z "$REPO_NAME" ]; then
-    error "Failed to extract username and repository name from remote URL"
+USERNAME=$(echo "$PARSED" | awk '{print $1}')
+REPO_NAME=$(echo "$PARSED" | awk '{print $2}')
+
+if ! gitscripts_is_known_account "$USERNAME"; then
+    error "Unknown username: $USERNAME\nSupported users: $(gitscripts_supported_accounts_list)"
 fi
 
 info "Detected repository: $USERNAME/$REPO_NAME"
 
-# Determine which PAT to use based on detected username
-if [ "$USERNAME" = "fortegb" ]; then
-    PAT_VAR="GH_TOKEN_fortegb"
-elif [ "$USERNAME" = "akamlibehsafe" ]; then
-    PAT_VAR="GH_TOKEN_akamlibehsafe"
+USE_SSH=false
+if gitscripts_remote_uses_ssh "$REMOTE_URL"; then
+    USE_SSH=true
+    info "Using SSH transport (no PAT in remote URL)"
 else
-    error "Unknown username: $USERNAME\nSupported users: fortegb, akamlibehsafe\nDetected from remote: $REMOTE_URL"
-fi
-
-# Retrieve PAT from environment
-PAT="${!PAT_VAR}"
-
-if [ -z "$PAT" ]; then
-    error "PAT variable $PAT_VAR is not set.\nPlease set it in your shell configuration:\nexport $PAT_VAR=\"your_token_here\""
-fi
-
-info "Using PAT from: $PAT_VAR"
-
-# Check if Git LFS is installed and configure credentials if needed
-if command -v git-lfs &> /dev/null || command -v git lfs &> /dev/null; then
-    # Check if there are LFS files in the repository
-    if git lfs ls-files &>/dev/null && [ -n "$(git lfs ls-files 2>/dev/null)" ]; then
-        info "Git LFS files detected, configuring LFS credentials..."
-        
-        # Disable LFS locking API (not needed for GitHub)
-        git config lfs.https://github.com/${USERNAME}/${REPO_NAME}.git/info/lfs.locksverify false 2>/dev/null || true
-        
-        # Configure Git credential helper if not already configured
-        if ! git config --global credential.helper &>/dev/null; then
-            # Try osxkeychain on macOS, fallback to store
-            if [[ "$OSTYPE" == "darwin"* ]]; then
-                git config --global credential.helper osxkeychain 2>/dev/null || \
-                git config --global credential.helper store 2>/dev/null || true
-            else
-                git config --global credential.helper store 2>/dev/null || true
-            fi
-        fi
-        
-        # Store credentials for Git LFS
-        printf "protocol=https\nhost=github.com\nusername=${USERNAME}\npassword=${PAT}\n" | git credential approve 2>/dev/null || true
-        
-        info "LFS credentials configured"
+    PAT_VAR=$(gitscripts_account_pat_var "$USERNAME")
+    PAT="${!PAT_VAR}"
+    if [ -z "$PAT" ]; then
+        error "HTTPS remote requires PAT variable $PAT_VAR.\nRun: gitscripts_configure_pats\nOr migrate remote: gitscripts_migrate_remotes --apply"
     fi
+    info "Using PAT from: $PAT_VAR (HTTPS fallback)"
 fi
 
 # Get current branch
@@ -254,41 +210,38 @@ else
     info "No changes to commit"
 fi
 
-# Store original remote URL
-ORIGINAL_REMOTE=$(git remote get-url origin)
-
-# For LFS, we use clean URL with credential helper
-# For regular git, we can use PAT in URL temporarily
-# Check if we have LFS files
-HAS_LFS_FILES=false
-if command -v git-lfs &> /dev/null || command -v git lfs &> /dev/null; then
-    if git lfs ls-files &>/dev/null && [ -n "$(git lfs ls-files 2>/dev/null)" ]; then
-        HAS_LFS_FILES=true
-    fi
-fi
-
-# Set remote URL appropriately
-if [ "$HAS_LFS_FILES" = true ]; then
-    # For LFS, use clean URL (credentials handled by credential helper)
-    git remote set-url origin "https://github.com/${USERNAME}/${REPO_NAME}.git"
-else
-    # For regular git, use PAT in URL temporarily
-    AUTH_REMOTE="https://${PAT}@github.com/${USERNAME}/${REPO_NAME}.git"
-    git remote set-url origin "$AUTH_REMOTE"
-fi
-
 # Push to remote
 info "Pushing to remote repository..."
-if [ "$HAS_LFS_FILES" = true ]; then
-    info "Pushing with Git LFS support..."
-fi
-set +e
-git push -u origin "$CURRENT_BRANCH" 2>&1
-PUSH_ERROR=$?
-set -e
 
-# Restore original remote URL
-git remote set-url origin "$ORIGINAL_REMOTE"
+if [ "$USE_SSH" = true ]; then
+    set +e
+    git -c credential.helper= push -u origin "$CURRENT_BRANCH" 2>&1
+    PUSH_ERROR=$?
+    set -e
+else
+    ORIGINAL_REMOTE=$(git remote get-url origin)
+    HAS_LFS_FILES=false
+    if command -v git-lfs &> /dev/null || command -v git lfs &> /dev/null; then
+        if git lfs ls-files &>/dev/null && [ -n "$(git lfs ls-files 2>/dev/null)" ]; then
+            HAS_LFS_FILES=true
+            git config lfs.https://github.com/${USERNAME}/${REPO_NAME}.git/info/lfs.locksverify false 2>/dev/null || true
+            printf "protocol=https\nhost=github.com\nusername=${USERNAME}\npassword=${PAT}\n" | git credential approve 2>/dev/null || true
+            git remote set-url origin "https://github.com/${USERNAME}/${REPO_NAME}.git"
+            info "Pushing with Git LFS support (HTTPS)..."
+        else
+            git remote set-url origin "https://${PAT}@github.com/${USERNAME}/${REPO_NAME}.git"
+        fi
+    else
+        git remote set-url origin "https://${PAT}@github.com/${USERNAME}/${REPO_NAME}.git"
+    fi
+
+    set +e
+    git -c credential.helper= push -u origin "$CURRENT_BRANCH" 2>&1
+    PUSH_ERROR=$?
+    set -e
+
+    git remote set-url origin "$ORIGINAL_REMOTE"
+fi
 
 if [ $PUSH_ERROR -eq 0 ]; then
     success "Successfully pushed to remote repository"
@@ -296,4 +249,3 @@ if [ $PUSH_ERROR -eq 0 ]; then
 else
     error "Failed to push to remote repository"
 fi
-

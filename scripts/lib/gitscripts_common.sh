@@ -95,6 +95,38 @@ gitscripts_load_pat_from_shell_configs() {
     done
 }
 
+# Parse origin URL → "username reponame" on stdout; exit 1 if unknown
+gitscripts_parse_remote() {
+    local url="$1"
+    local user="" repo=""
+
+    if [[ "$url" =~ ^https://([^/@]+@)?github\.com/([^/]+)/([^/.]+)(\.git)?(\/)?$ ]]; then
+        user="${BASH_REMATCH[2]}"
+        repo="${BASH_REMATCH[3]}"
+    elif [[ "$url" =~ ^git@github-[^:]+:([^/]+)/([^/.]+)(\.git)?$ ]]; then
+        user="${BASH_REMATCH[1]}"
+        repo="${BASH_REMATCH[2]}"
+    elif [[ "$url" =~ ^git@github\.com:([^/]+)/([^/.]+)(\.git)?$ ]]; then
+        user="${BASH_REMATCH[1]}"
+        repo="${BASH_REMATCH[2]}"
+    fi
+
+    repo="${repo%.git}"
+    if [ -n "$user" ] && [ -n "$repo" ]; then
+        echo "${user} ${repo}"
+        return 0
+    fi
+    return 1
+}
+
+gitscripts_remote_uses_ssh() {
+    [[ "$1" =~ ^git@github- ]]
+}
+
+gitscripts_supported_accounts_list() {
+    printf '%s, ' "${GITSCRIPTS_ACCOUNTS[@]}" | sed 's/, $//'
+}
+
 gitscripts_verify_pat_api() {
     local pat_var="$1"
     local expected_user="$2"

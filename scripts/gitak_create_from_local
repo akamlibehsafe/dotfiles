@@ -1,376 +1,145 @@
 #!/bin/bash
 
 # gitak_create_from_local
-# Creates a new GitHub repository from a local folder, initializes it,
-# commits existing files, and pushes to remote.
+# Initializes a local folder and pushes to an existing GitHub repo (create repo on GitHub first).
 
-set -e  # Exit on error
+set -e
 
-# Colors for output
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+# shellcheck source=lib/gitscripts_common.sh
+source "${SCRIPT_DIR}/lib/gitscripts_common.sh"
+gitscripts_load_pat_file "${SCRIPT_DIR}/../PAT.md" 2>/dev/null || true
+gitscripts_load_pat_from_shell_configs
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# Function to print error messages
-error() {
-    echo -e "${RED}Error: $1${NC}" >&2
-    exit 1
-}
+error() { echo -e "${RED}Error: $1${NC}" >&2; exit 1; }
+success() { echo -e "${GREEN}$1${NC}"; }
+info() { echo -e "${YELLOW}$1${NC}"; }
+prompt() { echo -e "${BLUE}$1${NC}"; }
 
-# Function to print success messages
-success() {
-    echo -e "${GREEN}$1${NC}"
-}
-
-# Function to print info messages
-info() {
-    echo -e "${YELLOW}$1${NC}"
-}
-
-# Check if user/repo argument is provided
 if [ $# -ne 1 ]; then
-    error "Usage: gitak_create_from_local <user/repo>\nExample: gitak_create_from_local fortegb/test"
+    error "Usage: gitak_create_from_local <user/repo>\nExample: gitak_create_from_local akamlibehsafe/myproject"
 fi
 
 USER_REPO="$1"
-
-# Validate format (should contain exactly one slash)
 if [[ ! "$USER_REPO" =~ ^[^/]+/[^/]+$ ]]; then
-    error "Invalid format. Expected: user/repo\nExample: fortegb/test or akamlibehsafe/myproject"
+    error "Invalid format. Expected: user/repo"
 fi
 
-# Parse username and repository name
 USERNAME=$(echo "$USER_REPO" | cut -d'/' -f1)
 REPO_NAME=$(echo "$USER_REPO" | cut -d'/' -f2)
 
-info "Creating repository: $USER_REPO"
-info "Username: $USERNAME"
-info "Repository: $REPO_NAME"
-
-# Determine which PAT to use based on username
-if [ "$USERNAME" = "fortegb" ]; then
-    PAT_VAR="GH_TOKEN_fortegb"
-elif [ "$USERNAME" = "akamlibehsafe" ]; then
-    PAT_VAR="GH_TOKEN_akamlibehsafe"
-else
-    error "Unknown username: $USERNAME\nSupported users: fortegb, akamlibehsafe"
+if ! gitscripts_is_known_account "$USERNAME"; then
+    error "Unknown username: $USERNAME\nSupported: $(gitscripts_supported_accounts_list)"
 fi
 
-# Retrieve PAT from environment
-PAT="${!PAT_VAR}"
+SSH_REMOTE=$(gitscripts_remote_ssh_url "$USERNAME" "$REPO_NAME")
 
-if [ -z "$PAT" ]; then
-    error "PAT variable $PAT_VAR is not set.\nPlease set it in your shell configuration:\nexport $PAT_VAR=\"your_token_here\""
+info "Repository: $USER_REPO"
+info "SSH remote: $SSH_REMOTE"
+
+if ! command -v git &>/dev/null; then
+    error "Git is not installed. Run gitak_install first."
 fi
 
-info "Using PAT from: $PAT_VAR"
-
-# Check if git is installed
-if ! command -v git &> /dev/null; then
-    error "Git is not installed. Please run gitak_install first."
-fi
-
-# Check if curl is installed
-if ! command -v curl &> /dev/null; then
-    error "curl is not installed. Please install it first."
-fi
-
-# Check if Git LFS is installed
-HAS_LFS=false
-if command -v git-lfs &> /dev/null || command -v git lfs &> /dev/null; then
-    HAS_LFS=true
-    info "Git LFS is installed"
-fi
-
-# Get current directory (absolute path)
 CURRENT_DIR=$(pwd -P)
 info "Working directory: $CURRENT_DIR"
 
-# Handle Git safe.directory issue for /tmp and other potentially problematic directories
-# This is a security feature in Git that requires explicit permission for certain directories
 if [[ "$CURRENT_DIR" =~ ^/tmp|^/private/tmp|^/var/tmp ]]; then
-    info "Detected temporary directory, ensuring Git safe.directory configuration..."
-    # Check if this directory is already in safe.directory list
     SAFE_DIRS=$(git config --global --get-all safe.directory 2>/dev/null || echo "")
     if [ -z "$SAFE_DIRS" ] || ! echo "$SAFE_DIRS" | grep -Fxq "$CURRENT_DIR"; then
         git config --global --add safe.directory "$CURRENT_DIR"
-        info "Added $CURRENT_DIR to Git safe.directory list"
     fi
 fi
 
-# Validate PAT by checking GitHub API authentication
-info "Validating PAT token..."
-PAT_CHECK=$(curl -s -w "\n%{http_code}" \
-    -H "Accept: application/vnd.github.v3+json" \
-    -H "Authorization: token $PAT" \
-    https://api.github.com/user)
+prompt "Create an empty repository on GitHub first (no README if this folder has files):"
+echo "  https://github.com/new?name=${REPO_NAME}"
+echo "  Owner must be: ${USERNAME}"
+read -r -p "Press Enter after the repo exists on GitHub..."
 
-PAT_CHECK_CODE=$(echo "$PAT_CHECK" | tail -n1)
-PAT_CHECK_BODY=$(echo "$PAT_CHECK" | sed '$d')
+set +e
+git ls-remote "$SSH_REMOTE" &>/dev/null
+REMOTE_OK=$?
+set -e
+if [ "$REMOTE_OK" -ne 0 ]; then
+    error "Cannot reach $SSH_REMOTE.\nCreate the repo on GitHub and ensure SSH is set up: gitscripts_ssh_setup --repair"
+fi
+success "Remote repository found"
 
-if [ "$PAT_CHECK_CODE" -eq 200 ]; then
-    # Extract username from response (if jq is available)
-    if command -v jq &> /dev/null; then
-        AUTH_USER=$(echo "$PAT_CHECK_BODY" | jq -r '.login' 2>/dev/null || echo "unknown")
-        if [ "$AUTH_USER" != "null" ] && [ -n "$AUTH_USER" ]; then
-            info "PAT validated successfully (authenticated as: $AUTH_USER)"
-            if [ "$AUTH_USER" != "$USERNAME" ]; then
-                error "PAT token belongs to user '$AUTH_USER', but you specified '$USERNAME'.\nPlease use the correct PAT token for the '$USERNAME' account."
-            fi
-        else
-            info "PAT validated successfully"
-        fi
-    else
-        info "PAT validated successfully"
-    fi
-elif [ "$PAT_CHECK_CODE" -eq 401 ]; then
-    error "Invalid PAT token. The token $PAT_VAR is not valid or has expired.\n\nPlease regenerate your token:\n1. Go to https://github.com/settings/tokens\n2. Generate a new token for the '$USERNAME' account\n3. Make sure it has the 'repo' scope\n4. Update: export $PAT_VAR=\"your_new_token_here\""
-elif [ "$PAT_CHECK_CODE" -eq 403 ]; then
-    error "PAT token doesn't have required permissions.\n\nYour token needs the 'repo' scope to create repositories.\n\nTo fix:\n1. Go to https://github.com/settings/tokens\n2. Edit or create a token for '$USERNAME'\n3. Enable the 'repo' scope (Full control of private repositories)\n4. Update: export $PAT_VAR=\"your_token_here\""
-else
-    info "Warning: Could not validate PAT (HTTP $PAT_CHECK_CODE). Continuing anyway..."
+HAS_LFS=false
+if command -v git-lfs &>/dev/null || git lfs version &>/dev/null 2>&1; then
+    HAS_LFS=true
 fi
 
-# Create GitHub repository via API
-info "Creating GitHub repository..."
-
-API_RESPONSE=$(curl -s -w "\n%{http_code}" \
-    -X POST \
-    -H "Accept: application/vnd.github.v3+json" \
-    -H "Authorization: token $PAT" \
-    -H "Content-Type: application/json" \
-    -d "{\"name\":\"$REPO_NAME\",\"private\":false}" \
-    https://api.github.com/user/repos)
-
-HTTP_CODE=$(echo "$API_RESPONSE" | tail -n1)
-API_BODY=$(echo "$API_RESPONSE" | sed '$d')
-
-if [ "$HTTP_CODE" -eq 201 ]; then
-    success "Repository created successfully on GitHub"
-elif [ "$HTTP_CODE" -eq 401 ]; then
-    error "Authentication failed. Your PAT token may be invalid or expired.\n\nPlease verify:\n1. The PAT token $PAT_VAR is correct\n2. The token hasn't expired\n3. Regenerate the token if needed: https://github.com/settings/tokens\n\nResponse: $API_BODY"
-elif [ "$HTTP_CODE" -eq 403 ]; then
-    error "Access denied. Your PAT token doesn't have the required permissions.\n\nThis usually means:\n1. The PAT doesn't have the 'repo' scope enabled\n2. The PAT belongs to a different GitHub account\n3. The PAT has expired\n\nTo fix this:\n1. Go to https://github.com/settings/tokens\n2. Find or create a token for the '$USERNAME' account\n3. Make sure it has the 'repo' scope (Full control of private repositories) checked\n4. Update your environment variable:\n   export $PAT_VAR=\"your_new_token_here\"\n5. Source your shell config file or restart your terminal\n\nResponse: $API_BODY"
-elif [ "$HTTP_CODE" -eq 422 ]; then
-    # Repository might already exist
-    if echo "$API_BODY" | grep -q "already exists"; then
-        info "Repository already exists on GitHub, continuing..."
-    else
-        error "Failed to create repository. GitHub API error:\n$API_BODY"
-    fi
-else
-    error "Failed to create repository. HTTP status: $HTTP_CODE\nResponse: $API_BODY"
-fi
-
-# Initialize Git repository if not already initialized
 if [ ! -d ".git" ]; then
     info "Initializing Git repository..."
     git init
     success "Git repository initialized"
-else
-    info "Git repository already initialized"
 fi
 
-# Check for large files (>100MB) and set up LFS if needed
-LARGE_FILE_THRESHOLD=104857600  # 100MB in bytes
+LARGE_FILE_THRESHOLD=104857600
 LARGE_FILES=$(find . -type f -size +${LARGE_FILE_THRESHOLD}c -not -path './.git/*' 2>/dev/null | head -20)
-
 if [ -n "$LARGE_FILES" ] && [ "$HAS_LFS" = true ]; then
-    info "Large files detected (>100MB), setting up Git LFS..."
-    
-    # Initialize LFS in repository if not already initialized
-    if ! git lfs env &>/dev/null; then
-        git lfs install --local 2>/dev/null || git lfs install 2>/dev/null || true
-        info "Git LFS initialized in repository"
-    fi
-    
-    # Detect file types and create .gitattributes
-    info "Detecting large file types and configuring LFS tracking..."
-    
-    # Get unique file extensions from large files
+    info "Large files detected, configuring Git LFS..."
+    git lfs install --local 2>/dev/null || git lfs install 2>/dev/null || true
     EXTENSIONS=$(echo "$LARGE_FILES" | sed 's/.*\.//' | sort -u | grep -v '^$' | head -10)
-    
-    if [ -n "$EXTENSIONS" ]; then
-        # Create or update .gitattributes
-        if [ ! -f .gitattributes ]; then
-            touch .gitattributes
+    touch .gitattributes
+    for ext in $EXTENSIONS; do
+        if ! grep -q "\.${ext}" .gitattributes 2>/dev/null; then
+            echo "*.${ext} filter=lfs diff=lfs merge=lfs -text" >> .gitattributes
         fi
-        
-        # Add LFS tracking for each extension found
-        for ext in $EXTENSIONS; do
-            if ! grep -q "\.${ext}" .gitattributes 2>/dev/null; then
-                echo "*.${ext} filter=lfs diff=lfs merge=lfs -text" >> .gitattributes
-                info "  Added LFS tracking for *.${ext}"
-            fi
-        done
-        
-        # Also track specific large files by name if they don't match common patterns
-        for file in $LARGE_FILES; do
-            filename=$(basename "$file")
-            if ! grep -q "$filename" .gitattributes 2>/dev/null && ! echo "$EXTENSIONS" | grep -q "$(echo "$filename" | sed 's/.*\.//')"; then
-                echo "$filename filter=lfs diff=lfs merge=lfs -text" >> .gitattributes
-                info "  Added LFS tracking for $filename"
-            fi
-        done
-        
-        success "Git LFS tracking configured in .gitattributes"
-    fi
-elif [ -n "$LARGE_FILES" ] && [ "$HAS_LFS" = false ]; then
-    info "Warning: Large files detected (>100MB) but Git LFS is not installed."
-    info "Consider installing Git LFS: gitak_install"
-    info "Files over 100MB may fail to push to GitHub without LFS."
+    done
 fi
 
-# Determine default branch name (prefer main, fallback to master)
-# Check what the default branch is set to, or use main
 DEFAULT_BRANCH=$(git config --global init.defaultBranch 2>/dev/null || echo "main")
-if [ "$DEFAULT_BRANCH" != "main" ] && [ "$DEFAULT_BRANCH" != "master" ]; then
-    DEFAULT_BRANCH="main"
-fi
+[ "$DEFAULT_BRANCH" != "main" ] && [ "$DEFAULT_BRANCH" != "master" ] && DEFAULT_BRANCH="main"
 
-# Check if we're already on a branch
-CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
-if [ -z "$CURRENT_BRANCH" ]; then
-    # We'll create the branch when we make the first commit
-    # For now, just note that we need to create it
-    CURRENT_BRANCH="$DEFAULT_BRANCH"
-fi
-
-# Add or update remote origin
-REMOTE_URL="https://${PAT}@github.com/${USER_REPO}.git"
 if git remote get-url origin &>/dev/null; then
-    info "Updating remote origin..."
-    git remote set-url origin "$REMOTE_URL"
+    git remote set-url origin "$SSH_REMOTE"
 else
-    info "Adding remote origin..."
-    git remote add origin "$REMOTE_URL"
+    git remote add origin "$SSH_REMOTE"
 fi
-success "Remote origin configured"
+success "Remote origin: $SSH_REMOTE"
 
-# Check if we have any commits already
 HAS_COMMITS=false
 if git rev-parse --verify HEAD &>/dev/null; then
     HAS_COMMITS=true
-    CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "$DEFAULT_BRANCH")
 fi
 
-# Stage and commit files if any exist
 if [ -n "$(find . -maxdepth 1 -not -name '.git' -not -name '.' -not -name '..' 2>/dev/null)" ]; then
-    info "Staging files..."
-    
-    # If .gitattributes was created, add it first
-    if [ -f .gitattributes ] && ! git ls-files --error-unmatch .gitattributes &>/dev/null; then
-        info "Staging .gitattributes for LFS configuration..."
-        git add .gitattributes
-        if [ "$HAS_COMMITS" = false ]; then
-            git commit -m "Configure Git LFS tracking" || true
-            HAS_COMMITS=true
-        else
-            git commit -m "Configure Git LFS tracking" || true
-        fi
-    fi
-    
-    # Stage all files (including LFS-tracked files)
-    # Note: If files are in .gitignore but should be tracked by LFS, 
-    # they may need to be force-added manually with: git add -f <file>
-    set +e
-    git add . 2>&1 | while IFS= read -r line; do
-        if echo "$line" | grep -q "ignored by"; then
-            info "Note: $line"
-            info "  If this file should be tracked by LFS, use: git add -f <file>"
-        else
-            echo "$line"
-        fi
-    done
-    set -e
-    
-    # Check if there are changes to commit
+    git add .
     if ! git diff --staged --quiet 2>/dev/null || [ -n "$(git ls-files --others --exclude-standard)" ]; then
-        # If no branch exists yet, create one when we commit
-        if [ "$HAS_COMMITS" = false ]; then
-            info "Creating initial commit on $DEFAULT_BRANCH branch..."
-            git commit -m "Initial commit" || error "Failed to create commit"
-        else
-            info "Creating commit..."
-            git commit -m "Initial commit" || error "Failed to create commit"
-        fi
-        success "Commit created"
+        git commit -m "Initial commit" || error "Failed to create commit"
         HAS_COMMITS=true
-    else
-        info "No changes to commit"
+        success "Commit created"
     fi
-else
-    info "No files to commit (empty repository)"
 fi
 
-# If we still don't have any commits, create an empty one
-# This is required to have a branch that can be pushed
 if [ "$HAS_COMMITS" = false ]; then
-    info "Creating empty initial commit for empty repository..."
     git commit --allow-empty -m "Initial commit (empty repository)" || error "Failed to create empty commit"
-    success "Empty initial commit created"
     HAS_COMMITS=true
 fi
 
-# Ensure we're on the correct branch (it should exist now after the commit)
 CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "$DEFAULT_BRANCH")
-if [ "$CURRENT_BRANCH" != "$DEFAULT_BRANCH" ]; then
-    # Switch to default branch if we're on a different one
-    git checkout -b "$DEFAULT_BRANCH" 2>/dev/null || git checkout "$DEFAULT_BRANCH" 2>/dev/null || true
+if [ -z "$(git branch --show-current 2>/dev/null)" ]; then
+    git checkout -b "$DEFAULT_BRANCH" 2>/dev/null || true
     CURRENT_BRANCH="$DEFAULT_BRANCH"
 fi
 
-# Configure LFS credentials if LFS is being used
-if [ "$HAS_LFS" = true ] && [ -f .gitattributes ]; then
-    info "Configuring Git LFS credentials for push..."
-    
-    # Disable LFS locking API (not needed for GitHub)
-    git config lfs.https://github.com/${USERNAME}/${REPO_NAME}.git/info/lfs.locksverify false 2>/dev/null || true
-    
-    # Configure Git credential helper if not already configured
-    if ! git config --global credential.helper &>/dev/null; then
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            git config --global credential.helper osxkeychain 2>/dev/null || \
-            git config --global credential.helper store 2>/dev/null || true
-        else
-            git config --global credential.helper store 2>/dev/null || true
-        fi
-    fi
-    
-    # Store credentials for Git LFS
-    printf "protocol=https\nhost=github.com\nusername=${USERNAME}\npassword=${PAT}\n" | git credential approve 2>/dev/null || true
-    
-    # Use clean URL for LFS
-    git remote set-url origin "https://github.com/${USERNAME}/${REPO_NAME}.git"
-else
-    # Use PAT in URL for regular git push
-    git remote set-url origin "https://${PAT}@github.com/${USERNAME}/${REPO_NAME}.git"
-fi
-
-# Push to remote
-info "Pushing to remote repository..."
-info "Pushing branch: $CURRENT_BRANCH"
-
-if [ "$HAS_LFS" = true ] && [ -f .gitattributes ]; then
-    info "Pushing with Git LFS support..."
-fi
-
+info "Pushing to $SSH_REMOTE (branch: $CURRENT_BRANCH)..."
 set +e
-git push -u origin "$CURRENT_BRANCH" 2>&1
+git -c credential.helper= push -u origin "$CURRENT_BRANCH" 2>&1
 PUSH_ERROR=$?
 set -e
 
-# Restore clean remote URL (without PAT for security)
-git remote set-url origin "https://github.com/${USERNAME}/${REPO_NAME}.git"
-
 if [ $PUSH_ERROR -eq 0 ]; then
-    success "Successfully pushed to remote repository"
-    success "\nRepository is ready at: https://github.com/$USER_REPO"
-    if [ "$HAS_LFS" = true ] && [ -f .gitattributes ]; then
-        info "Large files were pushed using Git LFS"
-    fi
+    success "Successfully pushed to remote"
+    success "Repository: https://github.com/$USER_REPO"
 else
-    error "Failed to push to remote repository.\n\nThis might happen if:\n1. The repository already exists on GitHub with different content\n2. Network connectivity issues\n3. Authentication problems\n4. Large files without LFS (files >100MB require LFS)\n\nTry manually: git push -u origin $CURRENT_BRANCH"
+    error "Push failed. Try: git push -u origin $CURRENT_BRANCH"
 fi
-
