@@ -277,13 +277,28 @@ else
     done
 fi
 
+# ─── 12. Remove Homebrew ──────────────────────────────────────────────────────
+
+section "Remove Homebrew"
+
+if command -v brew &>/dev/null; then
+    dotfiles_ui_info "WARNING: This will remove Homebrew and all packages installed through it."
+    if confirm "Uninstall Homebrew?"; then
+        NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+        dotfiles_ui_success "  Homebrew removed"
+    else
+        dotfiles_ui_info "  Homebrew kept"
+    fi
+else
+    dotfiles_ui_info "  Homebrew not found, skipping"
+fi
+
 # ─── Done ─────────────────────────────────────────────────────────────────────
 
 section "Uninstall complete"
 
 dotfiles_ui_success "dotfiles environment removed."
 echo ""
-dotfiles_ui_info "Note: Homebrew was not removed."
 dotfiles_ui_info "To apply changes to your current shell session:"
 echo "  source $(dotfiles_shell_config)"
 echo "  (or open a new terminal)"
