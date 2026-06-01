@@ -74,8 +74,8 @@ if [ -d "${DOTFILES_GITHUB_ROOT}" ]; then
         repo_root="$(dirname "$git_dir")"
         # Skip the dotfiles repo itself
         [ "$repo_root" = "$REPO_ROOT" ] && continue
-        uncommitted=$(git -C "$repo_root" status --porcelain 2>/dev/null | wc -l | xargs)
-        unpushed=$(git -C "$repo_root" log --oneline @{u}.. 2>/dev/null | wc -l | xargs || echo 0)
+        uncommitted=$(git -C "$repo_root" status --porcelain 2>/dev/null | wc -l | xargs) || true
+        unpushed=$(git -C "$repo_root" log --oneline @{u}.. 2>/dev/null | wc -l | xargs) || true
         if [ "$uncommitted" -gt 0 ] || [ "$unpushed" -gt 0 ]; then
             DIRTY_REPOS+=("$repo_root (uncommitted: $uncommitted, unpushed: $unpushed)")
         fi
