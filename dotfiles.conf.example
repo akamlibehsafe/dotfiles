@@ -37,6 +37,9 @@ account yourotheruser other@example.com "Other Name"
 pat ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ssh_private b3BlbnNzaC1rZXktdjEAAAA...
 
+
+
+
 # ─── Optional: skip bulk clone for an account during dotfiles_setup ───────────
 # clone youruser no
 
