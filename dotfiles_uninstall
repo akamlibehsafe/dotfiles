@@ -233,10 +233,18 @@ if confirm "Uninstall iTerm2?";        then brew_uninstall iterm2 --cask; fi
 section "Remove Oh My Zsh and Powerlevel10k"
 
 if [ -d "$HOME/.oh-my-zsh" ] && confirm "Remove Oh My Zsh (~/.oh-my-zsh)?"; then
-    # Backup .zshrc first
-    cp "$HOME/.zshrc" "$HOME/.zshrc.dotfiles-backup-$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
     rm -rf "$HOME/.oh-my-zsh"
-    dotfiles_ui_success "  Removed ~/.oh-my-zsh (backed up .zshrc)"
+    dotfiles_ui_success "  Removed ~/.oh-my-zsh"
+    if [ -f "$HOME/.zshrc" ]; then
+        dotfiles_remove_lines_matching "$HOME/.zshrc" 'oh-my-zsh\.sh'
+        dotfiles_remove_lines_matching "$HOME/.zshrc" 'export ZSH='
+        dotfiles_remove_lines_matching "$HOME/.zshrc" 'ZSH_THEME='
+        dotfiles_remove_lines_matching "$HOME/.zshrc" 'zsh-syntax-highlighting\.zsh'
+        dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k-instant-prompt'
+        dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k\.zsh'
+        dotfiles_remove_lines_matching "$HOME/.zshrc" 'POWERLEVEL9K_DISABLE'
+        dotfiles_ui_success "  Removed oh-my-zsh references from ~/.zshrc"
+    fi
 fi
 
 if [ -f "$HOME/.p10k.zsh" ] && confirm "Remove ~/.p10k.zsh?"; then
