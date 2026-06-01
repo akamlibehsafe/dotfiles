@@ -16,7 +16,7 @@ dotfiles_expand_path() {
     local p="$1"
     case "$p" in
         "~")    echo "$HOME" ;;
-        "~/"*)  echo "$HOME/${p#~/}" ;;
+        "~/"*)  echo "$HOME${p:1}" ;;
         *)      echo "$p" ;;
     esac
 }
