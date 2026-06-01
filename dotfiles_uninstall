@@ -232,9 +232,13 @@ if confirm "Uninstall iTerm2?";        then brew_uninstall iterm2 --cask; fi
 
 section "Remove Oh My Zsh and Powerlevel10k"
 
-if [ -d "$HOME/.oh-my-zsh" ] && confirm "Remove Oh My Zsh (~/.oh-my-zsh)?"; then
-    rm -rf "$HOME/.oh-my-zsh"
-    dotfiles_ui_success "  Removed ~/.oh-my-zsh"
+if confirm "Remove Oh My Zsh (~/.oh-my-zsh)?"; then
+    if [ -d "$HOME/.oh-my-zsh" ]; then
+        rm -rf "$HOME/.oh-my-zsh"
+        dotfiles_ui_success "  Removed ~/.oh-my-zsh"
+    else
+        dotfiles_ui_info "  ~/.oh-my-zsh not found, skipping folder removal"
+    fi
     if [ -f "$HOME/.zshrc" ]; then
         dotfiles_remove_lines_matching "$HOME/.zshrc" 'oh-my-zsh\.sh'
         dotfiles_remove_lines_matching "$HOME/.zshrc" 'export ZSH='
