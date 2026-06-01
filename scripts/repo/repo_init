@@ -1,0 +1,190 @@
+#!/bin/bash
+# repo_init — turn a local folder into a new GitHub repository and push it
+# Creates the repo on GitHub via API, initialises git locally, and pushes.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPTS_ROOT="$(cd "$(dirname "$_self")/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_load_pat_from_shell_configs
+dotfiles_ui_colors
+
+# ─── usage ────────────────────────────────────────────────────────────────────
+
+usage() {
+    echo "Usage: repo_init <user/repo> [--private | --public]"
+    echo ""
+    echo "  Initialise the current folder as a git repo, create it on GitHub,"
+    echo "  and push an initial commit."
+    echo ""
+    echo "Arguments:"
+    echo "  user/repo           GitHub username and repository name"
+    echo ""
+    echo "Options:"
+    echo "  --private           Create as a private repository (default)"
+    echo "  --public            Create as a public repository"
+    echo "  -h, --help          Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  repo_init fortegb/my-project"
+    echo "  repo_init akamlibehsafe/my-tool --public"
+    echo ""
+    echo "Configured accounts: $(dotfiles_accounts_list)"
+    exit 0
+}
+
+# ─── args ─────────────────────────────────────────────────────────────────────
+
+[ $# -ge 1 ] || dotfiles_usage_error "Expected user/repo argument" "repo_init <user/repo> [--private | --public]"
+[ "$1" = "-h" ] || [ "$1" = "--help" ] && usage
+
+USER_REPO="$1"; shift
+VISIBILITY="private"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --private) VISIBILITY="private"; shift ;;
+        --public)  VISIBILITY="public";  shift ;;
+        -h|--help) usage ;;
+        *) dotfiles_usage_error "Unknown option: $1" "repo_init <user/repo> [--private | --public]" ;;
+    esac
+done
+
+[[ "$USER_REPO" =~ ^[^/]+/[^/]+$ ]] || \
+    dotfiles_usage_error "Invalid format '${USER_REPO}' — expected user/repo" "repo_init <user/repo>"
+
+USERNAME="$(echo "$USER_REPO" | cut -d'/' -f1)"
+REPO_NAME="$(echo "$USER_REPO" | cut -d'/' -f2)"
+
+dotfiles_is_known_account "$USERNAME" || \
+    dotfiles_die "Unknown account: ${USERNAME}\nConfigured accounts: $(dotfiles_accounts_list)"
+
+# ─── PAT required for API ─────────────────────────────────────────────────────
+
+PAT="$(dotfiles_account_pat_resolved "$USERNAME" || true)"
+[ -n "$PAT" ] || \
+    dotfiles_die "No PAT found for ${USERNAME}.\nRun: scripts/setup/setup_pats"
+
+command -v curl &>/dev/null || dotfiles_die "curl not found."
+command -v git  &>/dev/null || dotfiles_die "git not found. Run dotfiles_setup first."
+
+SSH_REMOTE="$(dotfiles_remote_ssh_url "$USERNAME" "$REPO_NAME")"
+
+dotfiles_ui_info "Account    : ${USERNAME}"
+dotfiles_ui_info "Repository : ${REPO_NAME} (${VISIBILITY})"
+dotfiles_ui_info "Directory  : $(pwd)"
+echo ""
+
+# ─── create repo on GitHub via API ───────────────────────────────────────────
+
+dotfiles_ui_info "Creating repository on GitHub..."
+
+IS_PRIVATE="true"
+[ "$VISIBILITY" = "public" ] && IS_PRIVATE="false"
+
+API_RESP=$(curl -s -w "\n%{http_code}" \
+    -H "Accept: application/vnd.github.v3+json" \
+    -H "Authorization: token ${PAT}" \
+    -X POST "https://api.github.com/user/repos" \
+    -d "{\"name\":\"${REPO_NAME}\",\"private\":${IS_PRIVATE},\"auto_init\":false}" 2>/dev/null)
+
+HTTP_CODE="$(echo "$API_RESP" | tail -n1)"
+API_BODY="$(echo "$API_RESP" | sed '$d')"
+
+if [ "$HTTP_CODE" = "201" ]; then
+    dotfiles_ui_success "Repository created: https://github.com/${USER_REPO}"
+elif [ "$HTTP_CODE" = "422" ]; then
+    dotfiles_die "Repository '${USER_REPO}' already exists on GitHub."
+else
+    dotfiles_die "GitHub API error (HTTP ${HTTP_CODE}).\nCheck your PAT has 'repo' scope."
+fi
+
+# ─── initialise git locally ───────────────────────────────────────────────────
+
+CURRENT_DIR="$(pwd -P)"
+
+if [ ! -d ".git" ]; then
+    dotfiles_ui_info "Initialising git repository..."
+    git init
+    dotfiles_ui_success "Git initialised"
+fi
+
+# Set default branch
+DEFAULT_BRANCH="$(git config --global init.defaultBranch 2>/dev/null || echo "main")"
+[[ "$DEFAULT_BRANCH" =~ ^(main|master)$ ]] || DEFAULT_BRANCH="main"
+
+# ─── detect and configure LFS for large files ────────────────────────────────
+
+LARGE_FILE_THRESHOLD=104857600   # 100 MB
+LARGE_FILES="$(find . -type f -size +"${LARGE_FILE_THRESHOLD}c" -not -path './.git/*' 2>/dev/null | head -20)"
+
+if [ -n "$LARGE_FILES" ] && (command -v git-lfs &>/dev/null || git lfs version &>/dev/null 2>&1); then
+    dotfiles_ui_info "Large files detected — configuring Git LFS..."
+    git lfs install --local 2>/dev/null || git lfs install 2>/dev/null || true
+    EXTENSIONS="$(echo "$LARGE_FILES" | sed 's/.*\.//' | sort -u | grep -v '^$' | head -10)"
+    touch .gitattributes
+    for ext in $EXTENSIONS; do
+        grep -q "\.${ext}" .gitattributes 2>/dev/null || \
+            echo "*.${ext} filter=lfs diff=lfs merge=lfs -text" >> .gitattributes
+    done
+    dotfiles_ui_success "Git LFS configured for: ${EXTENSIONS}"
+fi
+
+# ─── set remote ───────────────────────────────────────────────────────────────
+
+if git remote get-url origin &>/dev/null 2>&1; then
+    git remote set-url origin "$SSH_REMOTE"
+else
+    git remote add origin "$SSH_REMOTE"
+fi
+dotfiles_ui_success "Remote set: ${SSH_REMOTE}"
+
+# ─── initial commit ───────────────────────────────────────────────────────────
+
+HAS_COMMITS=false
+git rev-parse --verify HEAD &>/dev/null && HAS_COMMITS=true
+
+if [ -n "$(find . -maxdepth 1 -not -name '.git' -not -name '.' 2>/dev/null)" ]; then
+    git add .
+    if ! git diff --staged --quiet 2>/dev/null; then
+        git commit -m "Initial commit"
+        HAS_COMMITS=true
+        dotfiles_ui_success "Initial commit created"
+    fi
+fi
+
+if [ "$HAS_COMMITS" = false ]; then
+    git commit --allow-empty -m "Initial commit"
+    HAS_COMMITS=true
+    dotfiles_ui_success "Empty initial commit created"
+fi
+
+# ─── ensure branch name ───────────────────────────────────────────────────────
+
+CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || echo "")"
+if [ -z "$CURRENT_BRANCH" ]; then
+    git checkout -b "$DEFAULT_BRANCH" 2>/dev/null || true
+    CURRENT_BRANCH="$DEFAULT_BRANCH"
+fi
+
+# ─── push ─────────────────────────────────────────────────────────────────────
+
+dotfiles_ui_info "Pushing to GitHub..."
+set +e
+git -c credential.helper= push -u origin "$CURRENT_BRANCH" 2>&1
+PUSH_STATUS=$?
+set -e
+
+if [ "$PUSH_STATUS" -eq 0 ]; then
+    echo ""
+    dotfiles_ui_success "Repository live at: https://github.com/${USER_REPO}"
+else
+    dotfiles_die "Push failed.\nCheck SSH setup: ssh -T git@$(dotfiles_account_ssh_host "$USERNAME")"
+fi

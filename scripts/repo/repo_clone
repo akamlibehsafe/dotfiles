@@ -1,0 +1,101 @@
+#!/bin/bash
+# repo_clone — clone an existing GitHub repository into the correct folder
+# Clones into ~/Documents/GitHub/<user>/<repo>/ using SSH host alias.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPTS_ROOT="$(cd "$(dirname "$_self")/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+# ─── usage ────────────────────────────────────────────────────────────────────
+
+usage() {
+    echo "Usage: repo_clone <user/repo>"
+    echo ""
+    echo "  Clone an existing GitHub repository into:"
+    echo "  ${DOTFILES_GITHUB_ROOT}/<user>/<repo>/"
+    echo ""
+    echo "Arguments:"
+    echo "  user/repo   GitHub username and repository name"
+    echo ""
+    echo "Examples:"
+    echo "  repo_clone fortegb/my-project"
+    echo "  repo_clone akamlibehsafe/my-tool"
+    echo ""
+    echo "Configured accounts: $(dotfiles_accounts_list)"
+    exit 0
+}
+
+# ─── args ─────────────────────────────────────────────────────────────────────
+
+[ $# -eq 1 ] || dotfiles_usage_error "Expected exactly one argument: user/repo" "repo_clone <user/repo>"
+[ "$1" = "-h" ] || [ "$1" = "--help" ] && usage
+
+USER_REPO="$1"
+[[ "$USER_REPO" =~ ^[^/]+/[^/]+$ ]] || \
+    dotfiles_usage_error "Invalid format '${USER_REPO}' — expected user/repo" "repo_clone <user/repo>"
+
+USERNAME="$(echo "$USER_REPO" | cut -d'/' -f1)"
+REPO_NAME="$(echo "$USER_REPO" | cut -d'/' -f2)"
+
+dotfiles_is_known_account "$USERNAME" || \
+    dotfiles_die "Unknown account: ${USERNAME}\nConfigured accounts: $(dotfiles_accounts_list)"
+
+# ─── destination ──────────────────────────────────────────────────────────────
+
+DEST="${DOTFILES_GITHUB_ROOT}/${USERNAME}/${REPO_NAME}"
+
+[ -d "$DEST" ] && \
+    dotfiles_die "Destination already exists: ${DEST}\nRemove it first or use git pull inside."
+
+CLONE_URL="$(dotfiles_remote_ssh_url "$USERNAME" "$REPO_NAME")"
+
+dotfiles_ui_info "Cloning : ${USER_REPO}"
+dotfiles_ui_info "From    : ${CLONE_URL}"
+dotfiles_ui_info "Into    : ${DEST}"
+echo ""
+
+command -v git &>/dev/null || dotfiles_die "git not found. Run dotfiles_setup first."
+
+# ─── clone ────────────────────────────────────────────────────────────────────
+
+mkdir -p "${DOTFILES_GITHUB_ROOT}/${USERNAME}"
+
+set +e
+git -c credential.helper= clone "$CLONE_URL" "$DEST" 2>&1
+CLONE_STATUS=$?
+set -e
+
+if [ "$CLONE_STATUS" -ne 0 ]; then
+    dotfiles_die "Clone failed.\nCheck that the repo exists and SSH is configured:\n  ssh -T git@$(dotfiles_account_ssh_host "$USERNAME")"
+fi
+
+dotfiles_ui_success "Cloned successfully."
+
+# ─── git LFS ──────────────────────────────────────────────────────────────────
+
+cd "$DEST"
+
+if command -v git-lfs &>/dev/null || git lfs version &>/dev/null 2>&1; then
+    if [ -f .gitattributes ] || git lfs ls-files &>/dev/null 2>&1; then
+        dotfiles_ui_info "Pulling Git LFS files..."
+        git lfs install --local 2>/dev/null || true
+        git lfs pull 2>&1 | head -20 || true
+    fi
+fi
+
+# ─── summary ──────────────────────────────────────────────────────────────────
+
+echo ""
+dotfiles_ui_success "Repository ready at: ${DEST}"
+echo "  Remote : $(git remote get-url origin)"
+echo "  Branch : $(git branch --show-current)"
+echo "  Identity: $(git config user.email)"

@@ -1,0 +1,163 @@
+#!/bin/bash
+# repo_sync — stage, commit, and push changes in the current repo
+# Automatically detects the GitHub account from the remote URL.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPTS_ROOT="$(cd "$(dirname "$_self")/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_load_pat_from_shell_configs
+dotfiles_ui_colors
+
+# ─── usage ────────────────────────────────────────────────────────────────────
+
+usage() {
+    echo "Usage: repo_sync [-m \"commit message\"]"
+    echo ""
+    echo "  Stage, commit, and push all changes in the current git repository."
+    echo "  The correct GitHub account is detected automatically from the remote URL."
+    echo ""
+    echo "Options:"
+    echo "  -m, --message MESSAGE   Commit message (prompted interactively if omitted)"
+    echo "  -h, --help              Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  repo_sync"
+    echo "  repo_sync -m \"Fix login bug\""
+    exit 0
+}
+
+# ─── args ─────────────────────────────────────────────────────────────────────
+
+TARGET_DIR=""
+COMMIT_MESSAGE=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -m|--message) COMMIT_MESSAGE="$2"; shift 2 ;;
+        -h|--help)    usage ;;
+        *)
+            if [ -z "$TARGET_DIR" ]; then
+                TARGET_DIR="$1"; shift
+            else
+                dotfiles_usage_error "Unexpected argument: $1" "repo_sync [-m \"message\"]"
+            fi
+            ;;
+    esac
+done
+
+# ─── resolve directory ────────────────────────────────────────────────────────
+
+if [ -z "$TARGET_DIR" ]; then
+    TARGET_DIR="$(pwd)"
+else
+    [ -d "$TARGET_DIR" ] || dotfiles_die "Directory does not exist: $TARGET_DIR"
+    TARGET_DIR="$(cd "$TARGET_DIR" && pwd -P)"
+fi
+
+[ -d "$TARGET_DIR/.git" ] || \
+    dotfiles_die "Not a git repository: $TARGET_DIR\nRun from inside a git repo or pass a path."
+
+cd "$TARGET_DIR"
+dotfiles_ui_info "Repository: $(pwd)"
+
+# ─── detect account from remote ──────────────────────────────────────────────
+
+command -v git &>/dev/null || dotfiles_die "git not found. Run dotfiles_setup first."
+
+git remote get-url origin &>/dev/null || \
+    dotfiles_die "No remote 'origin' configured.\nAdd one: git remote add origin <url>"
+
+REMOTE_URL="$(git remote get-url origin)"
+PARSED="$(dotfiles_parse_remote "$REMOTE_URL" || true)"
+[ -n "$PARSED" ] || \
+    dotfiles_die "Cannot parse remote URL: ${REMOTE_URL}\nExpected git@github-<user>:user/repo or https://github.com/user/repo"
+
+USERNAME="$(echo "$PARSED" | awk '{print $1}')"
+REPO_NAME="$(echo "$PARSED" | awk '{print $2}')"
+
+dotfiles_is_known_account "$USERNAME" || \
+    dotfiles_die "Unknown account: ${USERNAME}\nConfigured accounts: $(dotfiles_accounts_list)"
+
+dotfiles_ui_info "Account : ${USERNAME}"
+dotfiles_ui_info "Repo    : ${REPO_NAME}"
+
+# ─── auth ─────────────────────────────────────────────────────────────────────
+
+USE_SSH=false
+if dotfiles_remote_uses_ssh "$REMOTE_URL"; then
+    USE_SSH=true
+    dotfiles_ui_info "Auth    : SSH"
+else
+    PAT="$(dotfiles_account_pat_resolved "$USERNAME" || true)"
+    [ -n "$PAT" ] || \
+        dotfiles_die "No PAT found for ${USERNAME}.\nRun: scripts/setup/setup_pats\nOr migrate remote to SSH: scripts/setup/setup_migrate --apply"
+    dotfiles_ui_info "Auth    : PAT (HTTPS fallback)"
+fi
+
+# ─── branch ───────────────────────────────────────────────────────────────────
+
+CURRENT_BRANCH="$(git branch --show-current)"
+[ -n "$CURRENT_BRANCH" ] || dotfiles_die "Not on any branch. Run: git checkout -b <branch>"
+dotfiles_ui_info "Branch  : ${CURRENT_BRANCH}"
+
+# ─── check for changes ────────────────────────────────────────────────────────
+
+HAS_CHANGES=false
+git diff --staged --quiet 2>/dev/null || HAS_CHANGES=true
+git diff --quiet 2>/dev/null           || HAS_CHANGES=true
+[ -z "$(git ls-files --others --exclude-standard)" ] || HAS_CHANGES=true
+
+if [ "$HAS_CHANGES" = true ]; then
+    dotfiles_ui_info "Staging all changes..."
+    git add .
+    echo ""
+    git status --short
+    echo ""
+
+    if [ -z "$COMMIT_MESSAGE" ]; then
+        dotfiles_ui_prompt "Commit message (Enter for default):"
+        read -r COMMIT_MESSAGE
+    fi
+
+    [ -z "$COMMIT_MESSAGE" ] && \
+        COMMIT_MESSAGE="Update - $(date '+%Y-%m-%d %H:%M:%S')"
+
+    git commit -m "$COMMIT_MESSAGE"
+    dotfiles_ui_success "Committed: ${COMMIT_MESSAGE}"
+else
+    dotfiles_ui_info "No local changes to commit."
+fi
+
+# ─── push ─────────────────────────────────────────────────────────────────────
+
+dotfiles_ui_info "Pushing to origin/${CURRENT_BRANCH}..."
+
+if [ "$USE_SSH" = true ]; then
+    set +e
+    git -c credential.helper= push -u origin "$CURRENT_BRANCH" 2>&1
+    PUSH_STATUS=$?
+    set -e
+else
+    ORIGINAL_URL="$(git remote get-url origin)"
+    git remote set-url origin "https://${PAT}@github.com/${USERNAME}/${REPO_NAME}.git"
+    set +e
+    git -c credential.helper= push -u origin "$CURRENT_BRANCH" 2>&1
+    PUSH_STATUS=$?
+    set -e
+    git remote set-url origin "$ORIGINAL_URL"
+fi
+
+if [ "$PUSH_STATUS" -eq 0 ]; then
+    dotfiles_ui_success "Pushed successfully."
+    echo "  https://github.com/${USERNAME}/${REPO_NAME}"
+else
+    dotfiles_die "Push failed. Check your connection and credentials."
+fi
