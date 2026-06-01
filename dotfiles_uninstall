@@ -105,7 +105,7 @@ section "Remove ~/bin/ symlinks"
 source "${SCRIPTS_ROOT}/lib/manifest.sh"
 
 if confirm "Remove dotfiles symlinks from ~/bin/?"; then
-    for symlink in "${DOTFILES_BIN_SYMLINKS[@]}" "${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"; do
+    for symlink in ${DOTFILES_BIN_SYMLINKS[@]+"${DOTFILES_BIN_SYMLINKS[@]}"} ${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]+"${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"}; do
         target="$HOME/bin/$symlink"
         if [ -L "$target" ] || [ -f "$target" ]; then
             rm -f "$target"
@@ -130,7 +130,7 @@ SHELL_CONFIG="$(dotfiles_shell_config)"
 
 if confirm "Remove dotfiles aliases from ${SHELL_CONFIG}?"; then
     dotfiles_remove_lines_matching "$SHELL_CONFIG" "# dotfiles aliases"
-    for alias_entry in "${DOTFILES_SHELL_ALIASES[@]}"; do
+    for alias_entry in ${DOTFILES_SHELL_ALIASES[@]+"${DOTFILES_SHELL_ALIASES[@]}"}; do
         alias_name="${alias_entry%%|*}"
         dotfiles_remove_lines_matching "$SHELL_CONFIG" "alias ${alias_name}="
     done
@@ -163,7 +163,7 @@ section "Remove SSH config blocks"
 
 SSH_CONFIG="$HOME/.ssh/config"
 if [ -f "$SSH_CONFIG" ] && confirm "Remove dotfiles SSH host blocks from ~/.ssh/config?"; then
-    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+    for user in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
         host="$(dotfiles_account_ssh_host "$user")"
         marker_begin="# dotfiles-managed-begin ${host}"
         marker_end="# dotfiles-managed-end ${host}"
@@ -183,7 +183,7 @@ fi
 section "Remove git identity config"
 
 if confirm "Remove includeIf blocks and ~/.gitconfig-<user> files?"; then
-    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+    for user in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
         cfg="$HOME/.gitconfig-${user}"
         if [ -f "$cfg" ]; then
             rm -f "$cfg"
@@ -255,7 +255,7 @@ else
     dotfiles_ui_info "The GitHub root (${DOTFILES_GITHUB_ROOT}) itself is kept."
     echo ""
 
-    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+    for user in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
         user_dir="${DOTFILES_GITHUB_ROOT}/${user}"
         if [ -d "$user_dir" ]; then
             dotfiles_ui_info "WARNING: This will delete all repos for ${user}: ${user_dir}"
