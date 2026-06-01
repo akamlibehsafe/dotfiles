@@ -1,98 +1,59 @@
 #!/bin/bash
-# common.sh — shared helpers (source only; do not execute)
+# common.sh — shared helpers (source only; never run directly)
 
-GITSCRIPTS_GITHUB_ROOT="${GITSCRIPTS_GITHUB_ROOT:-$HOME/Documents/GitHub}"
-GITSCRIPTS_SSH_DIR="${GITSCRIPTS_SSH_DIR:-$HOME/.ssh/gitscripts}"
-GITSCRIPTS_SSH_ARCHIVE="${GITSCRIPTS_SSH_ARCHIVE:-$GITSCRIPTS_SSH_DIR/archive}"
-
-gitscripts_scripts_root() {
-    echo "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-}
-
-gitscripts_repo_root() {
-    echo "$(cd "$(gitscripts_scripts_root)/.." && pwd -P)"
-}
+DOTFILES_SSH_DIR="${DOTFILES_SSH_DIR:-$HOME/.ssh/dotfiles}"
 
 # shellcheck source=accounts.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/accounts.sh"
 
-gitscripts_source_common() {
-    local here
-    here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-    # shellcheck disable=SC1091
-    source "${here}/common.sh"
+# --- Path helpers ---
+
+dotfiles_scripts_root() {
+    echo "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 }
 
-gitscripts_account_pat_var() {
-    echo "GH_TOKEN_$1"
+dotfiles_repo_root() {
+    echo "$(cd "$(dotfiles_scripts_root)/.." && pwd -P)"
 }
 
-gitscripts_account_ssh_host() {
+# --- Account / SSH helpers ---
+
+dotfiles_account_ssh_host() {
     echo "github-$1"
 }
 
-gitscripts_account_key_path() {
-    echo "${GITSCRIPTS_SSH_DIR}/id_ed25519_${1}"
+dotfiles_account_key_path() {
+    echo "${DOTFILES_SSH_DIR}/id_ed25519_${1}"
 }
 
-gitscripts_account_pubkey_path() {
-    echo "$(gitscripts_account_key_path "$1").pub"
+dotfiles_account_pubkey_path() {
+    echo "$(dotfiles_account_key_path "$1").pub"
 }
 
-gitscripts_account_gitdir() {
-    echo "${GITSCRIPTS_GITHUB_ROOT}/${1}/"
+dotfiles_account_gitdir() {
+    echo "${DOTFILES_GITHUB_ROOT}/${1}/"
 }
 
-gitscripts_remote_ssh_url() {
-    local user="$1"
-    local repo="$2"
-    echo "git@$(gitscripts_account_ssh_host "$user"):${user}/${repo}.git"
+dotfiles_remote_ssh_url() {
+    local user="$1" repo="$2"
+    echo "git@$(dotfiles_account_ssh_host "$user"):${user}/${repo}.git"
 }
 
-gitscripts_is_known_account() {
-    local u="$1"
-    local a
-    for a in "${GITSCRIPTS_ACCOUNTS[@]}"; do
+dotfiles_is_known_account() {
+    local u="$1" a
+    for a in "${DOTFILES_ACCOUNTS[@]}"; do
         [[ "$a" == "$u" ]] && return 0
     done
     return 1
 }
 
-gitscripts_load_pat_file() {
-    local pat_file="$1"
-    if [ -f "$pat_file" ]; then
-        # shellcheck disable=SC1090
-        set -a
-        source "$pat_file"
-        set +a
-        return 0
-    fi
-    return 1
+dotfiles_remote_uses_ssh() {
+    [[ "$1" =~ ^git@github- ]]
 }
 
-gitscripts_load_pat_exports_from_file() {
-    local file="$1"
-    local line
-    [ -f "$file" ] || return 1
-    while IFS= read -r line || [ -n "$line" ]; do
-        if [[ "$line" =~ ^export[[:space:]]+GH_TOKEN_ ]]; then
-            eval "$line" 2>/dev/null || true
-        fi
-    done <"$file"
-    return 0
-}
-
-gitscripts_load_pat_from_shell_configs() {
-    local f
-    for f in "$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.bashrc"; do
-        gitscripts_load_pat_exports_from_file "$f" 2>/dev/null || true
-    done
-}
-
-# Parse origin URL → "username reponame" on stdout; exit 1 if unknown
-gitscripts_parse_remote() {
-    local url="$1"
-    local user="" repo=""
+# Parse remote URL → "username reponame"; exit 1 if unrecognised
+dotfiles_parse_remote() {
+    local url="$1" user="" repo=""
 
     if [[ "$url" =~ ^https://([^/@]+@)?github\.com/([^/]+)/([^/.]+)(\.git)?(\/)?$ ]]; then
         user="${BASH_REMATCH[2]}"
@@ -113,28 +74,42 @@ gitscripts_parse_remote() {
     return 1
 }
 
-gitscripts_remote_uses_ssh() {
-    [[ "$1" =~ ^git@github- ]]
+# --- PAT loading ---
+
+dotfiles_load_pat_file() {
+    local pat_file="$1"
+    [ -f "$pat_file" ] || return 1
+    set -a
+    # shellcheck disable=SC1090
+    source "$pat_file"
+    set +a
 }
 
-gitscripts_supported_accounts_list() {
-    printf '%s, ' "${GITSCRIPTS_ACCOUNTS[@]}" | sed 's/, $//'
+dotfiles_load_pat_exports_from_file() {
+    local file="$1" line
+    [ -f "$file" ] || return 1
+    while IFS= read -r line || [ -n "$line" ]; do
+        if [[ "$line" =~ ^export[[:space:]]+GH_TOKEN_ ]]; then
+            eval "$line" 2>/dev/null || true
+        fi
+    done <"$file"
 }
 
-gitscripts_verify_pat_api() {
-    local pat_var="$1"
-    local expected_user="$2"
-    local pat="${!pat_var}"
+dotfiles_load_pat_from_shell_configs() {
+    local f
+    for f in "$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.bashrc"; do
+        dotfiles_load_pat_exports_from_file "$f" 2>/dev/null || true
+    done
+}
 
-    if [ -z "$pat" ]; then
-        echo "missing"
-        return 1
-    fi
+# Verify a PAT against the GitHub API
+# Prints: ok | missing | invalid | wrong_user:<login> | network | no_curl
+dotfiles_verify_pat_api() {
+    local pat_var="$1" expected_user="$2"
+    local pat="${!pat_var:-}"
 
-    if ! command -v curl &>/dev/null; then
-        echo "no_curl"
-        return 1
-    fi
+    [ -z "$pat" ] && { echo "missing"; return 1; }
+    command -v curl &>/dev/null || { echo "no_curl"; return 1; }
 
     local resp code body login
     resp=$(curl -s -w "\n%{http_code}" \
@@ -145,24 +120,21 @@ gitscripts_verify_pat_api() {
     code=$(echo "$resp" | tail -n1)
     body=$(echo "$resp" | sed '$d')
 
-    if [ "$code" != "200" ]; then
-        echo "invalid"
-        return 1
-    fi
+    [ "$code" != "200" ] && { echo "invalid"; return 1; }
 
     if command -v jq &>/dev/null; then
         login=$(echo "$body" | jq -r '.login // empty' 2>/dev/null)
         if [ -n "$login" ] && [ "$login" != "$expected_user" ]; then
-            echo "wrong_user:${login}"
-            return 1
+            echo "wrong_user:${login}"; return 1
         fi
     fi
 
-    echo "ok"
-    return 0
+    echo "ok"; return 0
 }
 
-gitscripts_ui_colors() {
+# --- UI helpers ---
+
+dotfiles_ui_colors() {
     RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
@@ -170,48 +142,58 @@ gitscripts_ui_colors() {
     NC='\033[0m'
 }
 
-gitscripts_ui_error() { echo -e "${RED}Error: $1${NC}" >&2; }
-gitscripts_ui_success() { echo -e "${GREEN}$1${NC}"; }
-gitscripts_ui_info() { echo -e "${YELLOW}$1${NC}"; }
-gitscripts_ui_prompt() { echo -e "${BLUE}$1${NC}"; }
-gitscripts_ui_section() {
+dotfiles_ui_error()   { echo -e "${RED:-}Error: $1${NC:-}" >&2; }
+dotfiles_ui_success() { echo -e "${GREEN:-}$1${NC:-}"; }
+dotfiles_ui_info()    { echo -e "${YELLOW:-}$1${NC:-}"; }
+dotfiles_ui_prompt()  { echo -e "${BLUE:-}$1${NC:-}"; }
+dotfiles_ui_section() {
     echo ""
-    echo -e "${BLUE}=== $1 ===${NC}"
+    echo -e "${BLUE:-}=== $1 ===${NC:-}"
     echo ""
 }
 
-# Path to bundled iTerm2 profile export (repo-relative)
-gitscripts_iterm2_export_path() {
-    local root
-    for root in "$@"; do
-        [ -n "$root" ] || continue
-        if [ -f "${root}/config/iterm2/iTerm2 State.itermexport" ]; then
-            echo "${root}/config/iterm2/iTerm2 State.itermexport"
-            return 0
-        fi
-    done
-    return 1
+# die: print error and exit 1
+dotfiles_die() {
+    dotfiles_ui_error "$1"
+    exit 1
 }
 
-# Install iTerm2 via Homebrew Cask if missing. Returns 0 if app is present afterward.
-gitscripts_install_iterm2() {
-    if [ -d "/Applications/iTerm.app" ]; then
-        return 0
-    fi
-    if ! command -v brew &>/dev/null; then
-        echo "Homebrew is required to install iTerm2." >&2
-        return 1
-    fi
-    brew install --cask iterm2
+# usage_error: print message + usage hint, exit 1
+dotfiles_usage_error() {
+    local msg="$1" usage="$2"
+    echo -e "${RED:-}Error: ${msg}${NC:-}" >&2
+    [ -n "$usage" ] && echo -e "${YELLOW:-}Usage: ${usage}${NC:-}" >&2
+    exit 1
 }
 
-# Open bundled .itermexport in iTerm2 (user confirms import in the app).
-gitscripts_import_iterm2_export() {
-    local export_file="$1"
-    [ -f "$export_file" ] || return 1
-    if [ ! -d "/Applications/iTerm.app" ]; then
-        return 1
+# --- Shell config detection ---
+
+dotfiles_shell_config() {
+    local shell_name
+    shell_name=$(basename "${SHELL:-zsh}")
+    if [ "$shell_name" = "zsh" ]; then
+        echo "$HOME/.zshrc"
+    elif [ -f "$HOME/.bash_profile" ]; then
+        echo "$HOME/.bash_profile"
+    else
+        echo "$HOME/.bashrc"
     fi
-    open -a iTerm "$export_file" 2>/dev/null || open "$export_file"
-    return 0
+}
+
+# Add a line to a file only if not already present
+dotfiles_append_once() {
+    local file="$1" line="$2"
+    touch "$file"
+    grep -qF "$line" "$file" 2>/dev/null || echo "$line" >>"$file"
+}
+
+# Remove lines matching a pattern from a file (macOS-safe sed)
+dotfiles_remove_lines_matching() {
+    local file="$1" pattern="$2"
+    [ -f "$file" ] || return 0
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' "/${pattern}/d" "$file" 2>/dev/null || true
+    else
+        sed -i "/${pattern}/d" "$file" 2>/dev/null || true
+    fi
 }

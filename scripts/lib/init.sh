@@ -1,5 +1,7 @@
 #!/bin/bash
-# Source after SCRIPTS_ROOT is set (real path, symlinks resolved).
+# init.sh — bootstrap: resolve repo root, source common.sh, load accounts
+# Source this at the top of every script after setting SCRIPTS_ROOT.
+
 if [ -z "${SCRIPTS_ROOT:-}" ]; then
     if [ -n "${SCRIPT_DIR:-}" ] && [ -f "${SCRIPT_DIR}/lib/common.sh" ]; then
         SCRIPTS_ROOT="$SCRIPT_DIR"
@@ -7,11 +9,11 @@ if [ -z "${SCRIPTS_ROOT:-}" ]; then
         SCRIPTS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
     fi
 fi
+
 # shellcheck source=common.sh
 source "${SCRIPTS_ROOT}/lib/common.sh"
-GITSCRIPTS_REPO_ROOT="$(gitscripts_repo_root)"
-export GITSCRIPTS_REPO_ROOT
 
-if ! gitscripts_load_accounts; then
-    exit 1
-fi
+DOTFILES_REPO_ROOT="$(dotfiles_repo_root)"
+export DOTFILES_REPO_ROOT
+
+dotfiles_load_accounts || exit 1
