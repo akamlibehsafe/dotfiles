@@ -155,19 +155,6 @@ done
 # Initialise git-lfs globally
 git lfs install --system 2>/dev/null || git lfs install || true
 
-# Install Claude CLI via npm
-if command -v npm &>/dev/null; then
-    if command -v claude &>/dev/null; then
-        dotfiles_ui_info "  claude: already installed"
-    else
-        dotfiles_ui_info "  Installing Claude CLI..."
-        npm install -g @anthropic-ai/claude-code
-        dotfiles_ui_success "  claude: installed"
-    fi
-else
-    dotfiles_ui_info "  npm not found — Claude CLI skipped (install Node.js first)"
-fi
-
 phase_ok "Core tools ready"
 
 # ─── Phase 4: GitHub root directory ──────────────────────────────────────────
@@ -346,7 +333,7 @@ phase_ok "Shell configured"
 
 run_phase "Phase 8: Apps"
 
-for app in iterm2 ghostty warp cursor claude; do
+for app in iterm2 ghostty warp cursor claude claude-cli; do
     app_script="${SCRIPTS_ROOT}/apps/${app}"
     if [ -f "$app_script" ]; then
         if confirm "Install ${app}?"; then
