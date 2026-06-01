@@ -1,202 +1,171 @@
-# GitScripts
+# dotfiles
 
-Bash scripts for **macOS** that set up a development environment and make **multi-account GitHub** work from the terminal and from IDEs (e.g. 
-Cursor).
-
-Download and unpack the zip file locally on your Mac, and read these instructions to install and execute them. 
+Personal macOS development environment. Run `dotfiles_setup` on a fresh Mac and get a fully working environment — no manual steps after it finishes.
 
 ---
 
-## What this is
+## Before you start
 
-A small toolkit you keep in a git repository. Scripts live here; after setup they are also available as commands in `~/bin/` (via symlinks). You update the toolkit with `git pull` and re-run `setup_symlinks` if paths change.
+Two files are needed at the repo root before running `dotfiles_setup`. Neither is committed — both are gitignored.
 
-**macOS only** for install and environment scripts.
+### 1. `dotfiles.conf`
+
+Copy the template and fill in your GitHub accounts, PATs, and SSH key paths:
+
+```bash
+cp dotfiles.conf.example dotfiles.conf
+```
+
+Edit `dotfiles.conf` with your real values. See `dotfiles.conf.example` for the full format and instructions on where to get PATs and SSH keys.
+
+### 2. SSH keys
+
+Your SSH private keys must exist at the paths you specify in `dotfiles.conf` before running `dotfiles_setup`. The installer will copy them into place, configure SSH host aliases, and add them to the macOS keychain.
 
 ---
 
-## What it does
-
-### 1. Install a Full development environment (`environment_install`)
-
-One interactive installer for a **new or reset Mac**. It can install and configure:
-
-| Area | What you get |
-|------|----------------|
-| **Package manager** | [Homebrew](https://brew.sh) |
-| **Git tooling** | Git, Git LFS, GitHub CLI (`gh`), `jq` |
-| **Shell** | Zsh, Oh My Zsh, Powerlevel10k (optional theme setup) |
-| **Editor / terminal** | Optional Cursor Desktop; optional iTerm2 config import |
-| **GitHub layout** | `~/Documents/GitHub` (or path from `accounts.conf`), optional bulk clone of repos per account |
-| **Multi-account GitHub** | PAT setup (API / HTTPS) and SSH host aliases so the right account is used per repo — works in the **CLI and in IDEs** |
-| **Convenience** | Symlinks in `~/bin/`, shell aliases (`cdg`, `cda`, …) from `accounts.conf` |
-
-Setup helpers under `scripts/util/` (`setup_preflight`, `setup_configure_pats`, `setup_ssh_setup`, …) run during install when you confirm at the prompts.
-
-To remove what the installer added (destructive, interactive): `environment_uninstall` from `scripts/`.
-
-### 2. Provide convenient daily-use Git scripts (`git_*` on `~/bin`)
-
-After `setup_symlinks`, use these from any directory (with `~/bin` on your `PATH`):
-
-| Command | Purpose |
-|---------|---------|
-| `git_create_from_remote` | Clone `username/repo` under your GitHub root |
-| `git_create_from_local` | Initialize the current folder and connect it to a **new** GitHub repo |
-| `git_push` | Stage, commit, and push changes (uses the account that owns the remote) |
-
-Authentication follows your PAT and SSH setup; the script picks the right credentials from the repo’s GitHub owner.
-
-
-## What input information is needed
-
-Prepare these **before** running `environment_install` (or before using the daily commands on an already-configured Mac).
-
-### 1. `accounts.conf` (required, local only)
-
-Only the template is in git. Create your copy at the **repo root**:
+## Setup
 
 ```bash
-cp config/accounts.conf.example accounts.conf
+cd /path/to/dotfiles
+./dotfiles_setup
 ```
 
-Edit `accounts.conf` with your real data. **Do not commit it** — it is in `.gitignore`.
+`dotfiles_setup` is safe to re-run — it detects what is already configured and skips those phases.
 
-| Setting | Meaning |
-|---------|---------|
-| `github_root` | Where repos live, e.g. `~/Documents/GitHub` → `github_root/USERNAME/repo` |
-| `account USER EMAIL [NAME]` | Each GitHub login and commit email (add as many accounts as you need) |
-| `clone USER no` | Optional: skip bulk clone for that user during install |
-| `alias NAME PATH` | Optional: shell shortcuts under `github_root` |
-| `toolkit_repo` | Optional: `owner/repo` if `setup_install` must clone this toolkit from GitHub |
+### What it installs
 
-All accounts are equal; there is no “primary” GitHub user.
+**Core tools** (always):
+- Homebrew, Git, Git LFS, GitHub CLI (`gh`), jq, Python, Node.js
 
-### 2. Personal Access Tokens (PATs)
+**Shell:**
+- Zsh, Oh My Zsh, Powerlevel10k (with your config from `config/p10k.zsh`)
 
-One classic PAT per username in `accounts.conf`, with **`repo`** scope (installer will guide you if needed).
+**Apps** (each prompted):
+- iTerm2 (with bundled profile from `config/iterm2/`)
+- Ghostty (with config from `config/ghostty/`)
+- Warp
+- Cursor
+- Claude desktop
+- Claude CLI
 
-Store them as environment variables (not in `accounts.conf`):
+**GitHub:**
+- PAT exports written to `~/.zshrc`
+- SSH keys installed, host aliases configured per account
+- Git identity set via `includeIf gitdir:` — right account used automatically per folder
+- Optional bulk clone of all repos per account
 
-```bash
-export GH_TOKEN_<github_username>="your_token"
-```
-
-Put exports in `PAT.md` at the repo root (gitignored) or in `~/.zshrc`. The installer reads `PAT.md` when present.
-
-### 3. This repository on disk
-
-Download as a zip or clone. You can run `environment_install` from the `scripts/` folder inside the tree.
-
-### Optional later
-
-- SSH keys: created/configured by install or `./scripts/util/setup_ssh_setup`
-- Multi-account + Cursor details: [docs/guides/github-multiple-accounts-mac-cursor.md](docs/guides/github-multiple-accounts-mac-cursor.md)
-
-Never commit `PAT.md` or `accounts.conf`.
+**Daily commands** (symlinked to `~/bin/`, available everywhere):
+- `repo_init` — turn a local folder into a new GitHub repo
+- `repo_clone` — clone an existing GitHub repo
+- `repo_sync` — commit and push current repo
 
 ---
 
-## How to use it
-
-### New Mac — full setup
+## Daily commands
 
 ```bash
-cd /path/to/gitscripts/scripts
-chmod +x environment_install
-./environment_install
-```
+# Create a new GitHub repo from the current folder
+repo_init fortegb/my-project
+repo_init akamlibehsafe/my-tool --public
 
-Follow the prompts (PATs are asked about early). Optional steps (Cursor, iTerm2 install/profile, p10k) can be skipped. Typical run: **10–30 minutes**. Safe to re-run; already-installed parts are skipped or updated.
-
-**iTerm2:** installs the app with Homebrew if needed, then can open the repo’s profile export (`config/iterm2/`) for you to confirm import in iTerm2. See [config/iterm2/README.md](config/iterm2/README.md).
-
-Then:
-
-```bash
-source ~/.zshrc
-./scripts/util/setup_preflight    # optional: check PATs and SSH
-```
-
-### Mac already set up — Git tools only
-
-```bash
-./scripts/util/setup_install
-./scripts/util/setup_symlinks
-source ~/.zshrc
-```
-
-Configure `accounts.conf` and PATs as above if you have not already.
-
-### Symlinks (`~/bin`)
-
-Scripts stay in the repo; commands are linked into `~/bin/`:
-
-```bash
-cd /path/to/gitscripts
-./scripts/util/setup_symlinks
-```
-
-Re-run after `git pull` or if you move the repository. This adds `~/bin` to `PATH` when needed.
-
-### Daily Git — examples
-
-```bash
 # Clone an existing repo
-git_create_from_remote akamlibehsafe/my-project
-cd ~/Documents/GitHub/akamlibehsafe/my-project
+repo_clone fortegb/my-project
 
-# Work, then push
-git_push -m "Update README"
+# Commit and push
+repo_sync
+repo_sync -m "Fix login bug"
 ```
+
+All commands self-document when run without arguments or with `--help`.
+
+---
+
+## Multi-account GitHub
+
+Repos live under `~/Documents/GitHub/<username>/`. Git automatically uses the correct identity and SSH key based on the folder — no manual switching needed. This works in the terminal, Cursor, Claude, and any other tool that uses git.
+
+---
+
+## Updating scripts
 
 ```bash
-# New project from a local folder (creates GitHub repo + first push)
-cd /path/to/my-app
-git_create_from_local fortegb/my-new-repo
+git pull
 ```
 
-### Uninstall
+Scripts are symlinked from `~/bin/` into the repo — pulling updates them immediately. No re-setup needed unless the repo structure changed.
 
-**Warning:** can delete `~/Documents/GitHub` and local clones. Offers to push pending work first.
+---
+
+## Uninstall
 
 ```bash
-cd scripts
-./environment_uninstall
+./dotfiles_uninstall
 ```
 
-Interactive; does not remove Homebrew.
+Interactive — prompts before each removal step. Does not remove Homebrew.
 
-### Troubleshooting
+For testing (keeps repo folders):
 
-| Problem | Try |
-|---------|-----|
-| Command not found | `setup_symlinks`, then `source ~/.zshrc` |
-| Auth errors | `./scripts/util/setup_preflight`; check PAT scope and `GH_TOKEN_<user>` |
-| Wrong GitHub account | Remote URL / SSH host alias — see [multi-account guide](docs/guides/github-multiple-accounts-mac-cursor.md) |
+```bash
+./dotfiles_uninstall --keep-repos
+```
 
-More: [docs/runbook.md](docs/runbook.md) · [CHANGELOG.md](CHANGELOG.md) · [agents.md](agents.md) (full script specification)
+---
+
+## Diagnostics and repair
+
+```bash
+# Read-only scan of PATs, SSH, git identity, and remotes
+./scripts/setup/setup_check
+
+# Re-configure PATs
+./scripts/setup/setup_pats
+
+# Re-configure SSH keys and git identity
+./scripts/setup/setup_ssh --repair
+
+# Migrate HTTPS remotes to SSH aliases
+./scripts/setup/setup_migrate --dry-run
+./scripts/setup/setup_migrate --apply
+
+# Refresh ~/bin symlinks
+./scripts/setup/setup_symlinks
+```
 
 ---
 
 ## Repository layout
 
 ```
-scripts/
-├── environment_install, environment_uninstall   # full Mac bootstrap (run directly)
-├── git/          # daily commands: git_push, git_create_from_*
-├── util/         # runnable setup tools: setup_install, setup_preflight, …
-├── lib/          # shared bash modules (source only — never run like a command)
-└── maintainer/   # doc_* tools for maintainers
+dotfiles/
+├── dotfiles_setup             ← entry point: run on a fresh Mac
+├── dotfiles_uninstall         ← undo everything dotfiles_setup did
+├── dotfiles.conf.example      ← template (copy to dotfiles.conf)
+├── dotfiles.conf              ← your config (gitignored, never commit)
+├── config/
+│   ├── p10k.zsh               ← Powerlevel10k config
+│   ├── zshrc                  ← Zsh config template
+│   ├── gitconfig              ← global Git config template
+│   ├── ghostty/config         ← Ghostty config
+│   └── iterm2/                ← iTerm2 profile export
+└── scripts/
+    ├── repo/                  ← daily commands (symlinked to ~/bin/)
+    │   ├── repo_init
+    │   ├── repo_clone
+    │   └── repo_sync
+    ├── setup/                 ← setup & repair tools (run by path)
+    │   ├── setup_check
+    │   ├── setup_pats
+    │   ├── setup_ssh
+    │   ├── setup_migrate
+    │   └── setup_symlinks
+    ├── apps/                  ← app installers (called by dotfiles_setup)
+    │   ├── iterm2
+    │   ├── ghostty
+    │   ├── warp
+    │   ├── cursor
+    │   ├── claude
+    │   └── claude-cli
+    └── lib/                   ← shared bash modules (sourced only)
 ```
-
-**Why `lib/` and `util/` are separate**
-
-| Folder | Role |
-|--------|------|
-| **`lib/`** | Code other scripts `source` — load `accounts.conf`, PAT helpers, `~/bin` manifest. Files: `common.sh`, `accounts.sh`, `init.sh`, `manifest.sh`. |
-| **`util/`** | Programs you (or `environment_install`) **execute** — install Homebrew, configure SSH, create symlinks. |
-
-Same idea as “library vs tools”: one folder is imported, the other is run.
-
-Contributor map: [docs/PRODUCTS.md](docs/PRODUCTS.md).
