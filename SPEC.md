@@ -389,7 +389,7 @@ Sourced by other scripts. Never executed directly.
 
 ### Common conventions
 - All scripts resolve symlinks at startup to find their real path
-- UI functions from `lib/common.sh`: `gitscripts_ui_error`, `gitscripts_ui_success`, `gitscripts_ui_info`, `gitscripts_ui_section` — no inline color duplication
+- UI functions from `lib/common.sh`: `dotfiles_ui_error`, `dotfiles_ui_success`, `dotfiles_ui_info`, `dotfiles_ui_section` — no inline color duplication
 - All user-facing scripts print usage and exit cleanly on wrong or missing arguments
 
 ---
