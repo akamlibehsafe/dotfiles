@@ -1,0 +1,240 @@
+#!/bin/bash
+# setup_ssh — SSH keys, ~/.ssh/config host aliases, includeIf git identity
+# Keys are installed from paths defined in dotfiles.conf (ssh_key field).
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd -P)"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+DRY_RUN=false
+MODE="repair"
+MARKER_PREFIX="# dotfiles-managed"
+
+usage() {
+    echo "Usage: setup_ssh [--dry-run] [--new-mac | --repair]"
+    echo ""
+    echo "  --dry-run   Show planned changes only, make no changes"
+    echo "  --new-mac   Install keys + full config (default for fresh Mac)"
+    echo "  --repair    Add only what is missing; do not touch working keys"
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dry-run) DRY_RUN=true; shift ;;
+        --new-mac) MODE="new-mac"; shift ;;
+        --repair)  MODE="repair"; shift ;;
+        -h|--help) usage ;;
+        *) dotfiles_usage_error "Unknown option: $1" "setup_ssh [--dry-run] [--new-mac | --repair]" ;;
+    esac
+done
+
+log_action() {
+    if [ "$DRY_RUN" = true ]; then
+        dotfiles_ui_info "[dry-run] $*"
+    else
+        dotfiles_ui_success "$*"
+    fi
+}
+
+# ─── Install SSH key from dotfiles.conf path ──────────────────────────────────
+
+install_key() {
+    local user="$1"
+    local src_key dest_key dest_pub
+
+    src_key="$(dotfiles_account_ssh_key "$user")"
+    dest_key="$(dotfiles_account_key_path "$user")"
+    dest_pub="${dest_key}.pub"
+
+    if [ -z "$src_key" ]; then
+        dotfiles_ui_info "  No ssh_key defined in dotfiles.conf for ${user} — skipping key install"
+        return 0
+    fi
+
+    if [ ! -f "$src_key" ]; then
+        dotfiles_ui_error "  SSH key not found: ${src_key}"
+        dotfiles_ui_info "  Check the ssh_key path in dotfiles.conf for ${user}"
+        return 1
+    fi
+
+    if [ -f "$dest_key" ] && [ "$MODE" = "repair" ]; then
+        log_action "  Key already exists (not replacing): ${dest_key}"
+        return 0
+    fi
+
+    log_action "  Install key: ${src_key} → ${dest_key}"
+    [ "$DRY_RUN" = true ] && return 0
+
+    mkdir -p "$DOTFILES_SSH_DIR"
+    chmod 700 "$DOTFILES_SSH_DIR"
+
+    cp "$src_key" "$dest_key"
+    chmod 600 "$dest_key"
+
+    # Install public key if it exists alongside the private key
+    if [ -f "${src_key}.pub" ]; then
+        cp "${src_key}.pub" "$dest_pub"
+        chmod 644 "$dest_pub"
+    fi
+
+    # Add to macOS keychain agent
+    ssh-add --apple-use-keychain "$dest_key" 2>/dev/null || \
+        ssh-add "$dest_key" 2>/dev/null || \
+        dotfiles_ui_info "  Note: could not add key to ssh-agent (add manually: ssh-add ${dest_key})"
+}
+
+# ─── SSH config block ─────────────────────────────────────────────────────────
+
+ssh_config_block() {
+    local user="$1"
+    local host key
+    host="$(dotfiles_account_ssh_host "$user")"
+    key="$(dotfiles_account_key_path "$user")"
+    cat <<EOF
+Host ${host}
+  HostName ssh.github.com
+  User git
+  Port 443
+  IdentityFile ${key}
+  IdentitiesOnly yes
+  AddKeysToAgent yes
+  UseKeychain yes
+EOF
+}
+
+ensure_ssh_config_block() {
+    local user="$1"
+    local host config block marker_begin marker_end
+    host="$(dotfiles_account_ssh_host "$user")"
+    config="$HOME/.ssh/config"
+    marker_begin="${MARKER_PREFIX}-begin ${host}"
+    marker_end="${MARKER_PREFIX}-end ${host}"
+    block="$(ssh_config_block "$user")"
+
+    if [ -f "$config" ] && grep -q "Host ${host}" "$config" 2>/dev/null; then
+        log_action "  SSH config block already present: ${host}"
+        return 0
+    fi
+
+    log_action "  Add SSH config block: ${host}"
+    [ "$DRY_RUN" = true ] && { echo "$block"; return 0; }
+
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+    touch "$config"
+    chmod 600 "$config"
+    {
+        echo ""
+        echo "${marker_begin}"
+        echo "$block"
+        echo "${marker_end}"
+    } >>"$config"
+}
+
+# ─── Prompt to add public key to GitHub ──────────────────────────────────────
+
+prompt_github_upload() {
+    local user="$1"
+    local pub
+    pub="$(dotfiles_account_pubkey_path "$user")"
+
+    [ "$DRY_RUN" = true ] && {
+        log_action "  Would prompt to add ${pub} to GitHub (${user})"
+        return 0
+    }
+
+    [ -f "$pub" ] || {
+        dotfiles_ui_info "  Public key not found: ${pub} — add to GitHub manually"
+        return 0
+    }
+
+    echo ""
+    dotfiles_ui_prompt "Add SSH public key to GitHub account: ${user}"
+    echo "  GitHub → Settings → SSH and GPG keys → New SSH key"
+    pbcopy <"$pub" 2>/dev/null && echo "  Public key copied to clipboard." || \
+        echo "  Public key: $pub"
+    read -r -p "  Press Enter when done adding the key to GitHub..."
+}
+
+# ─── Git identity (includeIf) ─────────────────────────────────────────────────
+
+ensure_gitconfig_include() {
+    local user="$1"
+    local gitdir inc cfg global email git_name
+    gitdir="$(dotfiles_account_gitdir "$user")"
+    inc="gitdir:${gitdir}"
+    cfg="$HOME/.gitconfig-${user}"
+    global="$HOME/.gitconfig"
+    email="$(dotfiles_account_email "$user")"
+    git_name="$(dotfiles_account_git_name "$user")"
+
+    log_action "  Ensure includeIf ${inc}"
+    [ "$DRY_RUN" = true ] && return 0
+
+    # Create base ~/.gitconfig if missing
+    if [ ! -f "$global" ]; then
+        cat >"$global" <<'EOF'
+[init]
+    defaultBranch = main
+EOF
+    fi
+
+    # Add includeIf block if missing
+    if ! grep -Fq "$inc" "$global" 2>/dev/null; then
+        {
+            echo ""
+            echo "[includeIf \"${inc}\"]"
+            echo "    path = ~/.gitconfig-${user}"
+        } >>"$global"
+    fi
+
+    # Write per-account gitconfig
+    cat >"$cfg" <<EOF
+[user]
+    name = ${git_name}
+    email = ${email}
+EOF
+}
+
+# ─── Main ─────────────────────────────────────────────────────────────────────
+
+dotfiles_ui_section "setup_ssh (mode=${MODE}, dry_run=${DRY_RUN})"
+
+for user in "${DOTFILES_ACCOUNTS[@]}"; do
+    dotfiles_ui_prompt "--- ${user} ---"
+    install_key "$user"
+    ensure_ssh_config_block "$user"
+    [ "$DRY_RUN" = false ] && prompt_github_upload "$user" || true
+    ensure_gitconfig_include "$user"
+    echo ""
+done
+
+# ─── Verify ───────────────────────────────────────────────────────────────────
+
+if [ "$DRY_RUN" = false ]; then
+    dotfiles_ui_section "Verify SSH connections"
+    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+        host="$(dotfiles_account_ssh_host "$user")"
+        dotfiles_ui_info "Testing ssh -T git@${host}..."
+        ssh -o ConnectTimeout=10 -T "git@${host}" 2>&1 || true
+        echo ""
+    done
+fi
+
+dotfiles_ui_section "Done"
+if [ "$DRY_RUN" = true ]; then
+    echo "Re-run without --dry-run to apply changes."
+else
+    echo "Run setup_check to verify the full environment."
+fi

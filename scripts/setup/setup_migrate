@@ -1,0 +1,108 @@
+#!/bin/bash
+# setup_migrate — migrate HTTPS remote URLs to SSH host alias format
+# Scans all repos under github_root and converts:
+#   https://github.com/user/repo.git → git@github-user:user/repo.git
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd -P)"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+DRY_RUN=true  # default: safe mode
+
+usage() {
+    echo "Usage: setup_migrate [--dry-run | --apply]"
+    echo ""
+    echo "  --dry-run   Show what would change (default)"
+    echo "  --apply     Actually update remote URLs"
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dry-run) DRY_RUN=true; shift ;;
+        --apply)   DRY_RUN=false; shift ;;
+        -h|--help) usage ;;
+        *) dotfiles_usage_error "Unknown option: $1" "setup_migrate [--dry-run | --apply]" ;;
+    esac
+done
+
+dotfiles_ui_section "setup_migrate (dry_run=${DRY_RUN})"
+
+if [ ! -d "$DOTFILES_GITHUB_ROOT" ]; then
+    dotfiles_ui_info "${DOTFILES_GITHUB_ROOT} does not exist — nothing to migrate"
+    exit 0
+fi
+
+MIGRATED=0; SKIPPED=0; ERRORS=0
+
+while IFS= read -r git_dir; do
+    [ -z "$git_dir" ] && continue
+    repo_root="$(dirname "$git_dir")"
+    origin="$(git -C "$repo_root" remote get-url origin 2>/dev/null || echo "")"
+    [ -z "$origin" ] && continue
+
+    # Skip already SSH
+    if dotfiles_remote_uses_ssh "$origin"; then
+        SKIPPED=$((SKIPPED + 1))
+        continue
+    fi
+
+    # Parse HTTPS URL
+    parsed="$(dotfiles_parse_remote "$origin" || true)"
+    if [ -z "$parsed" ]; then
+        dotfiles_ui_info "  Skipping (unrecognised URL): ${repo_root}"
+        dotfiles_ui_info "    ${origin}"
+        SKIPPED=$((SKIPPED + 1))
+        continue
+    fi
+
+    user="$(echo "$parsed" | awk '{print $1}')"
+    repo="$(echo "$parsed" | awk '{print $2}')"
+
+    if ! dotfiles_is_known_account "$user"; then
+        dotfiles_ui_info "  Skipping (unknown account '${user}'): ${repo_root}"
+        SKIPPED=$((SKIPPED + 1))
+        continue
+    fi
+
+    new_url="$(dotfiles_remote_ssh_url "$user" "$repo")"
+    echo "  ${repo_root}"
+    echo "    ${origin}"
+    echo "    → ${new_url}"
+
+    if [ "$DRY_RUN" = false ]; then
+        if git -C "$repo_root" remote set-url origin "$new_url" 2>/dev/null; then
+            dotfiles_ui_success "    updated"
+            MIGRATED=$((MIGRATED + 1))
+        else
+            dotfiles_ui_error "    failed to update remote"
+            ERRORS=$((ERRORS + 1))
+        fi
+    else
+        MIGRATED=$((MIGRATED + 1))
+    fi
+    echo ""
+done < <(find "$DOTFILES_GITHUB_ROOT" -mindepth 3 -maxdepth 4 -type d -name .git 2>/dev/null)
+
+dotfiles_ui_section "Summary"
+if [ "$DRY_RUN" = true ]; then
+    echo "  Would migrate : ${MIGRATED}"
+    echo "  Skipped       : ${SKIPPED}"
+    echo ""
+    dotfiles_ui_info "Re-run with --apply to make changes."
+else
+    echo "  Migrated : ${MIGRATED}"
+    echo "  Skipped  : ${SKIPPED}"
+    echo "  Errors   : ${ERRORS}"
+    [ "$ERRORS" -gt 0 ] && exit 1 || exit 0
+fi

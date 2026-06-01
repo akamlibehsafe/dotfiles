@@ -1,0 +1,114 @@
+#!/bin/bash
+# setup_pats — per-account PAT wizard
+# Verifies each PAT against the GitHub API, writes exports to ~/.zshrc.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd -P)"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+FORCE=false
+WRITE_SHELL=true
+
+usage() {
+    echo "Usage: setup_pats [--force] [--no-shell]"
+    echo ""
+    echo "  --force      Re-prompt even when PAT already validates"
+    echo "  --no-shell   Only export for current session; do not write to shell config"
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --force)    FORCE=true; shift ;;
+        --no-shell) WRITE_SHELL=false; shift ;;
+        -h|--help)  usage ;;
+        *) dotfiles_usage_error "Unknown option: $1" "setup_pats [--force] [--no-shell]" ;;
+    esac
+done
+
+SHELL_CONFIG="$(dotfiles_shell_config)"
+
+dotfiles_ui_section "setup_pats — Configure GitHub PATs"
+echo "Classic PAT with 'repo' scope: https://github.com/settings/tokens"
+echo ""
+
+for user in "${DOTFILES_ACCOUNTS[@]}"; do
+    pat_var="$(dotfiles_account_pat_var "$user")"
+
+    # Pre-load from dotfiles.conf if env var not set
+    existing="$(dotfiles_account_pat_resolved "$user" || true)"
+    if [ -n "$existing" ]; then
+        export "${pat_var}=${existing}"
+    fi
+
+    status="$(dotfiles_verify_pat_api "$pat_var" "$user" || true)"
+
+    if [ "$status" = "ok" ] && [ "$FORCE" = false ]; then
+        dotfiles_ui_success "  ${user}: PAT already valid — skipping"
+        continue
+    fi
+
+    dotfiles_ui_prompt "Account: ${user}"
+    echo "  1. Log into GitHub as ${user}"
+    echo "  2. Settings → Developer settings → Personal access tokens → Tokens (classic)"
+    echo "  3. Generate new token (classic) — scope: repo — no expiration"
+    echo ""
+    read -r -s -p "  Paste PAT for ${user} (input hidden): " token
+    echo ""
+
+    if [ -z "$token" ]; then
+        dotfiles_ui_info "  Skipped (empty input)"
+        continue
+    fi
+
+    export "${pat_var}=${token}"
+    status="$(dotfiles_verify_pat_api "$pat_var" "$user" || true)"
+
+    if [ "$status" != "ok" ]; then
+        dotfiles_ui_error "  Token failed verification: ${status}"
+        unset "${pat_var}"
+        continue
+    fi
+
+    dotfiles_ui_success "  ${pat_var} verified for ${user}"
+done
+
+# ─── Write to shell config ────────────────────────────────────────────────────
+
+if [ "$WRITE_SHELL" = true ]; then
+    dotfiles_ui_info "Writing PAT exports to ${SHELL_CONFIG}..."
+
+    # Remove old exports first
+    dotfiles_remove_lines_matching "$SHELL_CONFIG" "^export GH_TOKEN_"
+    dotfiles_remove_lines_matching "$SHELL_CONFIG" "# dotfiles PAT"
+
+    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+        pat_var="$(dotfiles_account_pat_var "$user")"
+        val="${!pat_var:-}"
+        if [ -n "$val" ]; then
+            {
+                echo ""
+                echo "# dotfiles PAT (${user})"
+                echo "export ${pat_var}=\"${val}\""
+            } >>"$SHELL_CONFIG"
+        fi
+    done
+
+    dotfiles_ui_success "Shell config updated."
+    echo ""
+    dotfiles_ui_info "Reload your shell to activate:"
+    echo "  source ${SHELL_CONFIG}"
+fi
+
+dotfiles_ui_section "Done"
+echo "Verify with: ./scripts/setup/setup_check"
