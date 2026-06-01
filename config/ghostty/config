@@ -1,0 +1,7 @@
+# Ghostty configuration
+# Applied by dotfiles_setup to ~/.config/ghostty/config
+# Update this file to match your preferred Ghostty settings.
+# Full reference: https://ghostty.org/docs/config
+
+# font-size = 13
+# theme = dark

@@ -1,0 +1,19 @@
+# gitconfig — dotfiles global git configuration
+# Applied by dotfiles_setup to ~/.gitconfig base
+# Per-account identity is handled via includeIf blocks (set up by setup_ssh)
+
+[init]
+    defaultBranch = main
+
+[core]
+    autocrlf = input
+    excludesfile = ~/.gitignore_global
+
+[pull]
+    rebase = false
+
+[push]
+    autoSetupRemote = true
+
+[fetch]
+    prune = true
