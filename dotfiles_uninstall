@@ -1,0 +1,243 @@
+#!/bin/bash
+# dotfiles_uninstall — remove everything installed by dotfiles_setup
+# Interactive: prompts before each removal step.
+# Does NOT remove Homebrew.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+REPO_ROOT="$(cd "$(dirname "$_self")" && pwd -P)"
+SCRIPTS_ROOT="${REPO_ROOT}/scripts"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+# ─── helpers ──────────────────────────────────────────────────────────────────
+
+confirm() {
+    local msg="$1"
+    dotfiles_ui_prompt "${msg} (y/N)"
+    local ans
+    read -r ans
+    [[ "$ans" =~ ^[Yy]$ ]]
+}
+
+section() { dotfiles_ui_section "$1"; }
+
+brew_uninstall() {
+    local pkg="$1" flag="${2:-}"
+    if command -v brew &>/dev/null; then
+        if brew list ${flag} "$pkg" &>/dev/null 2>&1; then
+            dotfiles_ui_info "Uninstalling $pkg..."
+            brew uninstall ${flag} "$pkg" && dotfiles_ui_success "  $pkg removed" || dotfiles_ui_info "  Could not remove $pkg"
+        else
+            dotfiles_ui_info "  $pkg not installed via Homebrew, skipping"
+        fi
+    fi
+}
+
+# ─── 1. Check for unpushed git changes ────────────────────────────────────────
+
+section "Check for unpushed git changes"
+
+if [ -d "${DOTFILES_GITHUB_ROOT}" ]; then
+    DIRTY_REPOS=()
+    while IFS= read -r git_dir; do
+        [ -z "$git_dir" ] && continue
+        repo_root="$(dirname "$git_dir")"
+        # Skip the dotfiles repo itself
+        [ "$repo_root" = "$REPO_ROOT" ] && continue
+        uncommitted=$(git -C "$repo_root" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+        unpushed=$(git -C "$repo_root" log --oneline @{u}.. 2>/dev/null | wc -l | tr -d ' ' || echo 0)
+        if [ "$uncommitted" -gt 0 ] || [ "$unpushed" -gt 0 ]; then
+            DIRTY_REPOS+=("$repo_root (uncommitted: $uncommitted, unpushed: $unpushed)")
+        fi
+    done < <(find "${DOTFILES_GITHUB_ROOT}" -mindepth 3 -maxdepth 4 -type d -name .git 2>/dev/null)
+
+    if [ ${#DIRTY_REPOS[@]} -gt 0 ]; then
+        dotfiles_ui_info "Repositories with uncommitted or unpushed changes:"
+        for r in "${DIRTY_REPOS[@]}"; do
+            echo "  • $r"
+        done
+        echo ""
+        if ! confirm "Continue with uninstall anyway?"; then
+            dotfiles_ui_info "Uninstall cancelled. Push your changes first."
+            exit 0
+        fi
+    else
+        dotfiles_ui_success "No dirty repositories found."
+    fi
+else
+    dotfiles_ui_info "${DOTFILES_GITHUB_ROOT} does not exist, skipping check."
+fi
+
+# ─── 2. Remove ~/bin/ symlinks ────────────────────────────────────────────────
+
+section "Remove ~/bin/ symlinks"
+
+source "${SCRIPTS_ROOT}/lib/manifest.sh"
+
+if confirm "Remove dotfiles symlinks from ~/bin/?"; then
+    for symlink in "${DOTFILES_BIN_SYMLINKS[@]}" "${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"; do
+        target="$HOME/bin/$symlink"
+        if [ -L "$target" ] || [ -f "$target" ]; then
+            rm -f "$target"
+            dotfiles_ui_success "  removed ~/bin/$symlink"
+        fi
+    done
+
+    # Remove ~/bin if empty
+    if [ -d "$HOME/bin" ] && [ -z "$(ls -A "$HOME/bin" 2>/dev/null)" ]; then
+        if confirm "~/bin/ is now empty. Remove it?"; then
+            rmdir "$HOME/bin"
+            dotfiles_ui_success "  removed ~/bin/"
+        fi
+    fi
+fi
+
+# ─── 3. Remove shell aliases ──────────────────────────────────────────────────
+
+section "Remove shell aliases from shell config"
+
+SHELL_CONFIG="$(dotfiles_shell_config)"
+
+if confirm "Remove dotfiles aliases from ${SHELL_CONFIG}?"; then
+    dotfiles_remove_lines_matching "$SHELL_CONFIG" "# dotfiles aliases"
+    for alias_entry in "${DOTFILES_SHELL_ALIASES[@]}"; do
+        alias_name="${alias_entry%%|*}"
+        dotfiles_remove_lines_matching "$SHELL_CONFIG" "alias ${alias_name}="
+    done
+    dotfiles_ui_success "  Aliases removed"
+fi
+
+# ─── 4. Remove PAT exports ────────────────────────────────────────────────────
+
+section "Remove PAT exports from shell config"
+
+if confirm "Remove GH_TOKEN_* exports from ${SHELL_CONFIG}?"; then
+    dotfiles_remove_lines_matching "$SHELL_CONFIG" "^export GH_TOKEN_"
+    dotfiles_remove_lines_matching "$SHELL_CONFIG" "# dotfiles PAT"
+    dotfiles_ui_success "  PAT exports removed"
+fi
+
+# ─── 5. Remove ~/bin PATH addition ───────────────────────────────────────────
+
+section "Remove ~/bin from PATH in shell config"
+
+if confirm "Remove ~/bin PATH addition from ${SHELL_CONFIG}?"; then
+    dotfiles_remove_lines_matching "$SHELL_CONFIG" "# Add ~/bin to PATH"
+    dotfiles_remove_lines_matching "$SHELL_CONFIG" 'HOME/bin:.*PATH'
+    dotfiles_ui_success "  PATH entry removed"
+fi
+
+# ─── 6. Remove SSH config blocks ─────────────────────────────────────────────
+
+section "Remove SSH config blocks"
+
+SSH_CONFIG="$HOME/.ssh/config"
+if [ -f "$SSH_CONFIG" ] && confirm "Remove dotfiles SSH host blocks from ~/.ssh/config?"; then
+    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+        host="$(dotfiles_account_ssh_host "$user")"
+        marker_begin="# dotfiles-managed-begin ${host}"
+        marker_end="# dotfiles-managed-end ${host}"
+        if grep -q "$marker_begin" "$SSH_CONFIG" 2>/dev/null; then
+            if [[ "$(uname)" == "Darwin" ]]; then
+                sed -i '' "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
+            else
+                sed -i "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
+            fi
+            dotfiles_ui_success "  Removed SSH block for ${host}"
+        fi
+    done
+fi
+
+# ─── 7. Remove git identity includeIf and per-account gitconfigs ─────────────
+
+section "Remove git identity config"
+
+if confirm "Remove includeIf blocks and ~/.gitconfig-<user> files?"; then
+    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+        cfg="$HOME/.gitconfig-${user}"
+        if [ -f "$cfg" ]; then
+            rm -f "$cfg"
+            dotfiles_ui_success "  Removed $cfg"
+        fi
+    done
+    # Remove includeIf blocks from ~/.gitconfig
+    if [ -f "$HOME/.gitconfig" ]; then
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' '/\[includeIf "gitdir:.*Documents\/GitHub/,/path = ~\/.gitconfig-/d' "$HOME/.gitconfig" 2>/dev/null || true
+        else
+            sed -i '/\[includeIf "gitdir:.*Documents\/GitHub/,/path = ~\/.gitconfig-/d' "$HOME/.gitconfig" 2>/dev/null || true
+        fi
+        dotfiles_ui_success "  Removed includeIf blocks from ~/.gitconfig"
+    fi
+fi
+
+# ─── 8. Remove SSH keys ──────────────────────────────────────────────────────
+
+section "Remove SSH keys"
+
+if confirm "Remove dotfiles SSH keys from ${DOTFILES_SSH_DIR}?"; then
+    if [ -d "$DOTFILES_SSH_DIR" ]; then
+        rm -rf "$DOTFILES_SSH_DIR"
+        dotfiles_ui_success "  Removed ${DOTFILES_SSH_DIR}"
+    else
+        dotfiles_ui_info "  ${DOTFILES_SSH_DIR} not found, skipping"
+    fi
+fi
+
+# ─── 9. Uninstall apps ───────────────────────────────────────────────────────
+
+section "Uninstall apps"
+
+if confirm "Uninstall Cursor?";  then brew_uninstall cursor --cask; fi
+if confirm "Uninstall Warp?";    then brew_uninstall warp --cask; fi
+if confirm "Uninstall Ghostty?"; then brew_uninstall ghostty --cask; fi
+if confirm "Uninstall iTerm2?";  then brew_uninstall iterm2 --cask; fi
+
+# ─── 10. Remove Oh My Zsh and Powerlevel10k ──────────────────────────────────
+
+section "Remove Oh My Zsh and Powerlevel10k"
+
+if [ -d "$HOME/.oh-my-zsh" ] && confirm "Remove Oh My Zsh (~/.oh-my-zsh)?"; then
+    # Backup .zshrc first
+    cp "$HOME/.zshrc" "$HOME/.zshrc.dotfiles-backup-$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+    rm -rf "$HOME/.oh-my-zsh"
+    dotfiles_ui_success "  Removed ~/.oh-my-zsh (backed up .zshrc)"
+fi
+
+if [ -f "$HOME/.p10k.zsh" ] && confirm "Remove ~/.p10k.zsh?"; then
+    rm -f "$HOME/.p10k.zsh"
+    dotfiles_ui_success "  Removed ~/.p10k.zsh"
+fi
+
+# ─── 11. Remove GitHub root directory ────────────────────────────────────────
+
+section "Remove GitHub root directory"
+
+if [ -d "${DOTFILES_GITHUB_ROOT}" ]; then
+    dotfiles_ui_info "WARNING: This will delete ${DOTFILES_GITHUB_ROOT} and ALL repositories inside it."
+    if confirm "Delete ${DOTFILES_GITHUB_ROOT}?"; then
+        rm -rf "${DOTFILES_GITHUB_ROOT}"
+        dotfiles_ui_success "  Removed ${DOTFILES_GITHUB_ROOT}"
+    fi
+else
+    dotfiles_ui_info "  ${DOTFILES_GITHUB_ROOT} not found, skipping"
+fi
+
+# ─── Done ─────────────────────────────────────────────────────────────────────
+
+section "Uninstall complete"
+
+dotfiles_ui_success "dotfiles environment removed."
+echo ""
+dotfiles_ui_info "Note: Homebrew was not removed."
+dotfiles_ui_info "To apply changes to your current shell session:"
+echo "  source $(dotfiles_shell_config)"
+echo "  (or open a new terminal)"
