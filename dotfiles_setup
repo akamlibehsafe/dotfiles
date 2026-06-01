@@ -82,6 +82,81 @@ brew_cask_install() {
     fi
 }
 
+# ─── Pre-flight: detect existing state ────────────────────────────────────────
+# Sets STATE_* flags used by each phase to skip work already done.
+
+dotfiles_ui_section "Checking current state..."
+
+STATE_HOMEBREW=false
+STATE_CORE_TOOLS=false
+STATE_GITHUB_ROOT=false
+STATE_PATS=false
+STATE_SSH=false
+STATE_SHELL=false
+STATE_SYMLINKS=false
+
+# Homebrew
+command -v brew &>/dev/null && STATE_HOMEBREW=true
+
+# Core tools (all must be present)
+if command -v git &>/dev/null && command -v gh &>/dev/null && \
+   command -v jq &>/dev/null && command -v python3 &>/dev/null && \
+   command -v node &>/dev/null; then
+    STATE_CORE_TOOLS=true
+fi
+
+# GitHub root
+[ -d "$DOTFILES_GITHUB_ROOT" ] && STATE_GITHUB_ROOT=true
+
+# PATs — check env vars are set and valid
+_pat_ok=true
+for _u in "${DOTFILES_ACCOUNTS[@]}"; do
+    _pv="$(dotfiles_account_pat_var "$_u")"
+    _pat="$(dotfiles_account_pat_resolved "$_u" || true)"
+    [ -n "$_pat" ] && export "${_pv}=${_pat}"
+    _status="$(dotfiles_verify_pat_api "$_pv" "$_u" || true)"
+    [ "$_status" = "ok" ] || _pat_ok=false
+done
+$_pat_ok && STATE_PATS=true
+unset _u _pv _pat _status _pat_ok
+
+# SSH — keys exist, config blocks present, and all accounts authenticated
+_ssh_ok=true
+for _u in "${DOTFILES_ACCOUNTS[@]}"; do
+    _key="$(dotfiles_account_key_path "$_u")"
+    _host="$(dotfiles_account_ssh_host "$_u")"
+    if [ ! -f "$_key" ]; then
+        _ssh_ok=false; break
+    fi
+    if ! grep -q "Host ${_host}" "$HOME/.ssh/config" 2>/dev/null; then
+        _ssh_ok=false; break
+    fi
+    _out="$(ssh -o BatchMode=yes -o ConnectTimeout=5 -T "git@${_host}" 2>&1 || true)"
+    echo "$_out" | grep -qi "successfully authenticated" || { _ssh_ok=false; break; }
+done
+$_ssh_ok && STATE_SSH=true
+unset _u _key _host _out _ssh_ok
+
+# Shell — Oh My Zsh + p10k present
+[ -d "$HOME/.oh-my-zsh" ] && [ -f "$HOME/.p10k.zsh" ] && STATE_SHELL=true
+
+# Symlinks — all repo commands in ~/bin
+_sym_ok=true
+for _cmd in repo_init repo_clone repo_sync; do
+    [ -L "$HOME/bin/$_cmd" ] || { _sym_ok=false; break; }
+done
+$_sym_ok && STATE_SYMLINKS=true
+unset _cmd _sym_ok
+
+echo "  homebrew    : $STATE_HOMEBREW"
+echo "  core tools  : $STATE_CORE_TOOLS"
+echo "  github root : $STATE_GITHUB_ROOT"
+echo "  PATs        : $STATE_PATS"
+echo "  SSH         : $STATE_SSH"
+echo "  shell       : $STATE_SHELL"
+echo "  symlinks    : $STATE_SYMLINKS"
+echo ""
+
 # ─── Phase 1: Validate dotfiles.conf ─────────────────────────────────────────
 
 run_phase "Phase 1: Validate dotfiles.conf"
@@ -120,7 +195,11 @@ phase_ok "dotfiles.conf looks valid"
 
 run_phase "Phase 2: Homebrew"
 
-if command -v brew &>/dev/null; then
+if [ "$STATE_HOMEBREW" = true ]; then
+    dotfiles_ui_info "  Homebrew already installed — updating..."
+    brew update || dotfiles_ui_info "  Update skipped"
+    phase_ok "Homebrew $(brew --version | head -n1)"
+elif command -v brew &>/dev/null; then
     dotfiles_ui_info "  Homebrew already installed — updating..."
     brew update || dotfiles_ui_info "  Update skipped (may need manual intervention)"
 else
@@ -148,6 +227,10 @@ phase_ok "Homebrew $(brew --version | head -n1)"
 
 run_phase "Phase 3: Core tools"
 
+if [ "$STATE_CORE_TOOLS" = true ]; then
+    phase_ok "Core tools already installed"
+else
+
 for pkg in git git-lfs gh jq python node; do
     brew_install "$pkg"
 done
@@ -156,23 +239,26 @@ done
 git lfs install --system 2>/dev/null || git lfs install || true
 
 phase_ok "Core tools ready"
+fi
 
 # ─── Phase 4: GitHub root directory ──────────────────────────────────────────
 
 run_phase "Phase 4: GitHub root directory"
 
-if [ -d "$DOTFILES_GITHUB_ROOT" ]; then
-    dotfiles_ui_info "  Already exists: ${DOTFILES_GITHUB_ROOT}"
+if [ "$STATE_GITHUB_ROOT" = true ]; then
+    phase_ok "GitHub root already exists: ${DOTFILES_GITHUB_ROOT}"
 else
     mkdir -p "$DOTFILES_GITHUB_ROOT"
-    dotfiles_ui_success "  Created: ${DOTFILES_GITHUB_ROOT}"
+    phase_ok "Created: ${DOTFILES_GITHUB_ROOT}"
 fi
-
-phase_ok "GitHub root: ${DOTFILES_GITHUB_ROOT}"
 
 # ─── Phase 5: Auth setup (PATs + SSH + git identity) ─────────────────────────
 
 run_phase "Phase 5: Auth setup"
+
+if [ "$STATE_PATS" = true ] && [ "$STATE_SSH" = true ]; then
+    phase_ok "PATs and SSH already configured"
+else
 
 # Export PATs from dotfiles.conf into environment and shell config
 dotfiles_ui_info "  Writing PAT exports to ${SHELL_CONFIG}..."
@@ -196,10 +282,15 @@ dotfiles_ui_info "  Running SSH + git identity setup..."
 bash "${SCRIPTS_ROOT}/setup/setup_ssh" --new-mac
 
 phase_ok "Auth configured"
+fi
 
 # ─── Phase 6: SSH verification ───────────────────────────────────────────────
 
 run_phase "Phase 6: SSH verification"
+
+if [ "$STATE_SSH" = true ]; then
+    phase_ok "SSH already verified for all accounts"
+else
 
 SSH_FAILURES=0
 for user in "${DOTFILES_ACCOUNTS[@]}"; do
@@ -237,10 +328,15 @@ done
 }
 
 phase_ok "SSH verification done"
+fi
 
 # ─── Phase 7: Shell (Zsh, Oh My Zsh, p10k) ───────────────────────────────────
 
 run_phase "Phase 7: Shell"
+
+if [ "$STATE_SHELL" = true ]; then
+    phase_ok "Shell already configured"
+else
 
 # Install Zsh
 brew_install zsh
@@ -328,6 +424,7 @@ if [ -f "$GITCONFIG_TEMPLATE" ] && [ ! -f "$HOME/.gitconfig" ]; then
 fi
 
 phase_ok "Shell configured"
+fi
 
 # ─── Phase 8: Apps ───────────────────────────────────────────────────────────
 
@@ -420,9 +517,12 @@ phase_ok "Clone phase done"
 
 run_phase "Phase 10: Symlinks"
 
-bash "${SCRIPTS_ROOT}/setup/setup_symlinks"
-
-phase_ok "Symlinks ready"
+if [ "$STATE_SYMLINKS" = true ]; then
+    phase_ok "Symlinks already in place"
+else
+    bash "${SCRIPTS_ROOT}/setup/setup_symlinks"
+    phase_ok "Symlinks ready"
+fi
 
 # ─── Phase 11: Shell aliases ─────────────────────────────────────────────────
 
