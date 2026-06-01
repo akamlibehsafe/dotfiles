@@ -1,0 +1,517 @@
+#!/bin/bash
+# dotfiles_setup — full macOS development environment bootstrap
+# Run once on a fresh Mac. When it exits 0, the environment is fully ready.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+REPO_ROOT="$(cd "$(dirname "$_self")" && pwd -P)"
+SCRIPTS_ROOT="${REPO_ROOT}/scripts"
+
+# ─── macOS check ──────────────────────────────────────────────────────────────
+
+[[ "$OSTYPE" == "darwin"* ]] || {
+    echo "Error: dotfiles_setup is for macOS only. Detected: $OSTYPE" >&2
+    exit 1
+}
+
+# ─── dotfiles.conf must exist before we source lib ────────────────────────────
+
+if [ ! -f "${REPO_ROOT}/dotfiles.conf" ]; then
+    cat >&2 <<EOF
+
+Error: dotfiles.conf not found.
+
+Copy the template and fill in your details before running dotfiles_setup:
+  cp dotfiles.conf.example dotfiles.conf
+
+See dotfiles.conf.example for the required format.
+EOF
+    exit 1
+fi
+
+export DOTFILES_CONF="${REPO_ROOT}/dotfiles.conf"
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+# ─── helpers ──────────────────────────────────────────────────────────────────
+
+SHELL_CONFIG="$(dotfiles_shell_config)"
+SETUP_LOG="${REPO_ROOT}/.dotfiles_setup.log"
+
+phase_ok()   { dotfiles_ui_success "  ✓ $1"; }
+phase_skip() { dotfiles_ui_info    "  - $1 (skipped)"; }
+phase_fail() { dotfiles_ui_error   "  ✗ $1"; }
+
+confirm() {
+    dotfiles_ui_prompt "$1 (Y/n)"
+    local ans; read -r ans
+    [[ ! "$ans" =~ ^[Nn]$ ]]
+}
+
+run_phase() {
+    local name="$1"; shift
+    dotfiles_ui_section "$name"
+    "$@"
+}
+
+brew_install() {
+    local pkg="$1"
+    if brew list "$pkg" &>/dev/null 2>&1; then
+        dotfiles_ui_info "  ${pkg}: already installed"
+    else
+        dotfiles_ui_info "  Installing ${pkg}..."
+        brew install "$pkg"
+        dotfiles_ui_success "  ${pkg}: installed"
+    fi
+}
+
+brew_cask_install() {
+    local pkg="$1" app_path="$2"
+    if [ -d "$app_path" ]; then
+        dotfiles_ui_info "  ${pkg}: already installed"
+    else
+        dotfiles_ui_info "  Installing ${pkg}..."
+        brew install --cask "$pkg"
+        dotfiles_ui_success "  ${pkg}: installed"
+    fi
+}
+
+# ─── Phase 1: Validate dotfiles.conf ─────────────────────────────────────────
+
+run_phase "Phase 1: Validate dotfiles.conf"
+
+echo "  Accounts    : $(dotfiles_accounts_list)"
+echo "  GitHub root : ${DOTFILES_GITHUB_ROOT}"
+echo ""
+
+CONF_ERRORS=0
+for user in "${DOTFILES_ACCOUNTS[@]}"; do
+    pat="$(dotfiles_account_pat "$user")"
+    ssh_key="$(dotfiles_account_ssh_key "$user")"
+
+    if [ -z "$pat" ]; then
+        dotfiles_ui_error "  Missing 'pat' for account: ${user}"
+        CONF_ERRORS=$((CONF_ERRORS + 1))
+    fi
+    if [ -z "$ssh_key" ]; then
+        dotfiles_ui_error "  Missing 'ssh_key' for account: ${user}"
+        CONF_ERRORS=$((CONF_ERRORS + 1))
+    elif [ ! -f "$ssh_key" ]; then
+        dotfiles_ui_error "  SSH key not found for ${user}: ${ssh_key}"
+        CONF_ERRORS=$((CONF_ERRORS + 1))
+    fi
+done
+
+[ "$CONF_ERRORS" -gt 0 ] && {
+    echo ""
+    dotfiles_ui_error "Fix the errors in dotfiles.conf and re-run dotfiles_setup."
+    exit 1
+}
+
+phase_ok "dotfiles.conf looks valid"
+
+# ─── Phase 2: Homebrew ───────────────────────────────────────────────────────
+
+run_phase "Phase 2: Homebrew"
+
+if command -v brew &>/dev/null; then
+    dotfiles_ui_info "  Homebrew already installed — updating..."
+    brew update || dotfiles_ui_info "  Update skipped (may need manual intervention)"
+else
+    dotfiles_ui_info "  Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    # Add to PATH for Apple Silicon or Intel
+    for brew_path in "/opt/homebrew/bin/brew" "/usr/local/bin/brew"; do
+        if [ -f "$brew_path" ]; then
+            eval "$("$brew_path" shellenv)"
+            break
+        fi
+    done
+fi
+
+command -v brew &>/dev/null || {
+    dotfiles_ui_error "Homebrew installed but 'brew' not found in PATH."
+    dotfiles_ui_info  "Add Homebrew to PATH manually then re-run."
+    exit 1
+}
+
+phase_ok "Homebrew $(brew --version | head -n1)"
+
+# ─── Phase 3: Core tools ─────────────────────────────────────────────────────
+
+run_phase "Phase 3: Core tools"
+
+for pkg in git git-lfs gh jq python node; do
+    brew_install "$pkg"
+done
+
+# Initialise git-lfs globally
+git lfs install --system 2>/dev/null || git lfs install || true
+
+# Install Claude CLI via npm
+if command -v npm &>/dev/null; then
+    if command -v claude &>/dev/null; then
+        dotfiles_ui_info "  claude: already installed"
+    else
+        dotfiles_ui_info "  Installing Claude CLI..."
+        npm install -g @anthropic-ai/claude-code
+        dotfiles_ui_success "  claude: installed"
+    fi
+else
+    dotfiles_ui_info "  npm not found — Claude CLI skipped (install Node.js first)"
+fi
+
+phase_ok "Core tools ready"
+
+# ─── Phase 4: GitHub root directory ──────────────────────────────────────────
+
+run_phase "Phase 4: GitHub root directory"
+
+if [ -d "$DOTFILES_GITHUB_ROOT" ]; then
+    dotfiles_ui_info "  Already exists: ${DOTFILES_GITHUB_ROOT}"
+else
+    mkdir -p "$DOTFILES_GITHUB_ROOT"
+    dotfiles_ui_success "  Created: ${DOTFILES_GITHUB_ROOT}"
+fi
+
+phase_ok "GitHub root: ${DOTFILES_GITHUB_ROOT}"
+
+# ─── Phase 5: Auth setup (PATs + SSH + git identity) ─────────────────────────
+
+run_phase "Phase 5: Auth setup"
+
+# Export PATs from dotfiles.conf into environment and shell config
+dotfiles_ui_info "  Writing PAT exports to ${SHELL_CONFIG}..."
+dotfiles_remove_lines_matching "$SHELL_CONFIG" "^export GH_TOKEN_"
+dotfiles_remove_lines_matching "$SHELL_CONFIG" "# dotfiles PAT"
+
+for user in "${DOTFILES_ACCOUNTS[@]}"; do
+    pat="$(dotfiles_account_pat "$user")"
+    pat_var="$(dotfiles_account_pat_var "$user")"
+    export "${pat_var}=${pat}"
+    {
+        echo ""
+        echo "# dotfiles PAT (${user})"
+        echo "export ${pat_var}=\"${pat}\""
+    } >>"$SHELL_CONFIG"
+    dotfiles_ui_success "  Exported: ${pat_var}"
+done
+
+# Run SSH setup
+dotfiles_ui_info "  Running SSH + git identity setup..."
+bash "${SCRIPTS_ROOT}/setup/setup_ssh" --new-mac
+
+phase_ok "Auth configured"
+
+# ─── Phase 6: SSH verification ───────────────────────────────────────────────
+
+run_phase "Phase 6: SSH verification"
+
+SSH_FAILURES=0
+for user in "${DOTFILES_ACCOUNTS[@]}"; do
+    host="$(dotfiles_account_ssh_host "$user")"
+    dotfiles_ui_info "  Testing git@${host}..."
+    ssh_out="$(ssh -o BatchMode=yes -o ConnectTimeout=10 -T "git@${host}" 2>&1 || true)"
+    if echo "$ssh_out" | grep -qi "successfully authenticated"; then
+        dotfiles_ui_success "  ${host}: authenticated"
+    else
+        dotfiles_ui_info "  ${host}: not verified yet"
+        dotfiles_ui_info "  → Add the public key to GitHub as ${user}:"
+        dotfiles_ui_info "    GitHub → Settings → SSH and GPG keys → New SSH key"
+        dotfiles_ui_info "    Key file: $(dotfiles_account_pubkey_path "$user")"
+        SSH_FAILURES=$((SSH_FAILURES + 1))
+    fi
+done
+
+[ "$SSH_FAILURES" -gt 0 ] && {
+    echo ""
+    dotfiles_ui_prompt "Some SSH keys are not yet added to GitHub."
+    dotfiles_ui_prompt "Add them now, then press Enter to continue..."
+    read -r
+
+    # Re-verify
+    SSH_STILL_FAILING=0
+    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+        host="$(dotfiles_account_ssh_host "$user")"
+        ssh_out="$(ssh -o BatchMode=yes -o ConnectTimeout=10 -T "git@${host}" 2>&1 || true)"
+        echo "$ssh_out" | grep -qi "successfully authenticated" || \
+            SSH_STILL_FAILING=$((SSH_STILL_FAILING + 1))
+    done
+
+    [ "$SSH_STILL_FAILING" -gt 0 ] && \
+        dotfiles_ui_info "  Warning: ${SSH_STILL_FAILING} account(s) still not verified. Run setup_check later."
+}
+
+phase_ok "SSH verification done"
+
+# ─── Phase 7: Shell (Zsh, Oh My Zsh, p10k) ───────────────────────────────────
+
+run_phase "Phase 7: Shell"
+
+# Install Zsh
+brew_install zsh
+
+# Set Zsh as default shell if not already
+if [ "$SHELL" != "$(which zsh)" ]; then
+    dotfiles_ui_info "  Setting Zsh as default shell..."
+    ZSH_PATH="$(which zsh)"
+    grep -Fxq "$ZSH_PATH" /etc/shells || sudo sh -c "echo ${ZSH_PATH} >> /etc/shells"
+    chsh -s "$ZSH_PATH"
+    dotfiles_ui_success "  Default shell set to Zsh"
+fi
+
+# Install Oh My Zsh if missing
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    dotfiles_ui_info "  Installing Oh My Zsh..."
+    RUNZSH=no CHSH=no sh -c \
+        "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+    dotfiles_ui_success "  Oh My Zsh installed"
+else
+    dotfiles_ui_info "  Oh My Zsh already installed"
+fi
+
+# Install Powerlevel10k theme
+P10K_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+if [ ! -d "$P10K_DIR" ]; then
+    dotfiles_ui_info "  Installing Powerlevel10k..."
+    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR"
+    dotfiles_ui_success "  Powerlevel10k installed"
+else
+    dotfiles_ui_info "  Powerlevel10k already installed"
+fi
+
+# Install Zsh plugins
+PLUGINS_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins"
+for plugin_repo in \
+    "zsh-users/zsh-autosuggestions" \
+    "zsh-users/zsh-syntax-highlighting"; do
+    plugin_name="${plugin_repo#*/}"
+    plugin_dir="${PLUGINS_DIR}/${plugin_name}"
+    if [ ! -d "$plugin_dir" ]; then
+        dotfiles_ui_info "  Installing ${plugin_name}..."
+        git clone --depth=1 "https://github.com/${plugin_repo}.git" "$plugin_dir"
+        dotfiles_ui_success "  ${plugin_name} installed"
+    else
+        dotfiles_ui_info "  ${plugin_name} already installed"
+    fi
+done
+
+# Apply zshrc template (merge — only add if not already present)
+dotfiles_ui_info "  Applying zshrc template..."
+ZSHRC_TEMPLATE="${REPO_ROOT}/config/zshrc"
+if [ -f "$ZSHRC_TEMPLATE" ]; then
+    # Write a fresh .zshrc if it doesn't exist yet
+    if [ ! -f "$HOME/.zshrc" ]; then
+        cp "$ZSHRC_TEMPLATE" "$HOME/.zshrc"
+        dotfiles_ui_success "  Created ~/.zshrc from template"
+    else
+        # Append template only if Oh My Zsh block not already present
+        if ! grep -q 'oh-my-zsh.sh' "$HOME/.zshrc" 2>/dev/null; then
+            {
+                echo ""
+                echo "# dotfiles shell config"
+                cat "$ZSHRC_TEMPLATE"
+            } >>"$HOME/.zshrc"
+            dotfiles_ui_success "  Appended zshrc template to ~/.zshrc"
+        else
+            dotfiles_ui_info "  Oh My Zsh already configured in ~/.zshrc"
+        fi
+    fi
+fi
+
+# Apply p10k config (always overwrite — this is your config)
+P10K_CONFIG="${REPO_ROOT}/config/p10k.zsh"
+if [ -f "$P10K_CONFIG" ]; then
+    cp "$P10K_CONFIG" "$HOME/.p10k.zsh"
+    dotfiles_ui_success "  Applied ~/.p10k.zsh from config/p10k.zsh"
+fi
+
+# Apply gitconfig base
+GITCONFIG_TEMPLATE="${REPO_ROOT}/config/gitconfig"
+if [ -f "$GITCONFIG_TEMPLATE" ] && [ ! -f "$HOME/.gitconfig" ]; then
+    cp "$GITCONFIG_TEMPLATE" "$HOME/.gitconfig"
+    dotfiles_ui_success "  Created ~/.gitconfig from template"
+fi
+
+phase_ok "Shell configured"
+
+# ─── Phase 8: Apps ───────────────────────────────────────────────────────────
+
+run_phase "Phase 8: Apps"
+
+for app in iterm2 ghostty warp cursor; do
+    app_script="${SCRIPTS_ROOT}/apps/${app}"
+    if [ -f "$app_script" ]; then
+        if confirm "Install ${app}?"; then
+            bash "$app_script"
+        else
+            phase_skip "$app"
+        fi
+    fi
+done
+
+phase_ok "Apps done"
+
+# ─── Phase 9: Bulk clone ─────────────────────────────────────────────────────
+
+run_phase "Phase 9: Bulk clone"
+
+command -v jq &>/dev/null || {
+    dotfiles_ui_info "  jq not found — skipping bulk clone"
+}
+
+if command -v jq &>/dev/null && confirm "Clone all repos from your GitHub accounts?"; then
+    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+        dotfiles_account_clone_enabled "$user" || {
+            dotfiles_ui_info "  Skipping bulk clone for ${user} (clone no in dotfiles.conf)"
+            continue
+        }
+
+        pat="$(dotfiles_account_pat_resolved "$user" || true)"
+        [ -n "$pat" ] || {
+            dotfiles_ui_info "  No PAT for ${user} — skipping"
+            continue
+        }
+
+        USER_DIR="${DOTFILES_GITHUB_ROOT}/${user}"
+        mkdir -p "$USER_DIR"
+        dotfiles_ui_info "  Fetching repository list for ${user}..."
+
+        page=1; per_page=100
+        while true; do
+            resp=$(curl -s -w "\n%{http_code}" \
+                -H "Accept: application/vnd.github.v3+json" \
+                -H "Authorization: token ${pat}" \
+                "https://api.github.com/user/repos?per_page=${per_page}&page=${page}&type=all")
+            code="$(echo "$resp" | tail -n1)"
+            body="$(echo "$resp" | sed '$d')"
+
+            [ "$code" = "200" ] || { dotfiles_ui_info "  API error (HTTP ${code}) for ${user}"; break; }
+
+            count="$(echo "$body" | jq 'length' 2>/dev/null || echo 0)"
+            [ "$count" -eq 0 ] && break
+
+            while IFS='|' read -r repo_name _clone_url; do
+                [ -z "$repo_name" ] && continue
+                dest="${USER_DIR}/${repo_name}"
+                if [ -d "$dest" ]; then
+                    dotfiles_ui_info "  Already exists: ${user}/${repo_name}"
+                else
+                    ssh_url="$(dotfiles_remote_ssh_url "$user" "$repo_name")"
+                    dotfiles_ui_info "  Cloning ${user}/${repo_name}..."
+                    set +e
+                    git -c credential.helper= clone "$ssh_url" "$dest" 2>&1 | tail -1
+                    clone_status=$?
+                    set -e
+                    if [ "$clone_status" -eq 0 ]; then
+                        dotfiles_ui_success "  ✓ ${user}/${repo_name}"
+                    else
+                        dotfiles_ui_info "  ✗ ${user}/${repo_name} (clone failed)"
+                    fi
+                fi
+            done < <(echo "$body" | jq -r '.[] | "\(.name)|\(.clone_url)"' 2>/dev/null)
+
+            [ "$count" -lt "$per_page" ] && break
+            page=$((page + 1))
+        done
+        dotfiles_ui_success "  Bulk clone done for ${user}"
+    done
+else
+    phase_skip "bulk clone"
+fi
+
+phase_ok "Clone phase done"
+
+# ─── Phase 10: Symlinks ──────────────────────────────────────────────────────
+
+run_phase "Phase 10: Symlinks"
+
+bash "${SCRIPTS_ROOT}/setup/setup_symlinks"
+
+phase_ok "Symlinks ready"
+
+# ─── Phase 11: Shell aliases ─────────────────────────────────────────────────
+
+run_phase "Phase 11: Shell aliases"
+
+if grep -q "# dotfiles aliases" "$HOME/.zshrc" 2>/dev/null; then
+    dotfiles_ui_info "  Aliases already present in ~/.zshrc"
+else
+    {
+        echo ""
+        echo "# dotfiles aliases"
+    } >>"$HOME/.zshrc"
+
+    for alias_entry in "${DOTFILES_SHELL_ALIASES[@]}"; do
+        alias_name="${alias_entry%%|*}"
+        alias_path="${alias_entry#*|}"
+        if [ "$alias_path" = "." ]; then
+            echo "alias ${alias_name}=\"cd ${DOTFILES_GITHUB_ROOT}\"" >>"$HOME/.zshrc"
+        else
+            echo "alias ${alias_name}=\"cd ${DOTFILES_GITHUB_ROOT}/${alias_path}\"" >>"$HOME/.zshrc"
+        fi
+    done
+    dotfiles_ui_success "  Aliases written to ~/.zshrc"
+fi
+
+phase_ok "Aliases done"
+
+# ─── Phase 12: Final verification ────────────────────────────────────────────
+
+run_phase "Phase 12: Verification"
+
+# Source the shell config to pick up PATH changes
+export PATH="$HOME/bin:$PATH"
+
+VERIFY_ERRORS=0
+for cmd in repo_init repo_clone repo_sync; do
+    if command -v "$cmd" &>/dev/null || [ -f "$HOME/bin/$cmd" ]; then
+        dotfiles_ui_success "  ✓ ${cmd}"
+    else
+        dotfiles_ui_error "  ✗ ${cmd} not found in ~/bin/"
+        VERIFY_ERRORS=$((VERIFY_ERRORS + 1))
+    fi
+done
+
+[ "$VERIFY_ERRORS" -gt 0 ] && \
+    dotfiles_ui_info "  Run: scripts/setup/setup_symlinks to fix missing commands"
+
+phase_ok "Verification complete"
+
+# ─── Phase 13: Source shell ───────────────────────────────────────────────────
+
+run_phase "Phase 13: Activate"
+
+dotfiles_ui_info "  Sourcing ${SHELL_CONFIG}..."
+# We can source it here but the user's interactive shell needs a reload
+set +e
+# shellcheck disable=SC1090
+source "$SHELL_CONFIG" 2>/dev/null
+set -e
+
+phase_ok "Shell config sourced"
+
+# ─── Done ─────────────────────────────────────────────────────────────────────
+
+dotfiles_ui_section "dotfiles_setup complete!"
+
+dotfiles_ui_success "Your development environment is ready."
+echo ""
+echo "  Daily commands (available from anywhere):"
+echo "    repo_init <user/repo>     — create a new GitHub repo from local folder"
+echo "    repo_clone <user/repo>    — clone an existing GitHub repo"
+echo "    repo_sync [-m \"message\"]  — commit and push current repo"
+echo ""
+echo "  Diagnostics:"
+echo "    scripts/setup/setup_check — verify full environment"
+echo ""
+dotfiles_ui_info "Open a new terminal window to ensure all changes are active."
+echo ""
+dotfiles_ui_success "Happy coding! 🚀"
