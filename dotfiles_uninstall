@@ -2,6 +2,10 @@
 # dotfiles_uninstall — remove everything installed by dotfiles_setup
 # Interactive: prompts before each removal step.
 # Does NOT remove Homebrew.
+#
+# Usage: dotfiles_uninstall [--keep-repos]
+#   --keep-repos   Skip removal of per-account repository folders.
+#                  Useful when resetting between test runs.
 
 set -euo pipefail
 
@@ -16,6 +20,24 @@ SCRIPTS_ROOT="${REPO_ROOT}/scripts"
 
 source "${SCRIPTS_ROOT}/lib/init.sh"
 dotfiles_ui_colors
+
+# ─── args ─────────────────────────────────────────────────────────────────────
+
+KEEP_REPOS=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --keep-repos) KEEP_REPOS=true; shift ;;
+        -h|--help)
+            echo "Usage: dotfiles_uninstall [--keep-repos]"
+            echo ""
+            echo "  --keep-repos   Skip removal of per-account repository folders."
+            echo "                 Useful when resetting between test runs."
+            exit 0
+            ;;
+        *) dotfiles_usage_error "Unknown option: $1" "dotfiles_uninstall [--keep-repos]" ;;
+    esac
+done
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -221,22 +243,26 @@ fi
 
 section "Remove per-account repository folders"
 
-dotfiles_ui_info "This removes only the account folders created by dotfiles_setup."
-dotfiles_ui_info "The GitHub root (${DOTFILES_GITHUB_ROOT}) itself is kept."
-echo ""
+if [ "$KEEP_REPOS" = true ]; then
+    dotfiles_ui_info "  Skipped (--keep-repos)"
+else
+    dotfiles_ui_info "This removes only the account folders created by dotfiles_setup."
+    dotfiles_ui_info "The GitHub root (${DOTFILES_GITHUB_ROOT}) itself is kept."
+    echo ""
 
-for user in "${DOTFILES_ACCOUNTS[@]}"; do
-    user_dir="${DOTFILES_GITHUB_ROOT}/${user}"
-    if [ -d "$user_dir" ]; then
-        dotfiles_ui_info "WARNING: This will delete all repos for ${user}: ${user_dir}"
-        if confirm "Delete ${user_dir}?"; then
-            rm -rf "$user_dir"
-            dotfiles_ui_success "  Removed ${user_dir}"
+    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+        user_dir="${DOTFILES_GITHUB_ROOT}/${user}"
+        if [ -d "$user_dir" ]; then
+            dotfiles_ui_info "WARNING: This will delete all repos for ${user}: ${user_dir}"
+            if confirm "Delete ${user_dir}?"; then
+                rm -rf "$user_dir"
+                dotfiles_ui_success "  Removed ${user_dir}"
+            fi
+        else
+            dotfiles_ui_info "  ${user_dir} not found, skipping"
         fi
-    else
-        dotfiles_ui_info "  ${user_dir} not found, skipping"
-    fi
-done
+    done
+fi
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 
