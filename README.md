@@ -10,17 +10,23 @@ Two files are needed at the repo root before running `dotfiles_setup`. Neither i
 
 ### 1. `dotfiles.conf`
 
-Copy the template and fill in your GitHub accounts, PATs, and SSH key paths:
+Copy the template and fill in your GitHub accounts, PATs, and SSH private keys:
 
 ```bash
 cp dotfiles.conf.example dotfiles.conf
 ```
 
-Edit `dotfiles.conf` with your real values. See `dotfiles.conf.example` for the full format and instructions on where to get PATs and SSH keys.
+Edit `dotfiles.conf` with your real values. See `dotfiles.conf.example` for the full format and instructions on where to get PATs and how to encode your SSH keys.
 
 ### 2. SSH keys
 
-Your SSH private keys must exist at the paths you specify in `dotfiles.conf` before running `dotfiles_setup`. The installer will copy them into place, configure SSH host aliases, and add them to the macOS keychain.
+Paste each SSH private key as a base64-encoded single line under `ssh_private` in `dotfiles.conf`. To encode an existing key:
+
+```bash
+base64 -i ~/.ssh/id_ed25519_youruser | tr -d '\n'
+```
+
+`dotfiles_setup` will decode the key, write it to `~/.ssh/dotfiles/`, derive the public key automatically, and configure SSH host aliases per account. No pre-existing key files needed on the new machine.
 
 ---
 
