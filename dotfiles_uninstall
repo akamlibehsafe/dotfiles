@@ -218,10 +218,11 @@ fi
 
 section "Uninstall apps"
 
-if confirm "Uninstall Cursor?";  then brew_uninstall cursor --cask; fi
-if confirm "Uninstall Warp?";    then brew_uninstall warp --cask; fi
-if confirm "Uninstall Ghostty?"; then brew_uninstall ghostty --cask; fi
-if confirm "Uninstall iTerm2?";  then brew_uninstall iterm2 --cask; fi
+if confirm "Uninstall Claude desktop?"; then brew_uninstall claude --cask; fi
+if confirm "Uninstall Cursor?";        then brew_uninstall cursor --cask; fi
+if confirm "Uninstall Warp?";          then brew_uninstall warp --cask; fi
+if confirm "Uninstall Ghostty?";       then brew_uninstall ghostty --cask; fi
+if confirm "Uninstall iTerm2?";        then brew_uninstall iterm2 --cask; fi
 
 # ─── 10. Remove Oh My Zsh and Powerlevel10k ──────────────────────────────────
 

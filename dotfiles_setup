@@ -346,7 +346,7 @@ phase_ok "Shell configured"
 
 run_phase "Phase 8: Apps"
 
-for app in iterm2 ghostty warp cursor; do
+for app in iterm2 ghostty warp cursor claude; do
     app_script="${SCRIPTS_ROOT}/apps/${app}"
     if [ -f "$app_script" ]; then
         if confirm "Install ${app}?"; then
