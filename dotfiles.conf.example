@@ -1,0 +1,48 @@
+# dotfiles.conf.example — template only (safe to commit)
+#
+# Copy to dotfiles.conf and fill in your real values:
+#   cp dotfiles.conf.example dotfiles.conf
+#
+# NEVER commit dotfiles.conf — it contains your PATs and SSH key paths.
+# It is listed in .gitignore.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# WHERE TO GET YOUR PATs
+#   GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+#   Click "Generate new token (classic)"
+#   Required scope: repo (full control of private repositories)
+#   Recommended expiration: No expiration
+#   Token format: ghp_ followed by 40 characters
+#
+# WHERE TO GET YOUR SSH KEY PATH
+#   Your existing private key, e.g. ~/.ssh/id_ed25519_youruser
+#   If you don't have one yet:
+#     ssh-keygen -t ed25519 -C "you@example.com" -f ~/.ssh/id_ed25519_youruser
+#   Then add the PUBLIC key (~/.ssh/id_ed25519_youruser.pub) to GitHub:
+#     GitHub → Settings → SSH and GPG keys → New SSH key
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Where your GitHub repositories are stored (one folder per username under here)
+github_root=~/Documents/GitHub
+
+# ─── Account blocks ───────────────────────────────────────────────────────────
+# One block per GitHub account.
+# account <github-username> <commit-email> [Display Name]
+# pat     <your-classic-PAT-token>
+# ssh_key <path-to-your-private-ssh-key>
+
+account youruser you@example.com "Your Name"
+pat ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ssh_key ~/.ssh/id_ed25519_youruser
+
+account yourotheruser other@example.com "Other Name"
+pat ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ssh_key ~/.ssh/id_ed25519_yourotheruser
+
+# ─── Optional: skip bulk clone for an account during dotfiles_setup ───────────
+# clone youruser no
+
+# ─── Optional: shell aliases (path under github_root, or "." = github_root) ──
+alias cdg .
+alias cda youruser
+alias cdf yourotheruser
