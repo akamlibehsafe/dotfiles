@@ -13,7 +13,7 @@ A second set of daily commands (`repo_init`, `repo_clone`, `repo_sync`) handle G
 ```
 dotfiles/
 ├── dotfiles_setup             ← entry point: full Mac bootstrap
-├── dotfiles_reset             ← tears down what dotfiles_setup built
+├── dotfiles_uninstall         ← tears down what dotfiles_setup built
 ├── dotfiles.conf.example      ← committed template
 ├── dotfiles.conf              ← gitignored, your copy (never commit)
 ├── CHANGELOG.md
@@ -204,14 +204,14 @@ Then exits. No partial setup.
 
 ---
 
-## Script: `dotfiles_reset`
+## Script: `dotfiles_uninstall`
 
 ### Purpose
 Interactively removes everything `dotfiles_setup` installed. Useful for testing the installer. Does not remove Homebrew.
 
 ### Usage
 ```bash
-./dotfiles_reset
+./dotfiles_uninstall
 ```
 
 ### Behavior
@@ -428,7 +428,7 @@ Sourced by other scripts. Never executed directly.
 
 | Pattern | Example | Where |
 |---|---|---|
-| Entry points | `dotfiles_setup`, `dotfiles_reset` | repo root |
+| Entry points | `dotfiles_setup`, `dotfiles_uninstall` | repo root |
 | Daily commands | `repo_init`, `repo_clone`, `repo_sync` | `scripts/repo/`, `~/bin/` |
 | Setup tools | `setup_check`, `setup_pats`, `setup_ssh` | `scripts/setup/` |
 | App installers | `iterm2`, `ghostty`, `warp`, `cursor` | `scripts/apps/` |
