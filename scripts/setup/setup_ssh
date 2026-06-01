@@ -47,25 +47,19 @@ log_action() {
     fi
 }
 
-# ─── Install SSH key from dotfiles.conf path ──────────────────────────────────
+# ─── Install SSH key from base64 in dotfiles.conf ─────────────────────────────
 
 install_key() {
     local user="$1"
-    local src_key dest_key dest_pub
+    local b64 dest_key dest_pub
 
-    src_key="$(dotfiles_account_ssh_key "$user")"
+    b64="$(dotfiles_account_ssh_b64 "$user")"
     dest_key="$(dotfiles_account_key_path "$user")"
     dest_pub="${dest_key}.pub"
 
-    if [ -z "$src_key" ]; then
-        dotfiles_ui_info "  No ssh_key defined in dotfiles.conf for ${user} — skipping key install"
+    if [ -z "$b64" ]; then
+        dotfiles_ui_info "  No ssh_private defined in dotfiles.conf for ${user} — skipping key install"
         return 0
-    fi
-
-    if [ ! -f "$src_key" ]; then
-        dotfiles_ui_error "  SSH key not found: ${src_key}"
-        dotfiles_ui_info "  Check the ssh_key path in dotfiles.conf for ${user}"
-        return 1
     fi
 
     if [ -f "$dest_key" ] && [ "$MODE" = "repair" ]; then
@@ -73,20 +67,17 @@ install_key() {
         return 0
     fi
 
-    log_action "  Install key: ${src_key} → ${dest_key}"
+    log_action "  Install key for ${user}: ${dest_key}"
     [ "$DRY_RUN" = true ] && return 0
 
     mkdir -p "$DOTFILES_SSH_DIR"
     chmod 700 "$DOTFILES_SSH_DIR"
 
-    cp "$src_key" "$dest_key"
+    echo "$b64" | base64 --decode > "$dest_key"
     chmod 600 "$dest_key"
 
-    # Install public key if it exists alongside the private key
-    if [ -f "${src_key}.pub" ]; then
-        cp "${src_key}.pub" "$dest_pub"
-        chmod 644 "$dest_pub"
-    fi
+    ssh-keygen -y -f "$dest_key" > "$dest_pub"
+    chmod 644 "$dest_pub"
 
     # Add to macOS keychain agent
     ssh-add --apple-use-keychain "$dest_key" 2>/dev/null || \

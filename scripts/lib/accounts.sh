@@ -7,7 +7,7 @@ DOTFILES_ACCOUNT_EMAILS=()
 DOTFILES_ACCOUNT_NAMES=()
 DOTFILES_ACCOUNT_CLONE=()
 DOTFILES_ACCOUNT_PATS=()
-DOTFILES_ACCOUNT_SSH_KEYS=()
+DOTFILES_ACCOUNT_SSH_B64=()
 DOTFILES_SHELL_ALIASES=()
 DOTFILES_GITHUB_ROOT="$HOME/Documents/GitHub"
 DOTFILES_ACCOUNTS_LOADED=false
@@ -101,7 +101,7 @@ dotfiles_load_accounts() {
                 DOTFILES_ACCOUNT_NAMES+=("${gname:-$user}")
                 DOTFILES_ACCOUNT_CLONE+=("yes")
                 DOTFILES_ACCOUNT_PATS+=("")
-                DOTFILES_ACCOUNT_SSH_KEYS+=("")
+                DOTFILES_ACCOUNT_SSH_B64+=("")
                 current_user="$user"
                 ;;
 
@@ -114,13 +114,13 @@ dotfiles_load_accounts() {
                 DOTFILES_ACCOUNT_PATS[$idx]="${line#pat }"
                 ;;
 
-            ssh_key\ *)
+            ssh_private\ *)
                 if [ -z "$current_user" ]; then
-                    echo "dotfiles.conf: 'ssh_key' line before any 'account' block" >&2
+                    echo "dotfiles.conf: 'ssh_private' line before any 'account' block" >&2
                     return 1
                 fi
                 idx="$(dotfiles_account_index "$current_user")"
-                DOTFILES_ACCOUNT_SSH_KEYS[$idx]="$(dotfiles_expand_path "${line#ssh_key }")"
+                DOTFILES_ACCOUNT_SSH_B64[$idx]="${line#ssh_private }"
                 ;;
 
             clone\ *)
@@ -198,10 +198,10 @@ dotfiles_account_pat() {
     echo "${DOTFILES_ACCOUNT_PATS[$idx]}"
 }
 
-dotfiles_account_ssh_key() {
+dotfiles_account_ssh_b64() {
     local idx
     idx="$(dotfiles_account_index "$1")" || return 1
-    echo "${DOTFILES_ACCOUNT_SSH_KEYS[$idx]}"
+    echo "${DOTFILES_ACCOUNT_SSH_B64[$idx]}"
 }
 
 dotfiles_account_pat_var() {
