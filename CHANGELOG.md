@@ -2,9 +2,26 @@
 
 ## Unreleased
 
-- (Add short notes here; run `doc_release X.Y.Z` when tagging.)
+- (Add short notes here when tagging 0.5.0.)
+
+## 0.5.0 - Unreleased (in progress)
+
+### Breaking
+- Repo renamed from `gitscripts` to `dotfiles`
+- Daily commands renamed: `git_push` → `repo_sync`, `git_create_from_local` → `repo_init`, `git_create_from_remote` → `repo_clone`
+- Bootstrap renamed: `environment_install` → `mac_setup`, `environment_uninstall` → `mac_reset`
+- Scripts reorganised: `scripts/repo/`, `scripts/setup/`, `scripts/apps/`, `scripts/lib/`
+
+### Added
+- Pluggable app installers under `scripts/apps/` (iterm2, ghostty, warp, cursor)
+- Config files captured in `config/` (p10k, ghostty, zshrc template, gitconfig)
+- New tools installed: Python, Node.js, Claude CLI
+- `mac_setup` completes fully — no manual follow-up steps required
+- All commands self-document when invoked with wrong or missing arguments
 
 ### Changed
+- `mac_setup` is now a thin orchestrator over independent phase scripts
+- Each phase script is independently runnable and re-runnable
 - Post-0.4.0 doc cleanup: `docs/ai-context.md`, `docs/PLAN-0.4.0-gitscripts.md`, ADR 0005, ssh map; removed obsolete `context mgt.txt`
 
 ## 0.4.0 - 2026-05-23
