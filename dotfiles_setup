@@ -108,17 +108,16 @@ fi
 # GitHub root
 [ -d "$DOTFILES_GITHUB_ROOT" ] && STATE_GITHUB_ROOT=true
 
-# PATs — check env vars are set and valid
+# PATs — true only if GH_TOKEN_* exports are already present in shell config
+# (meaning a previous dotfiles_setup already ran). On a clean machine this
+# will always be false even if dotfiles.conf has valid PATs.
 _pat_ok=true
 for _u in "${DOTFILES_ACCOUNTS[@]}"; do
     _pv="$(dotfiles_account_pat_var "$_u")"
-    _pat="$(dotfiles_account_pat_resolved "$_u" || true)"
-    [ -n "$_pat" ] && export "${_pv}=${_pat}"
-    _status="$(dotfiles_verify_pat_api "$_pv" "$_u" || true)"
-    [ "$_status" = "ok" ] || _pat_ok=false
+    grep -q "^export ${_pv}=" "$SHELL_CONFIG" 2>/dev/null || { _pat_ok=false; break; }
 done
 $_pat_ok && STATE_PATS=true
-unset _u _pv _pat _status _pat_ok
+unset _u _pv _pat_ok
 
 # SSH — keys exist, config blocks present, and all accounts authenticated
 _ssh_ok=true
