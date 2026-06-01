@@ -58,8 +58,13 @@ dotfiles_load_accounts() {
 
     local conf
     conf="$(dotfiles_find_conf)" || {
-        dotfiles_conf_missing_error
-        return 1
+        # No conf found — warn but continue with empty accounts so that
+        # dotfiles_uninstall can still run (it skips account-specific steps
+        # gracefully when DOTFILES_ACCOUNTS is empty).
+        dotfiles_ui_info "Warning: dotfiles.conf not found — account-specific steps will be skipped."
+        dotfiles_ui_info "To run dotfiles_setup, copy the template first: cp dotfiles.conf.example dotfiles.conf"
+        DOTFILES_ACCOUNTS_LOADED=true
+        return 0
     }
 
     local line rest user email gname clone_flag alias_name alias_path idx
