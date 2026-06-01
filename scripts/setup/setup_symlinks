@@ -1,0 +1,175 @@
+#!/bin/bash
+# setup_symlinks — create ~/bin/ symlinks for scripts/repo/* commands
+# Removes deprecated symlink names from previous versions.
+# Safe to re-run at any time.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd -P)"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+
+# shellcheck source=../lib/init.sh
+source "${SCRIPTS_ROOT}/lib/init.sh"
+source "${SCRIPTS_ROOT}/lib/manifest.sh"
+dotfiles_ui_colors
+
+# ─── helpers ──────────────────────────────────────────────────────────────────
+
+_symlink_real_target() {
+    local link="$1" target dir
+    target=$(readlink "$link")
+    if [[ "$target" != /* ]]; then
+        dir=$(cd "$(dirname "$link")" && pwd)
+        target="${dir}/${target}"
+    fi
+    echo "$(cd "$(dirname "$target")" && pwd -P)/$(basename "$target")"
+}
+
+# ─── ensure ~/bin exists ──────────────────────────────────────────────────────
+
+dotfiles_ui_section "setup_symlinks"
+dotfiles_ui_info "Symlinking scripts/repo/* → ~/bin/"
+echo ""
+
+if [ ! -d "$HOME/bin" ]; then
+    dotfiles_ui_info "Creating ~/bin/..."
+    mkdir -p "$HOME/bin"
+    dotfiles_ui_success "Created ~/bin/"
+fi
+
+# ─── ensure ~/bin is on PATH in shell config ─────────────────────────────────
+
+SHELL_CONFIG="$(dotfiles_shell_config)"
+PATH_LINE='export PATH="$HOME/bin:$PATH"'
+
+if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+    dotfiles_ui_info "Adding ~/bin to PATH in ${SHELL_CONFIG}..."
+    {
+        echo ""
+        echo "# Add ~/bin to PATH for dotfiles commands"
+        echo "${PATH_LINE}"
+    } >>"$SHELL_CONFIG"
+    export PATH="$HOME/bin:$PATH"
+    dotfiles_ui_success "Added ~/bin to PATH"
+else
+    dotfiles_ui_info "~/bin already in PATH"
+fi
+
+# ─── remove deprecated symlinks ───────────────────────────────────────────────
+
+echo ""
+dotfiles_ui_info "Removing deprecated symlinks from ~/bin/..."
+_removed=0
+for old in "${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"; do
+    target="$HOME/bin/$old"
+    if [ -L "$target" ] || [ -f "$target" ]; then
+        rm -f "$target"
+        dotfiles_ui_success "  removed: $old"
+        _removed=$((_removed + 1))
+    fi
+done
+[ "$_removed" -eq 0 ] && dotfiles_ui_info "  none found"
+
+# ─── create/update symlinks ───────────────────────────────────────────────────
+
+echo ""
+dotfiles_ui_info "Creating symlinks..."
+
+CREATED=0
+UPDATED=0
+SKIPPED=0
+FAILED=0
+
+for entry in "${DOTFILES_BIN_ENTRIES[@]}"; do
+    symlink_name="${entry%%:*}"
+    rel_path="${entry#*:}"
+    script_abs="${SCRIPTS_ROOT}/${rel_path}"
+    symlink_abs="$HOME/bin/${symlink_name}"
+
+    if [ ! -f "$script_abs" ]; then
+        dotfiles_ui_info "  ⚠ skipped: ${symlink_name} (script not found at ${rel_path})"
+        SKIPPED=$((SKIPPED + 1))
+        continue
+    fi
+
+    # Ensure script is executable
+    chmod +x "$script_abs"
+
+    if [ -L "$symlink_abs" ]; then
+        current_target=$(_symlink_real_target "$symlink_abs")
+        desired_target="$(cd "$(dirname "$script_abs")" && pwd -P)/$(basename "$script_abs")"
+        if [ "$current_target" = "$desired_target" ]; then
+            dotfiles_ui_info "  ✓ already correct: ${symlink_name}"
+            SKIPPED=$((SKIPPED + 1))
+        else
+            rm "$symlink_abs"
+            ln -s "$script_abs" "$symlink_abs"
+            dotfiles_ui_success "  ↻ updated: ${symlink_name}"
+            UPDATED=$((UPDATED + 1))
+        fi
+    elif [ -f "$symlink_abs" ]; then
+        dotfiles_ui_prompt "  ⚠ ${symlink_name} exists as a regular file in ~/bin/. Overwrite? (y/N)"
+        read -r resp
+        if [[ "$resp" =~ ^[Yy]$ ]]; then
+            rm "$symlink_abs"
+            ln -s "$script_abs" "$symlink_abs"
+            dotfiles_ui_success "  ✓ created: ${symlink_name}"
+            CREATED=$((CREATED + 1))
+        else
+            dotfiles_ui_info "  skipped: ${symlink_name}"
+            SKIPPED=$((SKIPPED + 1))
+        fi
+    else
+        ln -s "$script_abs" "$symlink_abs"
+        dotfiles_ui_success "  ✓ created: ${symlink_name}"
+        CREATED=$((CREATED + 1))
+    fi
+done
+
+# ─── verify ───────────────────────────────────────────────────────────────────
+
+echo ""
+dotfiles_ui_info "Verifying symlinks..."
+ALL_OK=true
+for entry in "${DOTFILES_BIN_ENTRIES[@]}"; do
+    symlink_name="${entry%%:*}"
+    rel_path="${entry#*:}"
+    script_abs="${SCRIPTS_ROOT}/${rel_path}"
+    symlink_abs="$HOME/bin/${symlink_name}"
+
+    [ -f "$script_abs" ] || continue   # skip if script doesn't exist yet
+
+    if [ -L "$symlink_abs" ] && [ -f "$(_symlink_real_target "$symlink_abs")" ]; then
+        dotfiles_ui_success "  ✓ ${symlink_name}"
+    else
+        dotfiles_ui_error "  ✗ ${symlink_name} — symlink missing or broken"
+        ALL_OK=false
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# ─── summary ──────────────────────────────────────────────────────────────────
+
+echo ""
+dotfiles_ui_info "Summary: created=${CREATED} updated=${UPDATED} skipped=${SKIPPED} failed=${FAILED}"
+
+if [ "$ALL_OK" = true ]; then
+    echo ""
+    dotfiles_ui_success "Symlinks ready. Commands available on PATH:"
+    for entry in "${DOTFILES_BIN_ENTRIES[@]}"; do
+        echo "  • ${entry%%:*}"
+    done
+    echo ""
+    dotfiles_ui_info "Reload your shell to pick up PATH changes:"
+    echo "  source ${SHELL_CONFIG}"
+else
+    echo ""
+    dotfiles_ui_error "Some symlinks could not be created. Check the errors above."
+    exit 1
+fi
