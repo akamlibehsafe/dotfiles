@@ -50,6 +50,58 @@ Three accounts are in use — all defined in `dotfiles.conf` (never hardcoded in
 
 Currently at **v0.5.0 (unreleased, in progress)**. Tag is applied only when fully tested on a fresh machine. Do not tag prematurely.
 
+## Testing workflow
+
+Full test cycle before tagging a release. Run on the current machine (not a VM).
+
+### 1. Uninstall
+```bash
+./dotfiles_uninstall --keep-repos
+```
+- Answer prompts — say **n** to uninstalling Claude desktop and Homebrew
+- When done, open a new terminal and run `source ~/.zshrc`
+- Verify no errors (no dangling oh-my-zsh references)
+
+### 2. Verify clean state
+```bash
+env | grep GH_TOKEN     # should return nothing
+ls ~/.ssh/dotfiles      # should not exist
+cat ~/.zshrc            # should have no oh-my-zsh or GH_TOKEN lines
+```
+
+### 3. Install
+```bash
+./dotfiles_setup
+```
+- Confirm each phase completes with ✓
+- Say **n** to apps already confirmed working in previous runs
+- Say **n** to bulk clone during iterative tests (run separately after)
+
+### 4. Verify install
+```bash
+source ~/.zshrc         # should load cleanly with no errors
+ssh -T git@github-rbonon        # should say "successfully authenticated"
+ssh -T git@github-akamlibehsafe
+ssh -T git@github-fortegb
+repo_sync               # test daily command is available
+```
+
+### 5. Test repo cloning
+Run `dotfiles_setup` with bulk clone enabled, or run `repo_clone` manually per account.
+Verify repos land under `~/Documents/GitHub/<username>/`.
+
+### 6. Full uninstall including repos
+```bash
+./dotfiles_uninstall    # this time say y to repo folder removal
+```
+Verify `~/Documents/GitHub/<username>/` folders are gone.
+
+### Release gate
+Tag only after a full clean cycle (uninstall → install → verify → uninstall) passes with no errors.
+```bash
+git tag v0.5.0 && git push origin v0.5.0
+```
+
 ## Important rules
 
 - Never hardcode GitHub usernames — always read from `DOTFILES_ACCOUNTS[]`
