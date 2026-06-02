@@ -299,7 +299,8 @@ if [ -d "$HOME/.oh-my-zsh" ]; then
             dotfiles_remove_lines_matching "$HOME/.zshrc" 'export ZSH='
             dotfiles_remove_lines_matching "$HOME/.zshrc" 'ZSH_THEME='
             dotfiles_remove_lines_matching "$HOME/.zshrc" 'zsh-syntax-highlighting\.zsh'
-            dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k-instant-prompt'
+            # Remove entire p10k instant-prompt if/fi block
+            sed -i '' '/p10k-instant-prompt/,/^fi$/d' "$HOME/.zshrc" 2>/dev/null || true
             dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k\.zsh'
             dotfiles_remove_lines_matching "$HOME/.zshrc" 'POWERLEVEL9K_DISABLE'
             dotfiles_ui_success "  Removed oh-my-zsh references from ~/.zshrc"
@@ -310,7 +311,8 @@ elif [ "$_omz_zshrc_refs" = true ] && [ -f "$HOME/.zshrc" ]; then
     dotfiles_remove_lines_matching "$HOME/.zshrc" 'export ZSH='
     dotfiles_remove_lines_matching "$HOME/.zshrc" 'ZSH_THEME='
     dotfiles_remove_lines_matching "$HOME/.zshrc" 'zsh-syntax-highlighting\.zsh'
-    dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k-instant-prompt'
+    # Remove entire p10k instant-prompt if/fi block
+    sed -i '' '/p10k-instant-prompt/,/^fi$/d' "$HOME/.zshrc" 2>/dev/null || true
     dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k\.zsh'
     dotfiles_remove_lines_matching "$HOME/.zshrc" 'POWERLEVEL9K_DISABLE'
     dotfiles_ui_success "  Cleaned leftover oh-my-zsh references from ~/.zshrc"
@@ -357,7 +359,7 @@ fi
 
 section "Remove Dock icons"
 
-DOCK_APPS=("iTerm" "Cursor" "Claude" "Typora" "Arc" "Zed" "Sublime Text" "TextMate")
+DOCK_APPS=("iTerm" "Ghostty" "Warp" "Cursor" "Claude" "Typora" "Arc" "Zed" "Sublime Text" "TextMate")
 
 if command -v dockutil &>/dev/null; then
     dock_changed=false
