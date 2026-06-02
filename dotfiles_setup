@@ -426,11 +426,25 @@ fi
 
 run_phase "Phase 8: Apps"
 
+app_is_installed() {
+    case "$1" in
+        iterm2)    [ -d "/Applications/iTerm.app" ] ;;
+        ghostty)   [ -d "/Applications/Ghostty.app" ] ;;
+        warp)      [ -d "/Applications/Warp.app" ] ;;
+        cursor)    [ -d "/Applications/Cursor.app" ] ;;
+        claude)    [ -d "/Applications/Claude.app" ] ;;
+        claude-cli) command -v claude &>/dev/null ;;
+    esac
+}
+
 for app in iterm2 ghostty warp cursor claude claude-cli; do
     app_script="${SCRIPTS_ROOT}/apps/${app}"
     if [ -f "$app_script" ]; then
         dotfiles_ui_section "${app}"
-        if confirm "Install ${app}?"; then
+        if app_is_installed "$app"; then
+            dotfiles_ui_success "  ${app} already installed — running config only"
+            bash "$app_script"
+        elif confirm "Install ${app}?"; then
             bash "$app_script"
         else
             phase_skip "$app"
