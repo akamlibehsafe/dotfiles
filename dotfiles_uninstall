@@ -49,7 +49,7 @@ confirm() {
     [[ "$ans" =~ ^[Yy]$ ]]
 }
 
-section() { dotfiles_ui_section "$1"; }
+section() { dotfiles_ui_section_warn "$1"; }
 
 brew_uninstall() {
     local pkg="$1" flag="${2:-}"
