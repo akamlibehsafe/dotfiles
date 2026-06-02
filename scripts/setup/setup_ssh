@@ -74,7 +74,7 @@ install_key() {
     mkdir -p "$DOTFILES_SSH_DIR"
     chmod 700 "$DOTFILES_SSH_DIR"
 
-    printf '%s' "$pem" > "$dest_key"
+    printf '%s\n' "$pem" > "$dest_key"
     chmod 600 "$dest_key"
 
     ssh-keygen -y -f "$dest_key" > "$dest_pub"
