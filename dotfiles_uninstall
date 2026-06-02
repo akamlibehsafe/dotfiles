@@ -318,7 +318,7 @@ DOCK_APPS=("iTerm" "Cursor" "Claude")
 if command -v dockutil &>/dev/null; then
     dock_changed=false
     for app in "${DOCK_APPS[@]}"; do
-        if defaults read com.apple.dock persistent-apps 2>/dev/null | grep -q "\"${app}\""; then
+        if defaults read com.apple.dock persistent-apps 2>/dev/null | grep -q "file-label\" = \"*${app}"; then
             if confirm "Remove ${app} from Dock?"; then
                 dockutil --remove "$app" --no-restart 2>/dev/null || true
                 dotfiles_ui_success "  Removed ${app} from Dock"
