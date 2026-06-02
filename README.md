@@ -1,12 +1,12 @@
 # dotfiles
 
-Personal macOS development environment. Run `dotfiles_setup` on a fresh Mac and get a fully working environment — no manual steps after it finishes.
+Personal macOS development environment. Run `dotfiles_install` on a fresh Mac and get a fully working environment — no manual steps after it finishes.
 
 ---
 
 ## Before you start
 
-Two files are needed at the repo root before running `dotfiles_setup`. Neither is committed — both are gitignored.
+Two files are needed at the repo root before running `dotfiles_install`. Neither is committed — both are gitignored.
 
 ### 1. `dotfiles.conf`
 
@@ -28,7 +28,7 @@ b3BlbnNzaC1rZXktdjEA...
 -----END OPENSSH PRIVATE KEY-----
 ```
 
-`dotfiles_setup` writes the key to `~/.ssh/dotfiles/`, derives the public key automatically, and configures SSH host aliases per account. No pre-existing key files needed on the new machine.
+`dotfiles_install` writes the key to `~/.ssh/dotfiles/`, derives the public key automatically, and configures SSH host aliases per account. No pre-existing key files needed on the new machine.
 
 ---
 
@@ -36,10 +36,10 @@ b3BlbnNzaC1rZXktdjEA...
 
 ```bash
 cd /path/to/dotfiles
-./dotfiles_setup
+./dotfiles_install
 ```
 
-`dotfiles_setup` is safe to re-run — it detects what is already configured and skips those phases.
+`dotfiles_install` is safe to re-run — it detects what is already configured and skips those phases.
 
 ### What it installs
 
@@ -150,8 +150,8 @@ For testing (keeps repo folders):
 
 ```
 dotfiles/
-├── dotfiles_setup             ← entry point: run on a fresh Mac
-├── dotfiles_uninstall         ← undo everything dotfiles_setup did
+├── dotfiles_install             ← entry point: run on a fresh Mac
+├── dotfiles_uninstall         ← undo everything dotfiles_install did
 ├── dotfiles.conf.example      ← template (copy to dotfiles.conf)
 ├── dotfiles.conf              ← your config (gitignored, never commit)
 ├── config/
@@ -171,7 +171,7 @@ dotfiles/
     │   ├── setup_ssh
     │   ├── setup_migrate
     │   └── setup_symlinks
-    ├── apps/                  ← app installers (called by dotfiles_setup)
+    ├── apps/                  ← app installers (called by dotfiles_install)
     │   ├── iterm2
     │   ├── ghostty
     │   ├── warp

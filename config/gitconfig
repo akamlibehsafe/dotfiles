@@ -1,5 +1,5 @@
 # gitconfig — dotfiles global git configuration
-# Applied by dotfiles_setup to ~/.gitconfig base
+# Applied by dotfiles_install to ~/.gitconfig base
 # Per-account identity is handled via includeIf blocks (set up by setup_ssh)
 
 [init]

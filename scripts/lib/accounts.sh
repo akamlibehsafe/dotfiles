@@ -62,7 +62,7 @@ dotfiles_load_accounts() {
         # dotfiles_uninstall can still run (it skips account-specific steps
         # gracefully when DOTFILES_ACCOUNTS is empty).
         dotfiles_ui_info "Warning: dotfiles.conf not found — account-specific steps will be skipped."
-        dotfiles_ui_info "To run dotfiles_setup, copy the template first: cp dotfiles.conf.example dotfiles.conf"
+        dotfiles_ui_info "To run dotfiles_install, copy the template first: cp dotfiles.conf.example dotfiles.conf"
         DOTFILES_ACCOUNTS_LOADED=true
         return 0
     }
@@ -181,7 +181,7 @@ dotfiles_conf_missing_error() {
     cat >&2 <<EOF
 Error: dotfiles.conf not found.
 
-Copy the template and fill in your details before running dotfiles_setup:
+Copy the template and fill in your details before running dotfiles_install:
   cp dotfiles.conf.example dotfiles.conf
 
 See dotfiles.conf.example for the required format.

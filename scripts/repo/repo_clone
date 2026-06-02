@@ -63,7 +63,7 @@ dotfiles_ui_info "From    : ${CLONE_URL}"
 dotfiles_ui_info "Into    : ${DEST}"
 echo ""
 
-command -v git &>/dev/null || dotfiles_die "git not found. Run dotfiles_setup first."
+command -v git &>/dev/null || dotfiles_die "git not found. Run dotfiles_install first."
 
 # ─── clone ────────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 # zshrc — dotfiles base shell configuration
-# Applied by dotfiles_setup (merged into ~/.zshrc, not replacing it)
+# Applied by dotfiles_install (merged into ~/.zshrc, not replacing it)
 
 # Oh My Zsh
 export ZSH="$HOME/.oh-my-zsh"

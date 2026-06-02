@@ -2,7 +2,7 @@
 
 ## Purpose
 
-One repository, one goal: run `dotfiles_setup` on a fresh macOS machine and get a fully working personal development environment. No manual steps after it finishes.
+One repository, one goal: run `dotfiles_install` on a fresh macOS machine and get a fully working personal development environment. No manual steps after it finishes.
 
 A second set of daily commands (`repo_init`, `repo_clone`, `repo_sync`) handle GitHub workflow across multiple accounts from that point forward.
 
@@ -12,13 +12,13 @@ A second set of daily commands (`repo_init`, `repo_clone`, `repo_sync`) handle G
 
 ```
 dotfiles/
-├── dotfiles_setup             ← entry point: full Mac bootstrap
-├── dotfiles_uninstall         ← tears down what dotfiles_setup built
+├── dotfiles_install             ← entry point: full Mac bootstrap
+├── dotfiles_uninstall         ← tears down what dotfiles_install built
 ├── dotfiles.conf.example      ← committed template
 ├── dotfiles.conf              ← gitignored, your copy (never commit)
 ├── CHANGELOG.md
 ├── README.md
-├── config/                    ← your personal config files (applied by dotfiles_setup)
+├── config/                    ← your personal config files (applied by dotfiles_install)
 │   ├── p10k.zsh               ← Powerlevel10k config (captured from current machine)
 │   ├── zshrc                  ← Zsh config template
 │   ├── gitconfig              ← global Git config template
@@ -37,7 +37,7 @@ dotfiles/
     │   ├── setup_ssh          ← SSH keys + config + git identity
     │   ├── setup_migrate      ← migrate HTTPS remotes to SSH aliases
     │   └── setup_symlinks     ← wire scripts/repo/* into ~/bin/
-    ├── apps/                  ← pluggable app installers (called by dotfiles_setup)
+    ├── apps/                  ← pluggable app installers (called by dotfiles_install)
     │   ├── iterm2
     │   ├── ghostty
     │   ├── warp
@@ -55,7 +55,7 @@ dotfiles/
 
 Single configuration file at the repo root. Replaces the former `accounts.conf` and any separate credentials file. **Never commit `dotfiles.conf`** — it is gitignored.
 
-Create your copy before running `dotfiles_setup`:
+Create your copy before running `dotfiles_install`:
 
 ```bash
 cp dotfiles.conf.example dotfiles.conf
@@ -87,7 +87,7 @@ b3BlbnNzaC1rZXktdjEA...
 -----END OPENSSH PRIVATE KEY-----
 
 # --- Optional ---
-# Skip bulk clone for an account during dotfiles_setup
+# Skip bulk clone for an account during dotfiles_install
 # clone youruser no
 
 # Shell aliases (path under github_root, or "." = github_root itself)
@@ -112,7 +112,7 @@ GitHub → Settings → Developer settings → Personal access tokens → Tokens
 Required scope: `repo`. Recommended: no expiration.
 
 ### SSH keys
-Paste the full PEM block of your private key under `ssh_private`. Copy it directly from 1Password or from your key file (`cat ~/.ssh/id_ed25519_youruser`). `dotfiles_setup` writes it to `~/.ssh/dotfiles/id_ed25519_<username>`, derives the public key via `ssh-keygen -y`, configures the SSH host alias, and adds it to the macOS keychain. No pre-existing key files needed on the new machine.
+Paste the full PEM block of your private key under `ssh_private`. Copy it directly from 1Password or from your key file (`cat ~/.ssh/id_ed25519_youruser`). `dotfiles_install` writes it to `~/.ssh/dotfiles/id_ed25519_<username>`, derives the public key via `ssh-keygen -y`, configures the SSH host alias, and adds it to the macOS keychain. No pre-existing key files needed on the new machine.
 
 ---
 
@@ -160,7 +160,7 @@ Used for GitHub API calls only (repo creation in `repo_init`, bulk clone). Not e
 
 ---
 
-## Script: `dotfiles_setup`
+## Script: `dotfiles_install`
 
 ### Purpose
 Full Mac bootstrap. Orchestrates all phases in order. Stops on failure — does not silently continue past errors.
@@ -168,7 +168,7 @@ Full Mac bootstrap. Orchestrates all phases in order. Stops on failure — does 
 ### Usage
 ```bash
 cd /path/to/dotfiles
-./dotfiles_setup
+./dotfiles_install
 ```
 
 ### Pre-flight check
@@ -176,7 +176,7 @@ Before doing anything, checks for `dotfiles.conf` at the repo root. If missing:
 ```
 dotfiles.conf not found.
 
-Copy the template and fill in your details before running dotfiles_setup:
+Copy the template and fill in your details before running dotfiles_install:
   cp dotfiles.conf.example dotfiles.conf
 
 See dotfiles.conf.example for the required format.
@@ -200,14 +200,14 @@ Then exits. No partial setup.
 13. **Source shell** — source `~/.zshrc` so everything is live in current session
 
 ### Contract
-`dotfiles_setup` exits 0 only when the environment is fully ready. If it exits 0, no manual follow-up is needed.
+`dotfiles_install` exits 0 only when the environment is fully ready. If it exits 0, no manual follow-up is needed.
 
 ---
 
 ## Script: `dotfiles_uninstall`
 
 ### Purpose
-Interactively removes everything `dotfiles_setup` installed. Useful for testing the installer. Does not remove Homebrew.
+Interactively removes everything `dotfiles_install` installed. Useful for testing the installer. Does not remove Homebrew.
 
 ### Usage
 ```bash
@@ -363,7 +363,7 @@ Creates symlinks in `~/bin/` for all scripts in `scripts/repo/`. Updates PATH in
 
 ## App installers (`scripts/apps/`)
 
-Each is a self-contained script that installs one app and applies its config. Called by `dotfiles_setup` but also runnable standalone.
+Each is a self-contained script that installs one app and applies its config. Called by `dotfiles_install` but also runnable standalone.
 
 | Script | Installs | Config applied |
 |---|---|---|
@@ -372,7 +372,7 @@ Each is a self-contained script that installs one app and applies its config. Ca
 | `warp` | Warp via Homebrew cask | None (uses Warp cloud sync) |
 | `cursor` | Cursor via Homebrew cask | None |
 
-Adding a new app = add a script to `scripts/apps/`. `dotfiles_setup` picks it up automatically.
+Adding a new app = add a script to `scripts/apps/`. `dotfiles_install` picks it up automatically.
 
 ---
 
@@ -394,7 +394,7 @@ Sourced by other scripts. Never executed directly.
 
 ---
 
-## Core tools installed by `dotfiles_setup`
+## Core tools installed by `dotfiles_install`
 
 | Tool | How |
 |---|---|
@@ -428,7 +428,7 @@ Sourced by other scripts. Never executed directly.
 
 | Pattern | Example | Where |
 |---|---|---|
-| Entry points | `dotfiles_setup`, `dotfiles_uninstall` | repo root |
+| Entry points | `dotfiles_install`, `dotfiles_uninstall` | repo root |
 | Daily commands | `repo_init`, `repo_clone`, `repo_sync` | `scripts/repo/`, `~/bin/` |
 | Setup tools | `setup_check`, `setup_pats`, `setup_ssh` | `scripts/setup/` |
 | App installers | `iterm2`, `ghostty`, `warp`, `cursor` | `scripts/apps/` |

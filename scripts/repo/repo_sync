@@ -70,7 +70,7 @@ dotfiles_ui_info "Repository: $(pwd)"
 
 # ─── detect account from remote ──────────────────────────────────────────────
 
-command -v git &>/dev/null || dotfiles_die "git not found. Run dotfiles_setup first."
+command -v git &>/dev/null || dotfiles_die "git not found. Run dotfiles_install first."
 
 git remote get-url origin &>/dev/null || \
     dotfiles_die "No remote 'origin' configured.\nAdd one: git remote add origin <url>"

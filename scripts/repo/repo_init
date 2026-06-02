@@ -73,7 +73,7 @@ PAT="$(dotfiles_account_pat_resolved "$USERNAME" || true)"
     dotfiles_die "No PAT found for ${USERNAME}.\nRun: scripts/setup/setup_pats"
 
 command -v curl &>/dev/null || dotfiles_die "curl not found."
-command -v git  &>/dev/null || dotfiles_die "git not found. Run dotfiles_setup first."
+command -v git  &>/dev/null || dotfiles_die "git not found. Run dotfiles_install first."
 
 SSH_REMOTE="$(dotfiles_remote_ssh_url "$USERNAME" "$REPO_NAME")"
 

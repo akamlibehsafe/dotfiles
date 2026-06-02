@@ -1,6 +1,6 @@
 #!/bin/bash
 # apps/cursor — install Cursor editor
-# Run standalone or called by dotfiles_setup.
+# Run standalone or called by dotfiles_install.
 
 set -euo pipefail
 

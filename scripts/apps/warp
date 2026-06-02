@@ -1,7 +1,7 @@
 #!/bin/bash
 # apps/warp — install Warp terminal
 # No local config applied — Warp uses cloud sync via your Warp account.
-# Run standalone or called by dotfiles_setup.
+# Run standalone or called by dotfiles_install.
 
 set -euo pipefail
 

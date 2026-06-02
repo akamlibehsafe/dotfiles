@@ -5,7 +5,7 @@
 ### Breaking
 - Repo renamed from `gitscripts` to `dotfiles`
 - Daily commands renamed: `git_push` → `repo_sync`, `git_create_from_local` → `repo_init`, `git_create_from_remote` → `repo_clone`
-- Bootstrap renamed: `environment_install` → `dotfiles_setup`, `environment_uninstall` → `dotfiles_uninstall`
+- Bootstrap renamed: `environment_install` → `dotfiles_install`, `environment_uninstall` → `dotfiles_uninstall`
 - Scripts reorganised: `scripts/repo/`, `scripts/setup/`, `scripts/apps/`, `scripts/lib/`
 - `ssh_key` directive in `dotfiles.conf` replaced by `ssh_private` (full PEM block pasted directly from 1Password or key file)
 
@@ -13,7 +13,7 @@
 - Pluggable app installers under `scripts/apps/` (iterm2, ghostty, warp, cursor, claude, claude-cli)
 - Config files captured in `config/` (p10k, ghostty, zshrc template, gitconfig)
 - New tools installed: Python, Node.js, Git LFS, GitHub CLI, jq, Claude CLI
-- `dotfiles_setup` completes fully — no manual follow-up steps required
+- `dotfiles_install` completes fully — no manual follow-up steps required
 - All commands self-document when invoked with wrong or missing arguments
 - Pre-flight state detection — setup skips already-configured phases
 - macOS Dock configuration: pins iTerm2, Cursor, Claude to Dock (via dockutil)
@@ -37,7 +37,7 @@
 - `git lfs install` uses `--skip-repo` to avoid adding hooks to repos
 
 ### Changed
-- `dotfiles_setup` is now a thin orchestrator over independent phase scripts
+- `dotfiles_install` is now a thin orchestrator over independent phase scripts
 - Each phase script is independently runnable and re-runnable
 - SSH keys stored as full PEM blocks in `dotfiles.conf` — no encoding needed
 - App install prompts skipped when app is already installed

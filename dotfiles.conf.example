@@ -43,7 +43,7 @@ b3BlbnNzaC1rZXktdjEAAAA...
 
 
 
-# ─── Optional: skip bulk clone for an account during dotfiles_setup ───────────
+# ─── Optional: skip bulk clone for an account during dotfiles_install ───────────
 # clone youruser no
 
 # ─── Optional: shell aliases (path under github_root, or "." = github_root) ──

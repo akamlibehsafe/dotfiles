@@ -1,5 +1,5 @@
 #!/bin/bash
-# dotfiles_setup — full macOS development environment bootstrap
+# dotfiles_install — full macOS development environment bootstrap
 # Run once on a fresh Mac. When it exits 0, the environment is fully ready.
 
 set -euo pipefail

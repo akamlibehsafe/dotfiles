@@ -1,5 +1,5 @@
 #!/bin/bash
-# dotfiles_uninstall — remove everything installed by dotfiles_setup
+# dotfiles_uninstall — remove everything installed by dotfiles_install
 # Interactive: prompts before each removal step.
 # Does NOT remove Homebrew.
 #
@@ -178,45 +178,73 @@ fi
 section "Remove SSH config blocks"
 
 SSH_CONFIG="$HOME/.ssh/config"
-if [ -f "$SSH_CONFIG" ] && confirm "Remove dotfiles SSH host blocks from ~/.ssh/config?"; then
-    for user in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
-        host="$(dotfiles_account_ssh_host "$user")"
-        for prefix in "dotfiles-managed" "gitscripts-managed"; do
-            marker_begin="# ${prefix}-begin ${host}"
-            marker_end="# ${prefix}-end ${host}"
-            if grep -q "$marker_begin" "$SSH_CONFIG" 2>/dev/null; then
-                if [[ "$(uname)" == "Darwin" ]]; then
-                    sed -i '' "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
-                else
-                    sed -i "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
-                fi
-                dotfiles_ui_success "  Removed SSH block for ${host} (${prefix})"
-            fi
+
+_found_ssh_blocks=false
+if [ -f "$SSH_CONFIG" ]; then
+    for _u in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
+        _host="$(dotfiles_account_ssh_host "$_u")"
+        for _prefix in "dotfiles-managed" "gitscripts-managed"; do
+            grep -q "# ${_prefix}-begin ${_host}" "$SSH_CONFIG" 2>/dev/null && _found_ssh_blocks=true && break 2
         done
     done
+fi
+unset _u _host _prefix
+
+if [ "$_found_ssh_blocks" = true ]; then
+    if confirm "Remove dotfiles SSH host blocks from ~/.ssh/config?"; then
+        for user in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
+            host="$(dotfiles_account_ssh_host "$user")"
+            for prefix in "dotfiles-managed" "gitscripts-managed"; do
+                marker_begin="# ${prefix}-begin ${host}"
+                marker_end="# ${prefix}-end ${host}"
+                if grep -q "$marker_begin" "$SSH_CONFIG" 2>/dev/null; then
+                    if [[ "$(uname)" == "Darwin" ]]; then
+                        sed -i '' "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
+                    else
+                        sed -i "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
+                    fi
+                    dotfiles_ui_success "  Removed SSH block for ${host} (${prefix})"
+                fi
+            done
+        done
+    fi
+else
+    dotfiles_ui_info "  No dotfiles SSH blocks found in ~/.ssh/config, skipping"
 fi
 
 # ─── 7. Remove git identity includeIf and per-account gitconfigs ─────────────
 
 section "Remove git identity config"
 
-if confirm "Remove includeIf blocks and ~/.gitconfig-<user> files?"; then
-    for user in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
-        cfg="$HOME/.gitconfig-${user}"
-        if [ -f "$cfg" ]; then
-            rm -f "$cfg"
-            dotfiles_ui_success "  Removed $cfg"
+_found_git_identity=false
+for _u in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
+    [ -f "$HOME/.gitconfig-${_u}" ] && _found_git_identity=true && break
+done
+if [ "$_found_git_identity" = false ] && [ -f "$HOME/.gitconfig" ]; then
+    grep -q 'includeIf "gitdir:.*Documents/GitHub' "$HOME/.gitconfig" 2>/dev/null && _found_git_identity=true
+fi
+unset _u
+
+if [ "$_found_git_identity" = true ]; then
+    if confirm "Remove includeIf blocks and ~/.gitconfig-<user> files?"; then
+        for user in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
+            cfg="$HOME/.gitconfig-${user}"
+            if [ -f "$cfg" ]; then
+                rm -f "$cfg"
+                dotfiles_ui_success "  Removed $cfg"
+            fi
+        done
+        if [ -f "$HOME/.gitconfig" ]; then
+            if [[ "$(uname)" == "Darwin" ]]; then
+                sed -i '' '/\[includeIf "gitdir:.*Documents\/GitHub/,/path = ~\/.gitconfig-/d' "$HOME/.gitconfig" 2>/dev/null || true
+            else
+                sed -i '/\[includeIf "gitdir:.*Documents\/GitHub/,/path = ~\/.gitconfig-/d' "$HOME/.gitconfig" 2>/dev/null || true
+            fi
+            dotfiles_ui_success "  Removed includeIf blocks from ~/.gitconfig"
         fi
-    done
-    # Remove includeIf blocks from ~/.gitconfig
-    if [ -f "$HOME/.gitconfig" ]; then
-        if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i '' '/\[includeIf "gitdir:.*Documents\/GitHub/,/path = ~\/.gitconfig-/d' "$HOME/.gitconfig" 2>/dev/null || true
-        else
-            sed -i '/\[includeIf "gitdir:.*Documents\/GitHub/,/path = ~\/.gitconfig-/d' "$HOME/.gitconfig" 2>/dev/null || true
-        fi
-        dotfiles_ui_success "  Removed includeIf blocks from ~/.gitconfig"
     fi
+else
+    dotfiles_ui_info "  No git identity config found, skipping"
 fi
 
 # ─── 8. Remove SSH keys ──────────────────────────────────────────────────────
@@ -254,13 +282,14 @@ fi
 
 section "Remove Oh My Zsh and Powerlevel10k"
 
-if [ -d "$HOME/.oh-my-zsh" ] || grep -q "oh-my-zsh" "$HOME/.zshrc" 2>/dev/null; then
+_omz_zshrc_refs=false
+grep -q "oh-my-zsh" "$HOME/.zshrc" 2>/dev/null && _omz_zshrc_refs=true
+
+if [ -d "$HOME/.oh-my-zsh" ]; then
     if confirm "Remove Oh My Zsh (~/.oh-my-zsh)?"; then
-        if [ -d "$HOME/.oh-my-zsh" ]; then
-            rm -rf "$HOME/.oh-my-zsh"
-            dotfiles_ui_success "  Removed ~/.oh-my-zsh"
-        fi
-        if [ -f "$HOME/.zshrc" ]; then
+        rm -rf "$HOME/.oh-my-zsh"
+        dotfiles_ui_success "  Removed ~/.oh-my-zsh"
+        if [ "$_omz_zshrc_refs" = true ] && [ -f "$HOME/.zshrc" ]; then
             dotfiles_remove_lines_matching "$HOME/.zshrc" 'oh-my-zsh\.sh'
             dotfiles_remove_lines_matching "$HOME/.zshrc" 'export ZSH='
             dotfiles_remove_lines_matching "$HOME/.zshrc" 'ZSH_THEME='
@@ -271,6 +300,15 @@ if [ -d "$HOME/.oh-my-zsh" ] || grep -q "oh-my-zsh" "$HOME/.zshrc" 2>/dev/null; 
             dotfiles_ui_success "  Removed oh-my-zsh references from ~/.zshrc"
         fi
     fi
+elif [ "$_omz_zshrc_refs" = true ] && [ -f "$HOME/.zshrc" ]; then
+    dotfiles_remove_lines_matching "$HOME/.zshrc" 'oh-my-zsh\.sh'
+    dotfiles_remove_lines_matching "$HOME/.zshrc" 'export ZSH='
+    dotfiles_remove_lines_matching "$HOME/.zshrc" 'ZSH_THEME='
+    dotfiles_remove_lines_matching "$HOME/.zshrc" 'zsh-syntax-highlighting\.zsh'
+    dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k-instant-prompt'
+    dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k\.zsh'
+    dotfiles_remove_lines_matching "$HOME/.zshrc" 'POWERLEVEL9K_DISABLE'
+    dotfiles_ui_success "  Cleaned leftover oh-my-zsh references from ~/.zshrc"
 else
     dotfiles_ui_info "  Oh My Zsh not found, skipping"
 fi
@@ -282,6 +320,7 @@ if [ -f "$HOME/.p10k.zsh" ]; then
     fi
 else
     dotfiles_ui_info "  ~/.p10k.zsh not found, skipping"
+
 fi
 
 # ─── 11. Remove per-account repo folders ─────────────────────────────────────
@@ -291,7 +330,7 @@ section "Remove per-account repository folders"
 if [ "$KEEP_REPOS" = true ]; then
     dotfiles_ui_info "  Skipped (--keep-repos)"
 else
-    dotfiles_ui_info "This removes only the account folders created by dotfiles_setup."
+    dotfiles_ui_info "This removes only the account folders created by dotfiles_install."
     dotfiles_ui_info "The GitHub root (${DOTFILES_GITHUB_ROOT}) itself is kept."
     echo ""
 

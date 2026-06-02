@@ -6,17 +6,17 @@ Personal macOS development environment bootstrap and daily GitHub workflow toolk
 
 ## Key files
 
-- `dotfiles_setup` — main entry point, run on a fresh Mac
-- `dotfiles_uninstall` — tears down what dotfiles_setup built, supports `--keep-repos`
+- `dotfiles_install` — main entry point, run on a fresh Mac
+- `dotfiles_uninstall` — tears down what dotfiles_install built, supports `--keep-repos`
 - `dotfiles.conf.example` — template for the gitignored `dotfiles.conf`
 - `SPEC.md` — full specification, source of truth for all design decisions
 
 ## Structure
 
 ```
-dotfiles_setup / dotfiles_uninstall   ← repo root entry points
+dotfiles_install / dotfiles_uninstall   ← repo root entry points
 dotfiles.conf.example                 ← config template (dotfiles.conf is gitignored)
-config/                               ← personal config files applied by dotfiles_setup
+config/                               ← personal config files applied by dotfiles_install
 scripts/
 ├── repo/     ← daily commands symlinked to ~/bin/ (repo_init, repo_clone, repo_sync)
 ├── setup/    ← setup & repair tools, run by path only (setup_check, setup_pats, setup_ssh, setup_migrate, setup_symlinks)
@@ -27,7 +27,7 @@ scripts/
 ## Naming conventions
 
 - All internal functions and variables use the `dotfiles_` prefix
-- Entry points: `dotfiles_setup`, `dotfiles_uninstall`
+- Entry points: `dotfiles_install`, `dotfiles_uninstall`
 - Daily commands: `repo_init`, `repo_clone`, `repo_sync`
 - Setup tools: `setup_check`, `setup_pats`, `setup_ssh`, `setup_migrate`, `setup_symlinks`
 - Config file: `dotfiles.conf` (gitignored); template: `dotfiles.conf.example`
@@ -41,7 +41,7 @@ Three accounts are in use — all defined in `dotfiles.conf` (never hardcoded in
 
 ## Auth model
 
-- PATs stored as `GH_TOKEN_<username>` env vars, written to `~/.zshrc` by `dotfiles_setup`
+- PATs stored as `GH_TOKEN_<username>` env vars, written to `~/.zshrc` by `dotfiles_install`
 - SSH private keys stored as full PEM blocks in `dotfiles.conf` under `ssh_private` directive — paste directly from 1Password, no encoding needed
 - SSH keys written to `~/.ssh/dotfiles/id_ed25519_<username>` by setup; public key derived via `ssh-keygen -y`
 - SSH host aliases `github-<username>` route the right key per account
@@ -61,6 +61,7 @@ Full test cycle before tagging a release. Run on the current machine (not a VM).
 ./dotfiles_uninstall --keep-repos
 ```
 - Uninstall skips prompts for things already not present — just confirm what it finds
+- Second runs are mostly clean but not perfect (e.g. some sections may re-prompt if partial state remains); this is acceptable — the first run is what matters
 - Say **n** to Homebrew removal during iterative testing
 - When done, open a **new terminal** and run `source ~/.zshrc`
 - Verify no errors (no dangling oh-my-zsh references)
@@ -74,7 +75,7 @@ cat ~/.zshrc            # should have no oh-my-zsh or GH_TOKEN lines
 
 ### 3. Install
 ```bash
-./dotfiles_setup
+./dotfiles_install
 ```
 - Confirm each phase completes with ✓
 - Say **n** to apps already confirmed working in previous runs
@@ -90,7 +91,7 @@ repo_sync               # test daily command is available
 ```
 
 ### 5. Test repo cloning
-Run `dotfiles_setup` with bulk clone enabled, or run `repo_clone` manually per account.
+Run `dotfiles_install` with bulk clone enabled, or run `repo_clone` manually per account.
 Verify repos land under `~/Documents/GitHub/<username>/`.
 
 ### 6. Full uninstall including repos
@@ -112,5 +113,5 @@ git tag v0.5.0 && git push origin v0.5.0
 - `scripts/repo/*` are the only scripts symlinked to `~/bin/`
 - `scripts/setup/*` and `scripts/apps/*` are run by path only
 - All user-facing scripts must print usage and exit cleanly on wrong/missing arguments
-- `dotfiles_setup` must exit 0 only when environment is fully ready
+- `dotfiles_install` must exit 0 only when environment is fully ready
 - Renaming the local repo folder breaks the Claude Code session — user handles folder renames manually

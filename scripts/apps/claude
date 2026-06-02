@@ -1,7 +1,7 @@
 #!/bin/bash
 # apps/claude — install Claude desktop app
 # Claude CLI is installed separately as a core tool via npm.
-# Run standalone or called by dotfiles_setup.
+# Run standalone or called by dotfiles_install.
 
 set -euo pipefail
 
