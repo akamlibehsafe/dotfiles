@@ -561,7 +561,7 @@ fi
 
 phase_ok "Aliases done"
 
-# ─── Phase 12: Final verification ────────────────────────────────────────────
+# ─── Phase 12: Final verification ─────────────────────────────────────────────
 
 run_phase "Phase 12: Verification"
 
@@ -583,9 +583,45 @@ done
 
 phase_ok "Verification complete"
 
-# ─── Phase 13: Source shell ───────────────────────────────────────────────────
+# ─── Phase 13: Dock ──────────────────────────────────────────────────────────
 
-run_phase "Phase 13: Activate"
+run_phase "Phase 13: Dock"
+
+DOCK_APPS=(
+    "/Applications/iTerm.app"
+    "/Applications/Cursor.app"
+    "/Applications/Claude.app"
+)
+
+if ! command -v dockutil &>/dev/null; then
+    dotfiles_ui_info "  Installing dockutil..."
+    brew install dockutil --quiet && dotfiles_ui_success "  dockutil installed" || \
+        { dotfiles_ui_info "  Could not install dockutil — skipping Dock setup"; DOCK_APPS=(); }
+fi
+
+if command -v dockutil &>/dev/null; then
+    for app_path in ${DOCK_APPS[@]+"${DOCK_APPS[@]}"}; do
+        app_name="$(basename "$app_path" .app)"
+        if [ -d "$app_path" ]; then
+            if dockutil --find "$app_name" &>/dev/null 2>&1; then
+                dotfiles_ui_info "  ${app_name} already in Dock"
+            else
+                dockutil --add "$app_path" --position end --no-restart &>/dev/null
+                dotfiles_ui_success "  Added ${app_name} to Dock"
+            fi
+        else
+            dotfiles_ui_info "  ${app_name} not installed — skipping Dock entry"
+        fi
+    done
+    killall Dock 2>/dev/null || true
+    dotfiles_ui_success "  Dock updated"
+fi
+
+phase_ok "Dock configured"
+
+# ─── Phase 14: Source shell ───────────────────────────────────────────────────
+
+run_phase "Phase 14: Activate"
 
 dotfiles_ui_info "  Sourcing ${SHELL_CONFIG}..."
 # We can source it here but the user's interactive shell needs a reload
