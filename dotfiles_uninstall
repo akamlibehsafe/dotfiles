@@ -365,12 +365,6 @@ else
     for user in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
         user_dir="${DOTFILES_GITHUB_ROOT}/${user}"
         if [ -d "$user_dir" ]; then
-            # Never delete the folder that contains this running script
-            if [[ "$REPO_ROOT" == "${user_dir}"/* ]]; then
-                dotfiles_ui_info "  Skipping ${user_dir} — contains the running dotfiles repo"
-                dotfiles_ui_info "  Delete manually after uninstall if needed: rm -rf ${user_dir}"
-                continue
-            fi
             dotfiles_ui_info "WARNING: This will delete all repos for ${user}: ${user_dir}"
             if confirm "Delete ${user_dir}?"; then
                 rm -rf "$user_dir"
@@ -446,10 +440,3 @@ echo ""
 dotfiles_ui_info "To apply changes to your current shell session:"
 echo "  source $(dotfiles_shell_config)"
 echo "  (or open a new terminal)"
-echo ""
-if [[ "$REPO_ROOT" == "${DOTFILES_GITHUB_ROOT}"/* ]]; then
-    dotfiles_ui_info "NOTE: The dotfiles repo itself was not deleted:"
-    echo "  ${REPO_ROOT}"
-    dotfiles_ui_info "Delete it manually when you are done:"
-    echo "  rm -rf ${REPO_ROOT}"
-fi
