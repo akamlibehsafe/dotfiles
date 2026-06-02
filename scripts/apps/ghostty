@@ -32,7 +32,14 @@ else
         exit 1
     fi
     dotfiles_ui_info "Installing Ghostty..."
-    brew install --cask ghostty
+    if ! brew install --cask ghostty; then
+        dotfiles_ui_error "Ghostty download failed."
+        dotfiles_ui_info  "  Ghostty distributes only from release.files.ghostty.org — some corporate"
+        dotfiles_ui_info  "  networks block this domain for non-browser traffic (TLS reset)."
+        dotfiles_ui_info  "  Fix: open https://ghostty.org/download in a browser, download the macOS DMG,"
+        dotfiles_ui_info  "  drag to /Applications, then re-run dotfiles_install — it will skip this step."
+        exit 1
+    fi
     dotfiles_ui_success "Ghostty installed"
 fi
 

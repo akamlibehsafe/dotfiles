@@ -369,6 +369,8 @@ Each is a self-contained script that installs one app and applies its config. Ca
 |---|---|---|
 | `iterm2` | iTerm2 via Homebrew cask | `config/iterm2/iTerm2 State.itermexport` |
 | `ghostty` | Ghostty via Homebrew cask | `config/ghostty/config` → `~/.config/ghostty/config` |
+
+> **Known issue — corporate networks:** Ghostty distributes its DMG exclusively from `release.files.ghostty.org` (Cloudflare CDN). Some corporate firewalls block this domain for non-browser traffic (TLS reset at handshake), while allowing the browser through. If `brew install --cask ghostty` fails with `Connection reset by peer`, open `https://ghostty.org/download` in a browser, download the macOS DMG, drag to `/Applications`, then re-run `dotfiles_install` — it will detect Ghostty as installed and skip the brew step. GitHub releases have no DMG assets; no alternative download source exists.
 | `warp` | Warp via Homebrew cask | None (uses Warp cloud sync) |
 | `cursor` | Cursor via Homebrew cask | None |
 
