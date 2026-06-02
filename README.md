@@ -20,13 +20,15 @@ Edit `dotfiles.conf` with your real values. See `dotfiles.conf.example` for the 
 
 ### 2. SSH keys
 
-Paste each SSH private key as a base64-encoded single line under `ssh_private` in `dotfiles.conf`. To encode an existing key:
+Paste each SSH private key as a full PEM block under `ssh_private` in `dotfiles.conf`. Copy directly from 1Password or from your key file:
 
-```bash
-base64 -i ~/.ssh/id_ed25519_youruser | tr -d '\n'
+```
+ssh_private -----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEA...
+-----END OPENSSH PRIVATE KEY-----
 ```
 
-`dotfiles_setup` will decode the key, write it to `~/.ssh/dotfiles/`, derive the public key automatically, and configure SSH host aliases per account. No pre-existing key files needed on the new machine.
+`dotfiles_setup` writes the key to `~/.ssh/dotfiles/`, derives the public key automatically, and configures SSH host aliases per account. No pre-existing key files needed on the new machine.
 
 ---
 
@@ -47,13 +49,16 @@ cd /path/to/dotfiles
 **Shell:**
 - Zsh, Oh My Zsh, Powerlevel10k (with your config from `config/p10k.zsh`)
 
-**Apps** (each prompted):
+**Apps** (prompted, skipped if already installed):
 - iTerm2 (with bundled profile from `config/iterm2/`)
 - Ghostty (with config from `config/ghostty/`)
 - Warp
 - Cursor
 - Claude desktop
 - Claude CLI
+
+**Dock:**
+- Pins iTerm2, Cursor, and Claude to the right end of the Dock (via dockutil)
 
 **GitHub:**
 - PAT exports written to `~/.zshrc`
@@ -109,7 +114,7 @@ Scripts are symlinked from `~/bin/` into the repo — pulling updates them immed
 ./dotfiles_uninstall
 ```
 
-Interactive — prompts before each removal step. Does not remove Homebrew.
+Interactive — prompts before each removal step, skips silently if something is already gone. Removes Dock icons added by setup. Homebrew removal is always the last step and is optional.
 
 For testing (keeps repo folders):
 

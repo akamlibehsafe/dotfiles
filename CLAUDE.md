@@ -42,6 +42,8 @@ Three accounts are in use — all defined in `dotfiles.conf` (never hardcoded in
 ## Auth model
 
 - PATs stored as `GH_TOKEN_<username>` env vars, written to `~/.zshrc` by `dotfiles_setup`
+- SSH private keys stored as full PEM blocks in `dotfiles.conf` under `ssh_private` directive — paste directly from 1Password, no encoding needed
+- SSH keys written to `~/.ssh/dotfiles/id_ed25519_<username>` by setup; public key derived via `ssh-keygen -y`
 - SSH host aliases `github-<username>` route the right key per account
 - Git `includeIf gitdir:` applies correct identity per folder automatically
 - Scripts pick up auth from env vars first, fall back to `dotfiles.conf` values
@@ -58,8 +60,9 @@ Full test cycle before tagging a release. Run on the current machine (not a VM).
 ```bash
 ./dotfiles_uninstall --keep-repos
 ```
-- Answer prompts — say **n** to uninstalling Claude desktop and Homebrew
-- When done, open a new terminal and run `source ~/.zshrc`
+- Uninstall skips prompts for things already not present — just confirm what it finds
+- Say **n** to Homebrew removal during iterative testing
+- When done, open a **new terminal** and run `source ~/.zshrc`
 - Verify no errors (no dangling oh-my-zsh references)
 
 ### 2. Verify clean state

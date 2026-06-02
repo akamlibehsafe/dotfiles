@@ -1,9 +1,5 @@
 # Changelog
 
-## Unreleased
-
-- (Add short notes here when tagging 0.5.0.)
-
 ## 0.5.0 - Unreleased (in progress)
 
 ### Breaking
@@ -11,18 +7,41 @@
 - Daily commands renamed: `git_push` → `repo_sync`, `git_create_from_local` → `repo_init`, `git_create_from_remote` → `repo_clone`
 - Bootstrap renamed: `environment_install` → `dotfiles_setup`, `environment_uninstall` → `dotfiles_uninstall`
 - Scripts reorganised: `scripts/repo/`, `scripts/setup/`, `scripts/apps/`, `scripts/lib/`
+- `ssh_key` directive in `dotfiles.conf` replaced by `ssh_private` (full PEM block pasted directly from 1Password or key file)
 
 ### Added
-- Pluggable app installers under `scripts/apps/` (iterm2, ghostty, warp, cursor)
+- Pluggable app installers under `scripts/apps/` (iterm2, ghostty, warp, cursor, claude, claude-cli)
 - Config files captured in `config/` (p10k, ghostty, zshrc template, gitconfig)
-- New tools installed: Python, Node.js, Claude CLI
+- New tools installed: Python, Node.js, Git LFS, GitHub CLI, jq, Claude CLI
 - `dotfiles_setup` completes fully — no manual follow-up steps required
 - All commands self-document when invoked with wrong or missing arguments
+- Pre-flight state detection — setup skips already-configured phases
+- macOS Dock configuration: pins iTerm2, Cursor, Claude to Dock (via dockutil)
+- `dotfiles_uninstall` now works without `dotfiles.conf` — account-specific steps skipped gracefully
+- `dotfiles_uninstall` cleans oh-my-zsh references from `.zshrc` on removal
+- `dotfiles_uninstall` prompts to remove Homebrew (last step, always)
+- `dotfiles_uninstall` removes Dock icons added by setup
+- `dotfiles_uninstall` skips prompts for things already not present
+- `CLAUDE.md` added to repo with full testing workflow
+- Coloured section headers: cyan for setup phases, bold red for uninstall phases
+
+### Fixed
+- `dotfiles_uninstall` without `dotfiles.conf` no longer aborts with fatal error
+- Empty array iteration under bash 3.2 (`set -u`) fixed throughout
+- Tilde expansion in `dotfiles_expand_path` fixed for bash 3.2
+- `wc -l` output whitespace stripping fixed under `pipefail`
+- PAT preflight check now based on `.zshrc` exports, not conf availability
+- SSH key install now writes full PEM file with correct trailing newline
+- `sed` delimiter changed to `|` to handle patterns containing `/`
+- Legacy `gitscripts-managed` SSH config blocks now removed by uninstall
+- `git lfs install` uses `--skip-repo` to avoid adding hooks to repos
 
 ### Changed
 - `dotfiles_setup` is now a thin orchestrator over independent phase scripts
 - Each phase script is independently runnable and re-runnable
-- Post-0.4.0 doc cleanup: `docs/ai-context.md`, `docs/PLAN-0.4.0-gitscripts.md`, ADR 0005, ssh map; removed obsolete `context mgt.txt`
+- SSH keys stored as full PEM blocks in `dotfiles.conf` — no encoding needed
+- App install prompts skipped when app is already installed
+- Section headers bold and coloured for clear phase separation
 
 ## 0.4.0 - 2026-05-23
 
