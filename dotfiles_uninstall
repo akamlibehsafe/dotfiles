@@ -283,7 +283,29 @@ else
     done
 fi
 
-# ─── 12. Remove Homebrew ──────────────────────────────────────────────────────
+# ─── 12. Remove Dock icons ────────────────────────────────────────────────────
+
+section "Remove Dock icons"
+
+DOCK_APPS=("iTerm" "Cursor" "Claude")
+
+if command -v dockutil &>/dev/null; then
+    if confirm "Remove dotfiles apps from Dock?"; then
+        for app in "${DOCK_APPS[@]}"; do
+            if dockutil --find "$app" &>/dev/null 2>&1; then
+                dockutil --remove "$app" --no-restart &>/dev/null
+                dotfiles_ui_success "  Removed ${app} from Dock"
+            else
+                dotfiles_ui_info "  ${app} not in Dock, skipping"
+            fi
+        done
+        killall Dock 2>/dev/null || true
+    fi
+else
+    dotfiles_ui_info "  dockutil not found, skipping"
+fi
+
+# ─── 13. Remove Homebrew ──────────────────────────────────────────────────────
 
 section "Remove Homebrew"
 
