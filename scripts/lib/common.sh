@@ -140,7 +140,7 @@ dotfiles_ui_colors() {
     YELLOW='\033[1;33m'
     BLUE='\033[0;34m'
     CYAN='\033[0;36m'
-    ORANGE='\033[0;33m'
+    ORANGE='\033[1;31m'
     BOLD='\033[1m'
     NC='\033[0m'
 }
