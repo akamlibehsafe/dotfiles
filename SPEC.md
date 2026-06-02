@@ -76,11 +76,15 @@ github_root=~/Documents/GitHub
 
 account youruser you@example.com "Your Name"
 pat ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-ssh_key ~/.ssh/id_ed25519_youruser
+ssh_private -----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEA...
+-----END OPENSSH PRIVATE KEY-----
 
 account yourotheruser other@example.com "Other Name"
 pat ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-ssh_key ~/.ssh/id_ed25519_yourotheruser
+ssh_private -----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEA...
+-----END OPENSSH PRIVATE KEY-----
 
 # --- Optional ---
 # Skip bulk clone for an account during dotfiles_setup
@@ -99,7 +103,7 @@ alias cdf yourotheruser
 | `github_root` | Yes | Base directory for all repos, e.g. `~/Documents/GitHub` |
 | `account` | Yes | GitHub username, commit email, optional display name |
 | `pat` | Yes | Classic PAT with `repo` scope from GitHub Settings |
-| `ssh_key` | Yes | Path to existing SSH private key for this account |
+| `ssh_private` | Yes | Full PEM block of the SSH private key — paste directly from 1Password or key file |
 | `clone` | No | `yes` (default) or `no` — bulk clone during setup |
 | `alias` | No | Shell shortcut under `github_root` |
 
@@ -108,11 +112,7 @@ GitHub → Settings → Developer settings → Personal access tokens → Tokens
 Required scope: `repo`. Recommended: no expiration.
 
 ### SSH keys
-Point `ssh_key` at your existing private key. `dotfiles_setup` will copy it into place, set permissions, configure the SSH host alias, and add it to the macOS keychain agent. If you don't have a key yet:
-```bash
-ssh-keygen -t ed25519 -C "you@example.com" -f ~/.ssh/id_ed25519_youruser
-```
-Then add the public key to GitHub before running `dotfiles_setup`.
+Paste the full PEM block of your private key under `ssh_private`. Copy it directly from 1Password or from your key file (`cat ~/.ssh/id_ed25519_youruser`). `dotfiles_setup` writes it to `~/.ssh/dotfiles/id_ed25519_<username>`, derives the public key via `ssh-keygen -y`, configures the SSH host alias, and adds it to the macOS keychain. No pre-existing key files needed on the new machine.
 
 ---
 
@@ -185,7 +185,7 @@ Then exits. No partial setup.
 
 ### Phases (in order)
 
-1. **Validate `dotfiles.conf`** — all accounts have PAT and ssh_key defined
+1. **Validate `dotfiles.conf`** — all accounts have PAT and ssh_private defined
 2. **Homebrew** — install if missing, update if present
 3. **Core tools** — Git, Git LFS, GitHub CLI (`gh`), jq, Python, Node.js
 4. **GitHub root** — create `github_root` directory if missing
