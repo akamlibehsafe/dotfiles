@@ -2,45 +2,56 @@
 
 ## 0.5.0 - 2026-06-02
 
-### Breaking
+> **Complete rewrite and rename.** This release transforms `gitscripts` into a fully automated macOS bootstrap — run one script on a fresh Mac and get a complete development environment with no manual follow-up. Daily commands are self-contained and survive the installer being deleted. The uninstall is clean and complete.
+
+### Breaking changes
 - Repo renamed from `gitscripts` to `dotfiles`
 - Entry points renamed: `environment_install` → `dotfiles_install`, `environment_uninstall` → `dotfiles_uninstall`
 - Daily commands renamed: `git_push` → `repo_sync`, `git_create_from_local` → `repo_init`, `git_create_from_remote` → `repo_clone`
-- Scripts reorganised: `scripts/repo/`, `scripts/setup/`, `scripts/apps/`, `scripts/lib/`
-- `ssh_key` directive in `dotfiles.conf` replaced by `ssh_private` (full PEM block — paste directly from 1Password)
+- Scripts reorganised into `scripts/repo/`, `scripts/setup/`, `scripts/apps/`, `scripts/lib/`
+- `ssh_key` directive replaced by `ssh_private` — paste the full PEM block directly from 1Password
 - `setup_symlinks` replaced by `update_scripts` — scripts are now copied to `~/bin/`, not symlinked
 
-### Added
-- **Self-contained daily commands** — `scripts/repo/*` and `scripts/lib/*` copied to `~/bin/` by `update_scripts`; no dependency on installer location after setup
-- **XDG config** — `dotfiles.conf` copied to `~/.config/dotfiles/dotfiles.conf` so scripts find it from anywhere
-- **git post-merge hook** — auto-runs `update_scripts` when `scripts/repo/*` or `scripts/lib/*` change on `git pull`
-- **Personal app installers** — Raycast, Typora, Arc, Zed, Sublime Text, TextMate added to `scripts/apps/`
-- **App update on re-run** — existing apps get `brew upgrade` instead of silently passing
-- **macOS Dock** — all installed apps pinned automatically via dockutil
-- **Terminal font** — MesloLGS NF installed and set as default Terminal font (Phase 14)
-- **Shell reset on uninstall** — resets default shell from Homebrew zsh back to `/bin/zsh`
-- **Config files** in `config/` — p10k, ghostty (with theme + transparency), zshrc template, gitconfig
-- New core tools: Python, Node.js, Git LFS, GitHub CLI, jq, Claude CLI
-- `dotfiles_install` completes fully — no manual follow-up steps required
-- All commands self-document when invoked with wrong or missing arguments
+### Highlights
+
+**Zero-dependency daily commands**
+`repo_init`, `repo_clone`, and `repo_sync` are copied to `~/bin/` with all library dependencies. Run the installer from anywhere (Desktop, Downloads), delete it after, and the commands keep working independently. Config is stored at `~/.config/dotfiles/dotfiles.conf` — always found regardless of where the installer ran from.
+
+**Automatic updates via git hook**
+A post-merge hook in the cloned dotfiles repo detects changes to `scripts/repo/*` or `scripts/lib/*` on `git pull` and refreshes `~/bin/` automatically. No manual step needed after pulling script updates.
+
+**Full app suite**
+Installs and configures iTerm2, Ghostty, Warp, Cursor, Claude, Raycast, Typora, Arc, Zed, Sublime Text, and TextMate. On re-run, existing apps are upgraded rather than skipped. All installed apps are pinned to the Dock.
+
+**Clean uninstall**
+`dotfiles_uninstall` removes everything the installer placed on the machine — SSH keys, git identity, shell config, apps, Dock entries, and repos — prompting before each step and silently skipping anything already absent.
+
+### Details
+
+**Added**
+- `update_scripts` — copies `scripts/repo/*` and `scripts/lib/*` to `~/bin/`, installs post-merge hook
+- XDG config copy — `dotfiles.conf` written to `~/.config/dotfiles/` for script discoverability
+- Personal app installers: Raycast, Typora, Arc, Zed, Sublime Text, TextMate
+- App upgrade on re-run — `brew upgrade --cask` when app already installed
+- macOS Dock configuration via dockutil — all apps pinned automatically
+- MesloLGS NF font installed and set as default Terminal font
+- Shell reset on uninstall — restores default shell from Homebrew zsh to `/bin/zsh`
+- Config files in `config/`: p10k, Ghostty (theme + transparency), zshrc template, gitconfig
+- Core tools: Python, Node.js, Git LFS, GitHub CLI (`gh`), jq, Claude CLI
 - Pre-flight state detection — install skips already-configured phases
 - `CLAUDE.md` with full testing workflow and important rules
 
-### Fixed
-- `dotfiles_uninstall` without `dotfiles.conf` no longer aborts with fatal error
-- Uninstall skips prompts for things already not present
-- p10k instant-prompt `if/fi` block now fully removed from `.zshrc` on uninstall (no orphaned `fi`)
-- SSH config block removal now checks for blocks before prompting
-- Git identity removal now checks for files before prompting
-- Oh My Zsh removal no longer re-prompts when only `.zshrc` references remain
+**Fixed**
+- Uninstall without `dotfiles.conf` no longer aborts — account steps skipped gracefully
+- Uninstall skips prompts for things already absent
+- p10k instant-prompt `if/fi` block fully removed from `.zshrc` on uninstall (no orphaned `fi`)
+- SSH config, git identity, and Oh My Zsh sections pre-check before prompting
+- Legacy `gitscripts-managed` SSH config blocks cleaned up by uninstall
 - Empty array iteration under bash 3.2 (`set -u`) fixed throughout
-- `wc -l` output whitespace stripping fixed under `pipefail`
-- Legacy `gitscripts-managed` SSH config blocks removed by uninstall
 
-### Changed
-- `dotfiles_install` is a thin orchestrator — 15 phases, each independently skippable
+**Changed**
+- `dotfiles_install` is a thin 15-phase orchestrator — each phase independently skippable
 - SSH keys stored as full PEM blocks in `dotfiles.conf` — no encoding needed
-- Uninstall prompts per section, silently skips absent items
 - Section headers bold and coloured for clear phase separation
 
 ## 0.4.0 - 2026-05-23
