@@ -1,0 +1,165 @@
+#!/bin/bash
+# update_scripts — copy scripts/repo/* and scripts/lib/* to ~/bin/
+# Makes daily commands self-contained and independent of the repo location.
+# Safe to re-run at any time — overwrites existing copies with latest versions.
+#
+# Usage: ./scripts/setup/update_scripts
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd -P)"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+source "${SCRIPTS_ROOT}/lib/manifest.sh"
+dotfiles_ui_colors
+
+dotfiles_ui_section "update_scripts"
+dotfiles_ui_info "Copying scripts/repo/* and scripts/lib/* → ~/bin/"
+echo ""
+
+BIN_DIR="$HOME/bin"
+LIB_DIR="${BIN_DIR}/lib"
+
+# ─── ensure ~/bin and ~/bin/lib exist ────────────────────────────────────────
+
+mkdir -p "$BIN_DIR" "$LIB_DIR"
+
+# ─── ensure ~/bin is on PATH in shell config ─────────────────────────────────
+
+SHELL_CONFIG="$(dotfiles_shell_config)"
+PATH_LINE='export PATH="$HOME/bin:$PATH"'
+
+if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+    dotfiles_ui_info "Adding ~/bin to PATH in ${SHELL_CONFIG}..."
+    {
+        echo ""
+        echo "# Add ~/bin to PATH for dotfiles commands"
+        echo "${PATH_LINE}"
+    } >>"$SHELL_CONFIG"
+    export PATH="$BIN_DIR:$PATH"
+    dotfiles_ui_success "Added ~/bin to PATH"
+else
+    dotfiles_ui_info "~/bin already in PATH"
+fi
+
+# ─── remove deprecated bin entries ───────────────────────────────────────────
+
+echo ""
+dotfiles_ui_info "Removing deprecated entries from ~/bin/..."
+_removed=0
+for old in "${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"; do
+    target="$BIN_DIR/$old"
+    if [ -L "$target" ] || [ -f "$target" ]; then
+        rm -f "$target"
+        dotfiles_ui_success "  removed: $old"
+        _removed=$((_removed + 1))
+    fi
+done
+[ "$_removed" -eq 0 ] && dotfiles_ui_info "  none found"
+
+# ─── copy repo scripts to ~/bin/ ─────────────────────────────────────────────
+
+echo ""
+dotfiles_ui_info "Copying repo scripts..."
+COPIED=0
+FAILED=0
+
+for entry in "${DOTFILES_BIN_ENTRIES[@]}"; do
+    name="${entry%%:*}"
+    rel_path="${entry#*:}"
+    src="${SCRIPTS_ROOT}/${rel_path}"
+    dest="${BIN_DIR}/${name}"
+
+    if [ ! -f "$src" ]; then
+        dotfiles_ui_error "  ✗ ${name} — source not found: ${src}"
+        FAILED=$((FAILED + 1))
+        continue
+    fi
+
+    # Remove existing symlink or file before copying
+    [ -L "$dest" ] || [ -f "$dest" ] && rm -f "$dest"
+    cp "$src" "$dest"
+    chmod +x "$dest"
+    dotfiles_ui_success "  ✓ copied: ${name}"
+    COPIED=$((COPIED + 1))
+done
+
+# ─── copy lib files to ~/bin/lib/ ────────────────────────────────────────────
+
+echo ""
+dotfiles_ui_info "Copying lib files..."
+for lib_file in "${SCRIPTS_ROOT}/lib/"*.sh; do
+    [ -f "$lib_file" ] || continue
+    dest="${LIB_DIR}/$(basename "$lib_file")"
+    cp "$lib_file" "$dest"
+    dotfiles_ui_success "  ✓ copied: lib/$(basename "$lib_file")"
+done
+
+# ─── install git post-merge hook in cloned dotfiles repos ────────────────────
+
+echo ""
+dotfiles_ui_info "Installing git post-merge hook..."
+REPO_NAME="$(basename "$(cd "${SCRIPTS_ROOT}/.." && pwd -P)")"
+_hook_installed=0
+for _u in "${DOTFILES_ACCOUNTS[@]}"; do
+    _cloned_repo="${DOTFILES_GITHUB_ROOT}/${_u}/${REPO_NAME}"
+    _hook_dir="${_cloned_repo}/.git/hooks"
+    if [ -d "$_hook_dir" ]; then
+        cat >"${_hook_dir}/post-merge" <<'HOOK'
+#!/bin/bash
+# Auto-installed by update_scripts — refreshes ~/bin/ when repo scripts change
+changed=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null || true)
+if echo "$changed" | grep -qE "^scripts/(repo|lib)/"; then
+    echo "dotfiles: repo scripts changed — updating ~/bin/..."
+    "$(git rev-parse --show-toplevel)/scripts/setup/update_scripts"
+fi
+HOOK
+        chmod +x "${_hook_dir}/post-merge"
+        dotfiles_ui_success "  ✓ hook installed in ${_cloned_repo}"
+        _hook_installed=$((_hook_installed + 1))
+    fi
+done
+[ "$_hook_installed" -eq 0 ] && dotfiles_ui_info "  No cloned dotfiles repo found — skipping hook"
+unset _u _cloned_repo _hook_dir
+
+# ─── verify ───────────────────────────────────────────────────────────────────
+
+echo ""
+dotfiles_ui_info "Verifying..."
+ALL_OK=true
+for entry in "${DOTFILES_BIN_ENTRIES[@]}"; do
+    name="${entry%%:*}"
+    dest="${BIN_DIR}/${name}"
+    if [ -f "$dest" ] && [ -x "$dest" ]; then
+        dotfiles_ui_success "  ✓ ${name}"
+    else
+        dotfiles_ui_error "  ✗ ${name} — missing or not executable"
+        ALL_OK=false
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+echo ""
+dotfiles_ui_info "Summary: copied=${COPIED} failed=${FAILED}"
+
+if [ "$ALL_OK" = true ]; then
+    echo ""
+    dotfiles_ui_success "Scripts ready. Commands available on PATH:"
+    for entry in "${DOTFILES_BIN_ENTRIES[@]}"; do
+        echo "  • ${entry%%:*}"
+    done
+    echo ""
+    dotfiles_ui_info "Reload your shell to pick up PATH changes:"
+    echo "  source ${SHELL_CONFIG}"
+else
+    echo ""
+    dotfiles_ui_error "Some scripts could not be copied. Check the errors above."
+    exit 1
+fi

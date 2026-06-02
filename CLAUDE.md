@@ -18,8 +18,8 @@ dotfiles_install / dotfiles_uninstall   ← repo root entry points
 dotfiles.conf.example                 ← config template (dotfiles.conf is gitignored)
 config/                               ← personal config files applied by dotfiles_install
 scripts/
-├── repo/     ← daily commands symlinked to ~/bin/ (repo_init, repo_clone, repo_sync)
-├── setup/    ← setup & repair tools, run by path only (setup_check, setup_pats, setup_ssh, setup_migrate, setup_symlinks)
+├── repo/     ← daily commands copied to ~/bin/ (repo_init, repo_clone, repo_sync)
+├── setup/    ← setup & repair tools, run by path only (setup_check, setup_pats, setup_ssh, setup_migrate, update_scripts)
 ├── apps/     ← pluggable app installers (iterm2, ghostty, warp, cursor, claude, claude-cli)
 └── lib/      ← shared bash modules, sourced only (common.sh, accounts.sh, init.sh, manifest.sh)
 ```
@@ -29,7 +29,7 @@ scripts/
 - All internal functions and variables use the `dotfiles_` prefix
 - Entry points: `dotfiles_install`, `dotfiles_uninstall`
 - Daily commands: `repo_init`, `repo_clone`, `repo_sync`
-- Setup tools: `setup_check`, `setup_pats`, `setup_ssh`, `setup_migrate`, `setup_symlinks`
+- Setup tools: `setup_check`, `setup_pats`, `setup_ssh`, `setup_migrate`, `update_scripts`
 - Config file: `dotfiles.conf` (gitignored); template: `dotfiles.conf.example`
 
 ## GitHub accounts
@@ -110,7 +110,7 @@ git tag v0.5.0 && git push origin v0.5.0
 
 - Never hardcode GitHub usernames — always read from `DOTFILES_ACCOUNTS[]`
 - Never commit `dotfiles.conf` or `PAT.md` — both are gitignored
-- `scripts/repo/*` are the only scripts symlinked to `~/bin/`
+- `scripts/repo/*` and `scripts/lib/*` are copied to `~/bin/` by `update_scripts`
 - `scripts/setup/*` and `scripts/apps/*` are run by path only
 - All user-facing scripts must print usage and exit cleanly on wrong/missing arguments
 - `dotfiles_install` must exit 0 only when environment is fully ready

@@ -98,32 +98,37 @@ else
     dotfiles_ui_info "${DOTFILES_GITHUB_ROOT} does not exist, skipping check."
 fi
 
-# ─── 2. Remove ~/bin/ symlinks ────────────────────────────────────────────────
+# ─── 2. Remove ~/bin/ scripts ────────────────────────────────────────────────
 
-section "Remove ~/bin/ symlinks"
+section "Remove ~/bin/ scripts"
 
 source "${SCRIPTS_ROOT}/lib/manifest.sh"
 
-_found_symlinks=false
-for symlink in ${DOTFILES_BIN_SYMLINKS[@]+"${DOTFILES_BIN_SYMLINKS[@]}"} ${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]+"${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"}; do
-    { [ -L "$HOME/bin/$symlink" ] || [ -f "$HOME/bin/$symlink" ]; } && _found_symlinks=true && break
+_found_bin=false
+for entry in ${DOTFILES_BIN_SYMLINKS[@]+"${DOTFILES_BIN_SYMLINKS[@]}"} ${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]+"${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"}; do
+    { [ -L "$HOME/bin/$entry" ] || [ -f "$HOME/bin/$entry" ]; } && _found_bin=true && break
 done
+[ -d "$HOME/bin/lib" ] && _found_bin=true
 
-if [ "$_found_symlinks" = true ]; then
-    if confirm "Remove dotfiles symlinks from ~/bin/?"; then
-        for symlink in ${DOTFILES_BIN_SYMLINKS[@]+"${DOTFILES_BIN_SYMLINKS[@]}"} ${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]+"${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"}; do
-            target="$HOME/bin/$symlink"
+if [ "$_found_bin" = true ]; then
+    if confirm "Remove dotfiles scripts from ~/bin/?"; then
+        for entry in ${DOTFILES_BIN_SYMLINKS[@]+"${DOTFILES_BIN_SYMLINKS[@]}"} ${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]+"${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"}; do
+            target="$HOME/bin/$entry"
             if [ -L "$target" ] || [ -f "$target" ]; then
                 rm -f "$target"
-                dotfiles_ui_success "  removed ~/bin/$symlink"
+                dotfiles_ui_success "  removed ~/bin/$entry"
             fi
         done
+        if [ -d "$HOME/bin/lib" ]; then
+            rm -rf "$HOME/bin/lib"
+            dotfiles_ui_success "  removed ~/bin/lib/"
+        fi
         if [ -d "$HOME/bin" ] && [ -z "$(ls -A "$HOME/bin" 2>/dev/null)" ]; then
             rmdir "$HOME/bin" && dotfiles_ui_success "  removed ~/bin/"
         fi
     fi
 else
-    dotfiles_ui_info "  No dotfiles symlinks found in ~/bin/, skipping"
+    dotfiles_ui_info "  No dotfiles scripts found in ~/bin/, skipping"
 fi
 
 # ─── 3. Remove shell aliases ──────────────────────────────────────────────────
@@ -277,6 +282,7 @@ fi
 [ -d "/Applications/Warp.app" ]         && { confirm "Uninstall Warp?"         && brew_uninstall warp --cask; }         || dotfiles_ui_info "  Warp not installed, skipping"
 [ -d "/Applications/Ghostty.app" ]      && { confirm "Uninstall Ghostty?"      && brew_uninstall ghostty --cask; }      || dotfiles_ui_info "  Ghostty not installed, skipping"
 [ -d "/Applications/iTerm.app" ]        && { confirm "Uninstall iTerm2?"       && brew_uninstall iterm2 --cask; }       || dotfiles_ui_info "  iTerm2 not installed, skipping"
+[ -d "/Applications/Raycast.app" ]      && { confirm "Uninstall Raycast?"      && brew_uninstall raycast --cask; }      || dotfiles_ui_info "  Raycast not installed, skipping"
 [ -d "/Applications/Typora.app" ]       && { confirm "Uninstall Typora?"       && brew_uninstall typora --cask; }       || dotfiles_ui_info "  Typora not installed, skipping"
 [ -d "/Applications/Arc.app" ]          && { confirm "Uninstall Arc?"          && brew_uninstall arc --cask; }          || dotfiles_ui_info "  Arc not installed, skipping"
 [ -d "/Applications/Zed.app" ]          && { confirm "Uninstall Zed?"          && brew_uninstall zed --cask; }          || dotfiles_ui_info "  Zed not installed, skipping"
@@ -359,7 +365,7 @@ fi
 
 section "Remove Dock icons"
 
-DOCK_APPS=("iTerm" "Ghostty" "Warp" "Cursor" "Claude" "Typora" "Arc" "Zed" "Sublime Text" "TextMate")
+DOCK_APPS=("iTerm" "Ghostty" "Warp" "Cursor" "Claude" "Raycast" "Typora" "Arc" "Zed" "Sublime Text" "TextMate")
 
 if command -v dockutil &>/dev/null; then
     dock_changed=false
@@ -379,7 +385,22 @@ else
     dotfiles_ui_info "  dockutil not found, skipping"
 fi
 
-# ─── 13. Remove Homebrew ──────────────────────────────────────────────────────
+# ─── 13. Reset default shell ─────────────────────────────────────────────────
+
+section "Reset default shell"
+
+_current_shell="$(dscl . -read /Users/"$(whoami)" UserShell 2>/dev/null | awk '{print $2}')"
+if [[ "$_current_shell" == /opt/homebrew/* ]] || [[ "$_current_shell" == /usr/local/* ]]; then
+    if confirm "Reset default shell from ${_current_shell} to /bin/zsh?"; then
+        chsh -s /bin/zsh
+        dotfiles_ui_success "  Default shell reset to /bin/zsh"
+    fi
+else
+    dotfiles_ui_info "  Default shell is ${_current_shell} — no reset needed"
+fi
+unset _current_shell
+
+# ─── 14. Remove Homebrew ──────────────────────────────────────────────────────
 
 section "Remove Homebrew"
 

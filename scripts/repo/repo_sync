@@ -10,7 +10,13 @@ while [ -L "$_self" ]; do
     _self="$(readlink "$_self")"
     [[ "$_self" != /* ]] && _self="$_d/$_self"
 done
-SCRIPTS_ROOT="$(cd "$(dirname "$_self")/.." && pwd -P)"
+_script_dir="$(cd "$(dirname "$_self")" && pwd -P)"
+# When copied to ~/bin/, lib/ is a sibling dir. In the repo, lib/ is one level up.
+if [ -d "${_script_dir}/lib" ]; then
+    SCRIPTS_ROOT="$_script_dir"
+else
+    SCRIPTS_ROOT="$(cd "${_script_dir}/.." && pwd -P)"
+fi
 
 source "${SCRIPTS_ROOT}/lib/init.sh"
 dotfiles_load_pat_from_shell_configs

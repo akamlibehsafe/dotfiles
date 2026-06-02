@@ -141,7 +141,7 @@ For testing (keeps repo folders):
 ./scripts/setup/setup_migrate --apply
 
 # Refresh ~/bin symlinks
-./scripts/setup/setup_symlinks
+./scripts/setup/update_scripts
 ```
 
 ---
@@ -170,7 +170,7 @@ dotfiles/
     │   ├── setup_pats
     │   ├── setup_ssh
     │   ├── setup_migrate
-    │   └── setup_symlinks
+    │   └── update_scripts
     ├── apps/                  ← app installers (called by dotfiles_install)
     │   ├── iterm2
     │   ├── ghostty

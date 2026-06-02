@@ -36,7 +36,7 @@ dotfiles/
     │   ├── setup_pats         ← PAT wizard
     │   ├── setup_ssh          ← SSH keys + config + git identity
     │   ├── setup_migrate      ← migrate HTTPS remotes to SSH aliases
-    │   └── setup_symlinks     ← wire scripts/repo/* into ~/bin/
+    │   └── update_scripts     ← wire scripts/repo/* into ~/bin/
     ├── apps/                  ← pluggable app installers (called by dotfiles_install)
     │   ├── iterm2
     │   ├── ghostty
@@ -194,7 +194,7 @@ Then exits. No partial setup.
 7. **Shell** — install Zsh, Oh My Zsh, apply `config/zshrc` template to `~/.zshrc`, apply `config/p10k.zsh` to `~/.p10k.zsh`
 8. **Apps** — run each installer in `scripts/apps/` (prompted, default yes): iterm2, ghostty, warp, cursor
 9. **Bulk clone** — for each account where `clone` is not `no`, clone all repos via GitHub API
-10. **Symlinks** — run `setup_symlinks` to wire `scripts/repo/*` into `~/bin/`
+10. **Symlinks** — run `update_scripts` to wire `scripts/repo/*` into `~/bin/`
 11. **Shell aliases** — write `alias` entries from `dotfiles.conf` to `~/.zshrc`
 12. **Final verification** — confirm `repo_sync`, `repo_init`, `repo_clone` are on PATH and working
 13. **Source shell** — source `~/.zshrc` so everything is live in current session
@@ -352,11 +352,11 @@ Migrates HTTPS remote URLs to SSH host alias format across all repos under `gith
 ./scripts/setup/setup_migrate [--dry-run] [--apply]
 ```
 
-### `setup_symlinks`
+### `update_scripts`
 Creates symlinks in `~/bin/` for all scripts in `scripts/repo/`. Updates PATH in shell config. Removes deprecated symlink names.
 
 ```bash
-./scripts/setup/setup_symlinks
+./scripts/setup/update_scripts
 ```
 
 ---

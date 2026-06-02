@@ -1,6 +1,6 @@
 #!/bin/bash
-# manifest.sh — ~/bin symlink names and script paths (source only)
-# Only scripts/repo/* are symlinked to ~/bin/.
+# manifest.sh — ~/bin script names and paths (source only)
+# scripts/repo/* and scripts/lib/* are copied to ~/bin/ by update_scripts.
 # setup/* and apps/* are run by path only.
 
 # Deprecated symlink names to remove from ~/bin/ on next setup_symlinks run
