@@ -139,6 +139,7 @@ dotfiles_ui_colors() {
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[0;34m'
+    CYAN='\033[0;36m'
     BOLD='\033[1m'
     NC='\033[0m'
 }
@@ -151,9 +152,9 @@ dotfiles_ui_section() {
     local title="$1"
     local line="────────────────────────────────────────────────────────────"
     echo ""
-    echo -e "${BOLD:-}${BLUE:-}${line}${NC:-}"
-    echo -e "${BOLD:-}${BLUE:-}  ◆ ${title}${NC:-}"
-    echo -e "${BOLD:-}${BLUE:-}${line}${NC:-}"
+    echo -e "${BOLD:-}${CYAN:-}${line}${NC:-}"
+    echo -e "${BOLD:-}${CYAN:-}  ◆ ${title}${NC:-}"
+    echo -e "${BOLD:-}${CYAN:-}${line}${NC:-}"
     echo ""
 }
 
