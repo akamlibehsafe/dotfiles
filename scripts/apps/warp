@@ -21,7 +21,8 @@ dotfiles_ui_section "Warp"
 # ─── install ──────────────────────────────────────────────────────────────────
 
 if [ -d "/Applications/Warp.app" ]; then
-    dotfiles_ui_success "Warp already installed"
+    dotfiles_ui_info "Warp already installed — checking for updates..."
+    brew upgrade --cask warp 2>/dev/null && dotfiles_ui_success "Warp updated" || dotfiles_ui_info "Warp is up to date"
 else
     if ! command -v brew &>/dev/null; then
         dotfiles_ui_error "Homebrew is required to install Warp."

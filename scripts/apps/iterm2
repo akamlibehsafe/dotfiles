@@ -25,7 +25,8 @@ dotfiles_ui_section "iTerm2"
 if [ -d "/Applications/iTerm.app" ]; then
     _ver=$(/usr/libexec/PlistBuddy -c "Print:CFBundleShortVersionString" \
         /Applications/iTerm.app/Contents/Info.plist 2>/dev/null || echo "unknown")
-    dotfiles_ui_success "iTerm2 already installed (version ${_ver})"
+    dotfiles_ui_info "iTerm2 already installed (version ${_ver}) — checking for updates..."
+    brew upgrade --cask iterm2 2>/dev/null && dotfiles_ui_success "iTerm2 updated" || dotfiles_ui_info "iTerm2 is up to date"
 else
     if ! command -v brew &>/dev/null; then
         dotfiles_ui_error "Homebrew is required to install iTerm2."

@@ -428,16 +428,21 @@ run_phase "Phase 8: Apps"
 
 app_is_installed() {
     case "$1" in
-        iterm2)    [ -d "/Applications/iTerm.app" ] ;;
-        ghostty)   [ -d "/Applications/Ghostty.app" ] ;;
-        warp)      [ -d "/Applications/Warp.app" ] ;;
-        cursor)    [ -d "/Applications/Cursor.app" ] ;;
-        claude)    [ -d "/Applications/Claude.app" ] ;;
-        claude-cli) command -v claude &>/dev/null ;;
+        iterm2)       [ -d "/Applications/iTerm.app" ] ;;
+        ghostty)      [ -d "/Applications/Ghostty.app" ] ;;
+        warp)         [ -d "/Applications/Warp.app" ] ;;
+        cursor)       [ -d "/Applications/Cursor.app" ] ;;
+        claude)       [ -d "/Applications/Claude.app" ] ;;
+        claude-cli)   command -v claude &>/dev/null ;;
+        typora)       [ -d "/Applications/Typora.app" ] ;;
+        arc)          [ -d "/Applications/Arc.app" ] ;;
+        zed)          [ -d "/Applications/Zed.app" ] ;;
+        sublime-text) [ -d "/Applications/Sublime Text.app" ] ;;
+        textmate)     [ -d "/Applications/TextMate.app" ] ;;
     esac
 }
 
-for app in iterm2 ghostty warp cursor claude claude-cli; do
+for app in iterm2 ghostty warp cursor claude claude-cli typora arc zed sublime-text textmate; do
     app_script="${SCRIPTS_ROOT}/apps/${app}"
     if [ -f "$app_script" ]; then
         dotfiles_ui_section "${app}"
@@ -591,6 +596,11 @@ DOCK_APPS=(
     "/Applications/iTerm.app"
     "/Applications/Cursor.app"
     "/Applications/Claude.app"
+    "/Applications/Typora.app"
+    "/Applications/Arc.app"
+    "/Applications/Zed.app"
+    "/Applications/Sublime Text.app"
+    "/Applications/TextMate.app"
 )
 
 if ! command -v dockutil &>/dev/null; then

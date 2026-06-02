@@ -24,7 +24,8 @@ dotfiles_ui_section "Ghostty"
 # ─── install ──────────────────────────────────────────────────────────────────
 
 if [ -d "/Applications/Ghostty.app" ]; then
-    dotfiles_ui_success "Ghostty already installed"
+    dotfiles_ui_info "Ghostty already installed — checking for updates..."
+    brew upgrade --cask ghostty 2>/dev/null && dotfiles_ui_success "Ghostty updated" || dotfiles_ui_info "Ghostty is up to date"
 else
     if ! command -v brew &>/dev/null; then
         dotfiles_ui_error "Homebrew is required to install Ghostty."

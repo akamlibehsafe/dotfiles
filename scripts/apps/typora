@@ -1,0 +1,34 @@
+#!/bin/bash
+# apps/typora — install Typora markdown editor
+# Run standalone or called by dotfiles_install.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPTS_ROOT="$(cd "$(dirname "$_self")/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+dotfiles_ui_section "Typora"
+
+if ! command -v brew &>/dev/null; then
+    dotfiles_ui_error "Homebrew is required to install Typora."
+    exit 1
+fi
+
+if [ -d "/Applications/Typora.app" ]; then
+    dotfiles_ui_info "Typora already installed — checking for updates..."
+    brew upgrade --cask typora 2>/dev/null && dotfiles_ui_success "Typora updated" || dotfiles_ui_info "Typora is up to date"
+else
+    dotfiles_ui_info "Installing Typora..."
+    brew install --cask typora
+    dotfiles_ui_success "Typora installed"
+fi
+
+dotfiles_ui_success "Typora setup complete"

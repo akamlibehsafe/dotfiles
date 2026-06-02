@@ -273,10 +273,15 @@ if command -v claude &>/dev/null; then
 else
     dotfiles_ui_info "  Claude CLI not installed, skipping"
 fi
-[ -d "/Applications/Cursor.app" ]   && { confirm "Uninstall Cursor?"  && brew_uninstall cursor --cask; }  || dotfiles_ui_info "  Cursor not installed, skipping"
-[ -d "/Applications/Warp.app" ]     && { confirm "Uninstall Warp?"    && brew_uninstall warp --cask; }    || dotfiles_ui_info "  Warp not installed, skipping"
-[ -d "/Applications/Ghostty.app" ]  && { confirm "Uninstall Ghostty?" && brew_uninstall ghostty --cask; } || dotfiles_ui_info "  Ghostty not installed, skipping"
-[ -d "/Applications/iTerm.app" ]    && { confirm "Uninstall iTerm2?"  && brew_uninstall iterm2 --cask; }  || dotfiles_ui_info "  iTerm2 not installed, skipping"
+[ -d "/Applications/Cursor.app" ]       && { confirm "Uninstall Cursor?"       && brew_uninstall cursor --cask; }       || dotfiles_ui_info "  Cursor not installed, skipping"
+[ -d "/Applications/Warp.app" ]         && { confirm "Uninstall Warp?"         && brew_uninstall warp --cask; }         || dotfiles_ui_info "  Warp not installed, skipping"
+[ -d "/Applications/Ghostty.app" ]      && { confirm "Uninstall Ghostty?"      && brew_uninstall ghostty --cask; }      || dotfiles_ui_info "  Ghostty not installed, skipping"
+[ -d "/Applications/iTerm.app" ]        && { confirm "Uninstall iTerm2?"       && brew_uninstall iterm2 --cask; }       || dotfiles_ui_info "  iTerm2 not installed, skipping"
+[ -d "/Applications/Typora.app" ]       && { confirm "Uninstall Typora?"       && brew_uninstall typora --cask; }       || dotfiles_ui_info "  Typora not installed, skipping"
+[ -d "/Applications/Arc.app" ]          && { confirm "Uninstall Arc?"          && brew_uninstall arc --cask; }          || dotfiles_ui_info "  Arc not installed, skipping"
+[ -d "/Applications/Zed.app" ]          && { confirm "Uninstall Zed?"          && brew_uninstall zed --cask; }          || dotfiles_ui_info "  Zed not installed, skipping"
+[ -d "/Applications/Sublime Text.app" ] && { confirm "Uninstall Sublime Text?" && brew_uninstall sublime-text --cask; } || dotfiles_ui_info "  Sublime Text not installed, skipping"
+[ -d "/Applications/TextMate.app" ]     && { confirm "Uninstall TextMate?"     && brew_uninstall textmate --cask; }     || dotfiles_ui_info "  TextMate not installed, skipping"
 
 # ─── 10. Remove Oh My Zsh and Powerlevel10k ──────────────────────────────────
 
@@ -352,7 +357,7 @@ fi
 
 section "Remove Dock icons"
 
-DOCK_APPS=("iTerm" "Cursor" "Claude")
+DOCK_APPS=("iTerm" "Cursor" "Claude" "Typora" "Arc" "Zed" "Sublime Text" "TextMate")
 
 if command -v dockutil &>/dev/null; then
     dock_changed=false

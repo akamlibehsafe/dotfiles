@@ -20,7 +20,8 @@ dotfiles_ui_section "Cursor"
 # ─── install ──────────────────────────────────────────────────────────────────
 
 if [ -d "/Applications/Cursor.app" ]; then
-    dotfiles_ui_success "Cursor already installed"
+    dotfiles_ui_info "Cursor already installed — checking for updates..."
+    brew upgrade --cask cursor 2>/dev/null && dotfiles_ui_success "Cursor updated" || dotfiles_ui_info "Cursor is up to date"
 else
     if ! command -v brew &>/dev/null; then
         dotfiles_ui_error "Homebrew is required to install Cursor."
