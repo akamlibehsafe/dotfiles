@@ -1,6 +1,7 @@
 #!/bin/bash
 # repo_sync — stage, commit, and push changes in the current repo
 # Automatically detects the GitHub account from the remote URL.
+# test: hook trigger
 
 set -euo pipefail
 
