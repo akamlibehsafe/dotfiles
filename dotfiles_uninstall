@@ -290,17 +290,19 @@ section "Remove Dock icons"
 DOCK_APPS=("iTerm" "Cursor" "Claude")
 
 if command -v dockutil &>/dev/null; then
-    if confirm "Remove dotfiles apps from Dock?"; then
-        for app in "${DOCK_APPS[@]}"; do
-            if dockutil --find "$app" &>/dev/null 2>&1; then
+    dock_changed=false
+    for app in "${DOCK_APPS[@]}"; do
+        if dockutil --find "$app" &>/dev/null 2>&1; then
+            if confirm "Remove ${app} from Dock?"; then
                 dockutil --remove "$app" --no-restart &>/dev/null
                 dotfiles_ui_success "  Removed ${app} from Dock"
-            else
-                dotfiles_ui_info "  ${app} not in Dock, skipping"
+                dock_changed=true
             fi
-        done
-        killall Dock 2>/dev/null || true
-    fi
+        else
+            dotfiles_ui_info "  ${app} not in Dock, skipping"
+        fi
+    done
+    [ "$dock_changed" = true ] && killall Dock 2>/dev/null || true
 else
     dotfiles_ui_info "  dockutil not found, skipping"
 fi
