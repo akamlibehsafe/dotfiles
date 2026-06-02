@@ -1,6 +1,6 @@
 # dotfiles
 
-Personal macOS development environment. Run `dotfiles_install` on a fresh Mac and get a fully working environment — no manual steps after it finishes.
+Personal macOS development environment setup and daily GitHub workflow toolkit. Run `dotfiles_install` on a fresh Mac and get a fully working environment — no manual steps after it finishes.
 
 ---
 
