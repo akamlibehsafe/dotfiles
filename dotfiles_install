@@ -189,6 +189,15 @@ done
 
 phase_ok "dotfiles.conf looks valid"
 
+# Copy dotfiles.conf to XDG location so scripts in ~/bin/ can find it
+# regardless of where the installer was run from.
+XDG_CONF_DIR="${HOME}/.config/dotfiles"
+XDG_CONF="${XDG_CONF_DIR}/dotfiles.conf"
+mkdir -p "$XDG_CONF_DIR"
+cp "${DOTFILES_CONF}" "$XDG_CONF"
+chmod 600 "$XDG_CONF"
+dotfiles_ui_success "  Copied dotfiles.conf → ${XDG_CONF}"
+
 # ─── Phase 2: Homebrew ───────────────────────────────────────────────────────
 
 run_phase "Phase 2: Homebrew"

@@ -164,7 +164,22 @@ else
     dotfiles_ui_info "  No GH_TOKEN exports found in ${SHELL_CONFIG}, skipping"
 fi
 
-# ─── 5. Remove ~/bin PATH addition ───────────────────────────────────────────
+# ─── 5. Remove XDG dotfiles.conf ─────────────────────────────────────────────
+
+section "Remove XDG config"
+
+XDG_CONF="${HOME}/.config/dotfiles/dotfiles.conf"
+if [ -f "$XDG_CONF" ]; then
+    if confirm "Remove ${XDG_CONF}?"; then
+        rm -f "$XDG_CONF"
+        rmdir "${HOME}/.config/dotfiles" 2>/dev/null || true
+        dotfiles_ui_success "  Removed ${XDG_CONF}"
+    fi
+else
+    dotfiles_ui_info "  ${XDG_CONF} not found, skipping"
+fi
+
+# ─── 6. Remove ~/bin PATH addition ───────────────────────────────────────────
 
 section "Remove ~/bin from PATH in shell config"
 
@@ -178,7 +193,7 @@ else
     dotfiles_ui_info "  No ~/bin PATH entry found in ${SHELL_CONFIG}, skipping"
 fi
 
-# ─── 6. Remove SSH config blocks ─────────────────────────────────────────────
+# ─── 7. Remove SSH config blocks ─────────────────────────────────────────────
 
 section "Remove SSH config blocks"
 
@@ -217,7 +232,7 @@ else
     dotfiles_ui_info "  No dotfiles SSH blocks found in ~/.ssh/config, skipping"
 fi
 
-# ─── 7. Remove git identity includeIf and per-account gitconfigs ─────────────
+# ─── 8. Remove git identity includeIf and per-account gitconfigs ─────────────
 
 section "Remove git identity config"
 
@@ -252,7 +267,7 @@ else
     dotfiles_ui_info "  No git identity config found, skipping"
 fi
 
-# ─── 8. Remove SSH keys ──────────────────────────────────────────────────────
+# ─── 9. Remove SSH keys ──────────────────────────────────────────────────────
 
 section "Remove SSH keys"
 
@@ -265,7 +280,7 @@ else
     dotfiles_ui_info "  ${DOTFILES_SSH_DIR} not found, skipping"
 fi
 
-# ─── 9. Uninstall apps ───────────────────────────────────────────────────────
+# ─── 10. Uninstall apps ───────────────────────────────────────────────────────
 
 section "Uninstall apps"
 
@@ -289,7 +304,7 @@ fi
 [ -d "/Applications/Sublime Text.app" ] && { confirm "Uninstall Sublime Text?" && brew_uninstall sublime-text --cask; } || dotfiles_ui_info "  Sublime Text not installed, skipping"
 [ -d "/Applications/TextMate.app" ]     && { confirm "Uninstall TextMate?"     && brew_uninstall textmate --cask; }     || dotfiles_ui_info "  TextMate not installed, skipping"
 
-# ─── 10. Remove Oh My Zsh and Powerlevel10k ──────────────────────────────────
+# ─── 11. Remove Oh My Zsh and Powerlevel10k ──────────────────────────────────
 
 section "Remove Oh My Zsh and Powerlevel10k"
 
@@ -336,7 +351,7 @@ else
 
 fi
 
-# ─── 11. Remove per-account repo folders ─────────────────────────────────────
+# ─── 12. Remove per-account repo folders ─────────────────────────────────────
 
 section "Remove per-account repository folders"
 
@@ -361,7 +376,7 @@ else
     done
 fi
 
-# ─── 12. Remove Dock icons ────────────────────────────────────────────────────
+# ─── 13. Remove Dock icons ────────────────────────────────────────────────────
 
 section "Remove Dock icons"
 
@@ -385,7 +400,7 @@ else
     dotfiles_ui_info "  dockutil not found, skipping"
 fi
 
-# ─── 13. Reset default shell ─────────────────────────────────────────────────
+# ─── 14. Reset default shell ─────────────────────────────────────────────────
 
 section "Reset default shell"
 
@@ -400,7 +415,7 @@ else
 fi
 unset _current_shell
 
-# ─── 14. Remove Homebrew ──────────────────────────────────────────────────────
+# ─── 15. Remove Homebrew ──────────────────────────────────────────────────────
 
 section "Remove Homebrew"
 

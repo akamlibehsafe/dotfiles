@@ -98,13 +98,47 @@ Repos live under `~/Documents/GitHub/<username>/`. Git automatically uses the co
 
 ---
 
-## Updating scripts
+## How daily commands work
+
+`dotfiles_install` copies `scripts/repo/*` and `scripts/lib/*` into `~/bin/` as standalone files. It also copies `dotfiles.conf` to `~/.config/dotfiles/dotfiles.conf` — a standard config location that the scripts always check, regardless of where the installer was run from.
+
+This means the commands are fully self-contained: you can run the installer from your Desktop, delete it afterwards, and `repo_init`, `repo_clone`, `repo_sync` keep working from anywhere.
+
+### Keeping commands up to date
+
+When you pull changes to the dotfiles repo, a **git post-merge hook** automatically runs `update_scripts` if any repo or lib scripts changed — `~/bin/` is refreshed without any manual step.
 
 ```bash
-git pull
+git pull   # hook fires automatically if scripts changed
 ```
 
-Scripts are symlinked from `~/bin/` into the repo — pulling updates them immediately. No re-setup needed unless the repo structure changed.
+To refresh manually at any time:
+
+```bash
+./scripts/setup/update_scripts
+```
+
+---
+
+## What gets installed on this machine
+
+Everything `dotfiles_install` places outside the repo itself — and everything `dotfiles_uninstall` removes:
+
+| Location | Contents |
+|---|---|
+| `~/bin/repo_init`, `repo_clone`, `repo_sync` | Daily command scripts |
+| `~/bin/lib/` | Shared library files the scripts depend on |
+| `~/.config/dotfiles/dotfiles.conf` | Copy of your config (including secrets) |
+| `~/.ssh/dotfiles/` | SSH private and public keys per account |
+| `~/.ssh/config` | SSH host alias blocks per account |
+| `~/.gitconfig` | `includeIf` blocks for per-account git identity |
+| `~/.gitconfig-<user>` | Per-account git name and email |
+| `~/.zshrc` | PAT exports, aliases, Oh My Zsh config |
+| `~/.oh-my-zsh/` | Oh My Zsh, Powerlevel10k, plugins |
+| `~/.p10k.zsh` | Powerlevel10k prompt config |
+| `~/Documents/GitHub/<user>/` | Cloned repositories (prompted on uninstall) |
+
+`dotfiles_uninstall` removes all of the above interactively, prompting before each step.
 
 ---
 
