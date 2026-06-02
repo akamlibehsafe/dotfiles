@@ -446,3 +446,10 @@ echo ""
 dotfiles_ui_info "To apply changes to your current shell session:"
 echo "  source $(dotfiles_shell_config)"
 echo "  (or open a new terminal)"
+echo ""
+if [[ "$REPO_ROOT" == "${DOTFILES_GITHUB_ROOT}"/* ]]; then
+    dotfiles_ui_info "NOTE: The dotfiles repo itself was not deleted:"
+    echo "  ${REPO_ROOT}"
+    dotfiles_ui_info "Delete it manually when you are done:"
+    echo "  rm -rf ${REPO_ROOT}"
+fi
