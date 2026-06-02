@@ -1,7 +1,10 @@
 # Ghostty configuration
 # Applied by dotfiles_install to ~/.config/ghostty/config
-# Update this file to match your preferred Ghostty settings.
 # Full reference: https://ghostty.org/docs/config
 
-# font-size = 13
-# theme = dark
+font-family = MesloLGS NF
+theme = dark:GitHub Dark Default,light:GitHub Light Default
+background-opacity = 0.78
+background-blur = 20
+background-opacity-cells = true
+macos-titlebar-style = transparent
