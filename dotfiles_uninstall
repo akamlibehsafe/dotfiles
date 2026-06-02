@@ -142,7 +142,7 @@ fi
 section "Remove PAT exports from shell config"
 
 if confirm "Remove GH_TOKEN_* exports from ${SHELL_CONFIG}?"; then
-    dotfiles_remove_lines_matching "$SHELL_CONFIG" "^export GH_TOKEN_"
+    dotfiles_remove_lines_matching "$SHELL_CONFIG" "GH_TOKEN_"
     dotfiles_remove_lines_matching "$SHELL_CONFIG" "# dotfiles PAT"
     dotfiles_ui_success "  PAT exports removed"
 fi
