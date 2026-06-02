@@ -139,6 +139,7 @@ dotfiles_ui_colors() {
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[0;34m'
+    BOLD='\033[1m'
     NC='\033[0m'
 }
 
@@ -147,8 +148,12 @@ dotfiles_ui_success() { echo -e "${GREEN:-}$1${NC:-}"; }
 dotfiles_ui_info()    { echo -e "${YELLOW:-}$1${NC:-}"; }
 dotfiles_ui_prompt()  { echo -e "${BLUE:-}$1${NC:-}"; }
 dotfiles_ui_section() {
+    local title="$1"
+    local line="────────────────────────────────────────────────────────────"
     echo ""
-    echo -e "${BLUE:-}=== $1 ===${NC:-}"
+    echo -e "${BOLD:-}${BLUE:-}${line}${NC:-}"
+    echo -e "${BOLD:-}${BLUE:-}  ◆ ${title}${NC:-}"
+    echo -e "${BOLD:-}${BLUE:-}${line}${NC:-}"
     echo ""
 }
 
