@@ -16,7 +16,7 @@ SCRIPTS_ROOT="${REPO_ROOT}/scripts"
 # ─── macOS check ──────────────────────────────────────────────────────────────
 
 [[ "$OSTYPE" == "darwin"* ]] || {
-    echo "Error: dotfiles_setup is for macOS only. Detected: $OSTYPE" >&2
+    echo "Error: dotfiles_install is for macOS only. Detected: $OSTYPE" >&2
     exit 1
 }
 
@@ -27,7 +27,7 @@ if [ ! -f "${REPO_ROOT}/dotfiles.conf" ]; then
 
 Error: dotfiles.conf not found.
 
-Copy the template and fill in your details before running dotfiles_setup:
+Copy the template and fill in your details before running dotfiles_install:
   cp dotfiles.conf.example dotfiles.conf
 
 See dotfiles.conf.example for the required format.
@@ -183,7 +183,7 @@ done
 
 [ "$CONF_ERRORS" -gt 0 ] && {
     echo ""
-    dotfiles_ui_error "Fix the errors in dotfiles.conf and re-run dotfiles_setup."
+    dotfiles_ui_error "Fix the errors in dotfiles.conf and re-run dotfiles_install."
     exit 1
 }
 

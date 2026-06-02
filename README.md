@@ -49,16 +49,21 @@ cd /path/to/dotfiles
 **Shell:**
 - Zsh, Oh My Zsh, Powerlevel10k (with your config from `config/p10k.zsh`)
 
-**Apps** (prompted, skipped if already installed):
+**Apps** (prompted, skipped if already installed, updated if already present):
 - iTerm2 (with bundled profile from `config/iterm2/`)
 - Ghostty (with config from `config/ghostty/`)
 - Warp
 - Cursor
-- Claude desktop
-- Claude CLI
+- Claude desktop + Claude CLI
+- Raycast
+- Typora
+- Arc
+- Zed
+- Sublime Text
+- TextMate
 
 **Dock:**
-- Pins iTerm2, Cursor, and Claude to the right end of the Dock (via dockutil)
+- Pins all installed apps to the right end of the Dock (via dockutil)
 
 **GitHub:**
 - PAT exports written to `~/.zshrc`
@@ -66,7 +71,7 @@ cd /path/to/dotfiles
 - Git identity set via `includeIf gitdir:` — right account used automatically per folder
 - Optional bulk clone of all repos per account
 
-**Daily commands** (symlinked to `~/bin/`, available everywhere):
+**Daily commands** (copied to `~/bin/`, available everywhere):
 - `repo_init` — turn a local folder into a new GitHub repo
 - `repo_clone` — clone an existing GitHub repo
 - `repo_sync` — commit and push current repo
@@ -174,7 +179,7 @@ For testing (keeps repo folders):
 ./scripts/setup/setup_migrate --dry-run
 ./scripts/setup/setup_migrate --apply
 
-# Refresh ~/bin symlinks
+# Refresh ~/bin/ scripts
 ./scripts/setup/update_scripts
 ```
 
@@ -195,7 +200,7 @@ dotfiles/
 │   ├── ghostty/config         ← Ghostty config
 │   └── iterm2/                ← iTerm2 profile export
 └── scripts/
-    ├── repo/                  ← daily commands (symlinked to ~/bin/)
+    ├── repo/                  ← daily commands (copied to ~/bin/ by update_scripts)
     │   ├── repo_init
     │   ├── repo_clone
     │   └── repo_sync
