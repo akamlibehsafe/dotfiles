@@ -209,8 +209,8 @@ dotfiles_remove_lines_matching() {
     local file="$1" pattern="$2"
     [ -f "$file" ] || return 0
     if [[ "$(uname)" == "Darwin" ]]; then
-        sed -i '' "/${pattern}/d" "$file" 2>/dev/null || true
+        sed -i '' "\|${pattern}|d" "$file" 2>/dev/null || true
     else
-        sed -i "/${pattern}/d" "$file" 2>/dev/null || true
+        sed -i "\|${pattern}|d" "$file" 2>/dev/null || true
     fi
 }
