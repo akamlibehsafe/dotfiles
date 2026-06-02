@@ -50,7 +50,7 @@ Three accounts are in use — all defined in `dotfiles.conf` (never hardcoded in
 
 ## Versioning
 
-Currently at **v0.5.0 (unreleased, in progress)**. Tag is applied only when fully tested on a fresh machine. Do not tag prematurely.
+Currently at **v0.5.0**. Tag applied after full clean cycle passed on 2026-06-02.
 
 ## Testing workflow
 

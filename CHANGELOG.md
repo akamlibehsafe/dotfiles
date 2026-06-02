@@ -1,46 +1,46 @@
 # Changelog
 
-## 0.5.0 - Unreleased (in progress)
+## 0.5.0 - 2026-06-02
 
 ### Breaking
 - Repo renamed from `gitscripts` to `dotfiles`
+- Entry points renamed: `environment_install` → `dotfiles_install`, `environment_uninstall` → `dotfiles_uninstall`
 - Daily commands renamed: `git_push` → `repo_sync`, `git_create_from_local` → `repo_init`, `git_create_from_remote` → `repo_clone`
-- Bootstrap renamed: `environment_install` → `dotfiles_install`, `environment_uninstall` → `dotfiles_uninstall`
 - Scripts reorganised: `scripts/repo/`, `scripts/setup/`, `scripts/apps/`, `scripts/lib/`
-- `ssh_key` directive in `dotfiles.conf` replaced by `ssh_private` (full PEM block pasted directly from 1Password or key file)
+- `ssh_key` directive in `dotfiles.conf` replaced by `ssh_private` (full PEM block — paste directly from 1Password)
+- `setup_symlinks` replaced by `update_scripts` — scripts are now copied to `~/bin/`, not symlinked
 
 ### Added
-- Pluggable app installers under `scripts/apps/` (iterm2, ghostty, warp, cursor, claude, claude-cli)
-- Config files captured in `config/` (p10k, ghostty, zshrc template, gitconfig)
-- New tools installed: Python, Node.js, Git LFS, GitHub CLI, jq, Claude CLI
+- **Self-contained daily commands** — `scripts/repo/*` and `scripts/lib/*` copied to `~/bin/` by `update_scripts`; no dependency on installer location after setup
+- **XDG config** — `dotfiles.conf` copied to `~/.config/dotfiles/dotfiles.conf` so scripts find it from anywhere
+- **git post-merge hook** — auto-runs `update_scripts` when `scripts/repo/*` or `scripts/lib/*` change on `git pull`
+- **Personal app installers** — Raycast, Typora, Arc, Zed, Sublime Text, TextMate added to `scripts/apps/`
+- **App update on re-run** — existing apps get `brew upgrade` instead of silently passing
+- **macOS Dock** — all installed apps pinned automatically via dockutil
+- **Terminal font** — MesloLGS NF installed and set as default Terminal font (Phase 14)
+- **Shell reset on uninstall** — resets default shell from Homebrew zsh back to `/bin/zsh`
+- **Config files** in `config/` — p10k, ghostty (with theme + transparency), zshrc template, gitconfig
+- New core tools: Python, Node.js, Git LFS, GitHub CLI, jq, Claude CLI
 - `dotfiles_install` completes fully — no manual follow-up steps required
 - All commands self-document when invoked with wrong or missing arguments
-- Pre-flight state detection — setup skips already-configured phases
-- macOS Dock configuration: pins iTerm2, Cursor, Claude to Dock (via dockutil)
-- `dotfiles_uninstall` now works without `dotfiles.conf` — account-specific steps skipped gracefully
-- `dotfiles_uninstall` cleans oh-my-zsh references from `.zshrc` on removal
-- `dotfiles_uninstall` prompts to remove Homebrew (last step, always)
-- `dotfiles_uninstall` removes Dock icons added by setup
-- `dotfiles_uninstall` skips prompts for things already not present
-- `CLAUDE.md` added to repo with full testing workflow
-- Coloured section headers: cyan for setup phases, bold red for uninstall phases
+- Pre-flight state detection — install skips already-configured phases
+- `CLAUDE.md` with full testing workflow and important rules
 
 ### Fixed
 - `dotfiles_uninstall` without `dotfiles.conf` no longer aborts with fatal error
+- Uninstall skips prompts for things already not present
+- p10k instant-prompt `if/fi` block now fully removed from `.zshrc` on uninstall (no orphaned `fi`)
+- SSH config block removal now checks for blocks before prompting
+- Git identity removal now checks for files before prompting
+- Oh My Zsh removal no longer re-prompts when only `.zshrc` references remain
 - Empty array iteration under bash 3.2 (`set -u`) fixed throughout
-- Tilde expansion in `dotfiles_expand_path` fixed for bash 3.2
 - `wc -l` output whitespace stripping fixed under `pipefail`
-- PAT preflight check now based on `.zshrc` exports, not conf availability
-- SSH key install now writes full PEM file with correct trailing newline
-- `sed` delimiter changed to `|` to handle patterns containing `/`
-- Legacy `gitscripts-managed` SSH config blocks now removed by uninstall
-- `git lfs install` uses `--skip-repo` to avoid adding hooks to repos
+- Legacy `gitscripts-managed` SSH config blocks removed by uninstall
 
 ### Changed
-- `dotfiles_install` is now a thin orchestrator over independent phase scripts
-- Each phase script is independently runnable and re-runnable
+- `dotfiles_install` is a thin orchestrator — 15 phases, each independently skippable
 - SSH keys stored as full PEM blocks in `dotfiles.conf` — no encoding needed
-- App install prompts skipped when app is already installed
+- Uninstall prompts per section, silently skips absent items
 - Section headers bold and coloured for clear phase separation
 
 ## 0.4.0 - 2026-05-23

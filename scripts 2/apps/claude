@@ -1,0 +1,35 @@
+#!/bin/bash
+# apps/claude — install Claude desktop app
+# Claude CLI is installed separately as a core tool via npm.
+# Run standalone or called by dotfiles_install.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPTS_ROOT="$(cd "$(dirname "$_self")/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+dotfiles_ui_section "Claude desktop app"
+
+if [ -d "/Applications/Claude.app" ]; then
+    dotfiles_ui_info "Claude desktop already installed — checking for updates..."
+    brew upgrade --cask claude 2>/dev/null && dotfiles_ui_success "Claude updated" || dotfiles_ui_info "Claude is up to date"
+else
+    if ! command -v brew &>/dev/null; then
+        dotfiles_ui_error "Homebrew is required to install Claude."
+        exit 1
+    fi
+    dotfiles_ui_info "Installing Claude desktop..."
+    brew install --cask claude
+    dotfiles_ui_success "Claude desktop installed"
+fi
+
+dotfiles_ui_info "Claude CLI (claude-code) is installed separately as a core tool."
+dotfiles_ui_success "Claude setup complete"

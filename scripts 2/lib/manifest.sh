@@ -1,9 +1,9 @@
 #!/bin/bash
-# manifest.sh — ~/bin script names and paths (source only)
-# scripts/repo/* and scripts/lib/* are copied to ~/bin/ by update_scripts.
+# manifest.sh — ~/bin symlink names and script paths (source only)
+# Only scripts/repo/* are symlinked to ~/bin/.
 # setup/* and apps/* are run by path only.
 
-# Deprecated names to remove from ~/bin/ on next update_scripts run
+# Deprecated symlink names to remove from ~/bin/ on next setup_symlinks run
 DOTFILES_DEPRECATED_BIN_SYMLINKS=(
     # gitscripts 0.4.x names
     "git_push"
@@ -45,7 +45,7 @@ DOTFILES_DEPRECATED_BIN_SYMLINKS=(
     "doc_update_changelog"
 )
 
-# Scripts copied to ~/bin/ — format: "name:relative/path/from/scripts/"
+# Scripts symlinked to ~/bin/ — format: "symlink_name:relative/path/from/scripts/"
 DOTFILES_BIN_ENTRIES=(
     "repo_init:repo/repo_init"
     "repo_clone:repo/repo_clone"

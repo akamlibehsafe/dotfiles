@@ -1,0 +1,34 @@
+#!/bin/bash
+# apps/claude-cli — install Claude CLI (claude-code) via npm
+# Requires Node.js to be installed (core tool).
+# Run standalone or called by dotfiles_install.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPTS_ROOT="$(cd "$(dirname "$_self")/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+dotfiles_ui_section "Claude CLI"
+
+command -v npm &>/dev/null || {
+    dotfiles_ui_error "npm not found. Node.js must be installed first."
+    exit 1
+}
+
+if command -v claude &>/dev/null; then
+    dotfiles_ui_success "Claude CLI already installed: $(claude --version 2>/dev/null || echo 'version unknown')"
+else
+    dotfiles_ui_info "Installing Claude CLI via npm..."
+    npm install -g @anthropic-ai/claude-code
+    dotfiles_ui_success "Claude CLI installed"
+fi
+
+dotfiles_ui_success "Claude CLI setup complete"

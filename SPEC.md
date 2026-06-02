@@ -27,7 +27,7 @@ dotfiles/
 │   └── iterm2/
 │       └── iTerm2 State.itermexport
 └── scripts/
-    ├── repo/                  ← daily commands (symlinked to ~/bin/)
+    ├── repo/                  ← daily commands (copied to ~/bin/ by update_scripts)
     │   ├── repo_init
     │   ├── repo_clone
     │   └── repo_sync
@@ -451,4 +451,4 @@ PAT.md
 
 ## Version
 
-This spec describes **dotfiles v0.5.0** (work in progress).
+This spec describes **dotfiles v0.5.0**.

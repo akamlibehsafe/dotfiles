@@ -1,0 +1,177 @@
+#!/bin/bash
+# setup_check — read-only scan of PATs, SSH keys, git identity, and remotes
+# Run anytime to see the state of your environment.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd -P)"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+ACTIONS=()
+PAT_OK=0; SSH_OK=0; INCLUDE_OK=0
+PAT_TOTAL=${#DOTFILES_ACCOUNTS[@]}
+SSH_TOTAL=${#DOTFILES_ACCOUNTS[@]}
+HTTPS_REMOTES=0; SSH_REMOTES=0; REPO_COUNT=0
+
+dotfiles_ui_section "dotfiles setup_check (read-only)"
+
+echo "GitHub root : ${DOTFILES_GITHUB_ROOT}"
+echo "SSH keys dir: ${DOTFILES_SSH_DIR}"
+echo "Accounts    : $(dotfiles_accounts_list)"
+echo ""
+
+# ─── PATs ─────────────────────────────────────────────────────────────────────
+
+dotfiles_ui_section "Personal Access Tokens"
+
+for user in "${DOTFILES_ACCOUNTS[@]}"; do
+    pat_var="$(dotfiles_account_pat_var "$user")"
+    # Prefer env var, fall back to dotfiles.conf value
+    pat="$(dotfiles_account_pat_resolved "$user" || true)"
+    if [ -n "$pat" ]; then
+        export "${pat_var}=${pat}"
+    fi
+    status="$(dotfiles_verify_pat_api "$pat_var" "$user" || true)"
+    case "$status" in
+        ok)
+            dotfiles_ui_success "  ${pat_var}: valid (${user})"
+            PAT_OK=$((PAT_OK + 1))
+            ;;
+        missing)
+            dotfiles_ui_info "  ${pat_var}: not set"
+            ACTIONS+=("setup_pats → configure PAT for ${user}")
+            ;;
+        wrong_user:*)
+            dotfiles_ui_error "  ${pat_var}: wrong GitHub user (${status#wrong_user:})"
+            ACTIONS+=("setup_pats --force → re-configure PAT for ${user}")
+            ;;
+        *)
+            dotfiles_ui_error "  ${pat_var}: ${status}"
+            ACTIONS+=("setup_pats → check PAT for ${user}")
+            ;;
+    esac
+done
+
+# ─── SSH keys ─────────────────────────────────────────────────────────────────
+
+dotfiles_ui_section "SSH keys and config"
+
+for user in "${DOTFILES_ACCOUNTS[@]}"; do
+    key="$(dotfiles_account_key_path "$user")"
+    host="$(dotfiles_account_ssh_host "$user")"
+    key_ok=false; config_ok=false
+
+    if [ -f "$key" ] && [ -f "${key}.pub" ]; then
+        key_ok=true
+        dotfiles_ui_success "  Key: ${key}"
+    else
+        dotfiles_ui_info "  Key missing: ${key}"
+        ACTIONS+=("setup_ssh --repair → generate key for ${user}")
+    fi
+
+    if [ -f "$HOME/.ssh/config" ] && grep -q "Host ${host}" "$HOME/.ssh/config" 2>/dev/null; then
+        config_ok=true
+        dotfiles_ui_success "  SSH config Host ${host}: present"
+    else
+        dotfiles_ui_info "  SSH config Host ${host}: missing"
+        ACTIONS+=("setup_ssh --repair → add SSH config for ${user}")
+    fi
+
+    if [ "$key_ok" = true ] && [ "$config_ok" = true ]; then
+        ssh_out="$(ssh -o BatchMode=yes -o ConnectTimeout=8 -T "git@${host}" 2>&1 || true)"
+        if echo "$ssh_out" | grep -qi "successfully authenticated"; then
+            dotfiles_ui_success "  ssh -T git@${host}: authenticated"
+            SSH_OK=$((SSH_OK + 1))
+        else
+            dotfiles_ui_info "  ssh -T git@${host}: not verified (key added to GitHub?)"
+            ACTIONS+=("Add public key to GitHub account: ${user}")
+        fi
+    fi
+done
+
+# ─── Git identity ─────────────────────────────────────────────────────────────
+
+dotfiles_ui_section "Git identity (includeIf)"
+
+if [ -f "$HOME/.gitconfig" ]; then
+    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+        gitdir="$(dotfiles_account_gitdir "$user")"
+        inc="gitdir:${gitdir}"
+        cfg="$HOME/.gitconfig-${user}"
+        if grep -Fq "$inc" "$HOME/.gitconfig" 2>/dev/null && [ -f "$cfg" ]; then
+            dotfiles_ui_success "  ${inc} → ${cfg}"
+            INCLUDE_OK=$((INCLUDE_OK + 1))
+        else
+            dotfiles_ui_info "  ${inc}: not configured"
+            ACTIONS+=("setup_ssh --repair → configure git identity for ${user}")
+        fi
+    done
+else
+    dotfiles_ui_info "  ~/.gitconfig not found"
+    ACTIONS+=("setup_ssh --repair → create ~/.gitconfig")
+fi
+
+# ─── Remotes ──────────────────────────────────────────────────────────────────
+
+dotfiles_ui_section "Remotes under ${DOTFILES_GITHUB_ROOT}"
+
+if [ -d "$DOTFILES_GITHUB_ROOT" ]; then
+    while IFS= read -r git_dir; do
+        [ -z "$git_dir" ] && continue
+        REPO_COUNT=$((REPO_COUNT + 1))
+        repo_root="$(dirname "$git_dir")"
+        origin="$(git -C "$repo_root" remote get-url origin 2>/dev/null || echo "")"
+        [ -z "$origin" ] && continue
+        if [[ "$origin" =~ ^https://github\.com/ ]]; then
+            HTTPS_REMOTES=$((HTTPS_REMOTES + 1))
+            dotfiles_ui_info "  HTTPS remote: ${repo_root}"
+        elif [[ "$origin" =~ ^git@github- ]]; then
+            SSH_REMOTES=$((SSH_REMOTES + 1))
+        fi
+    done < <(find "$DOTFILES_GITHUB_ROOT" -mindepth 3 -maxdepth 4 -type d -name .git 2>/dev/null)
+
+    echo ""
+    echo "  Repos scanned : ${REPO_COUNT}"
+    echo "  SSH origins   : ${SSH_REMOTES}"
+    echo "  HTTPS origins : ${HTTPS_REMOTES}"
+    [ "$HTTPS_REMOTES" -gt 0 ] && ACTIONS+=("setup_migrate --apply → convert HTTPS remotes to SSH")
+else
+    dotfiles_ui_info "  ${DOTFILES_GITHUB_ROOT} does not exist yet"
+fi
+
+# ─── Summary ──────────────────────────────────────────────────────────────────
+
+dotfiles_ui_section "Summary"
+
+PROFILE="partial"
+[ "$PAT_OK" -eq "$PAT_TOTAL" ] && [ "$SSH_OK" -eq "$SSH_TOTAL" ] && \
+    [ "$INCLUDE_OK" -eq "$PAT_TOTAL" ] && [ "$HTTPS_REMOTES" -eq 0 ] && PROFILE="configured"
+[ "$PAT_OK" -eq 0 ] && [ "$SSH_OK" -eq 0 ] && [ "$INCLUDE_OK" -eq 0 ] && PROFILE="greenfield"
+
+echo "  Profile   : ${PROFILE}"
+echo "  PATs OK   : ${PAT_OK}/${PAT_TOTAL}"
+echo "  SSH OK    : ${SSH_OK}/${SSH_TOTAL}"
+echo "  Identity  : ${INCLUDE_OK}/${PAT_TOTAL}"
+
+if [ ${#ACTIONS[@]} -gt 0 ]; then
+    echo ""
+    dotfiles_ui_info "Suggested actions:"
+    printf '%s\n' "${ACTIONS[@]}" | sort -u | while IFS= read -r action; do
+        echo "  • ${action}"
+    done
+else
+    echo ""
+    dotfiles_ui_success "Environment looks fully configured."
+fi
+
+echo ""
+exit 0

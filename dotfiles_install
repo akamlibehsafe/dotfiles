@@ -42,7 +42,7 @@ dotfiles_ui_colors
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
 SHELL_CONFIG="$(dotfiles_shell_config)"
-SETUP_LOG="${REPO_ROOT}/.dotfiles_setup.log"
+SETUP_LOG="${REPO_ROOT}/.dotfiles_install.log"
 
 phase_ok()   { dotfiles_ui_success "  ✓ $1"; }
 phase_skip() { dotfiles_ui_info    "  - $1 (skipped)"; }
@@ -109,7 +109,7 @@ fi
 [ -d "$DOTFILES_GITHUB_ROOT" ] && STATE_GITHUB_ROOT=true
 
 # PATs — true only if GH_TOKEN_* exports are already present in shell config
-# (meaning a previous dotfiles_setup already ran). On a clean machine this
+# (meaning a previous dotfiles_install already ran). On a clean machine this
 # will always be false even if dotfiles.conf has valid PATs.
 _pat_ok=true
 for _u in "${DOTFILES_ACCOUNTS[@]}"; do
@@ -592,7 +592,7 @@ for cmd in repo_init repo_clone repo_sync; do
 done
 
 [ "$VERIFY_ERRORS" -gt 0 ] && \
-    dotfiles_ui_info "  Run: scripts/setup/setup_symlinks to fix missing commands"
+    dotfiles_ui_info "  Run: scripts/setup/update_scripts to fix missing commands"
 
 phase_ok "Verification complete"
 

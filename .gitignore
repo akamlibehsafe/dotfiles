@@ -1,11 +1,6 @@
 # Secrets and machine-local config — NEVER commit these!
 dotfiles.conf
 PAT.md
-accounts.conf
-config/accounts.conf
-gitscripts.accounts
-config/gitscripts.accounts
-credentials.conf
 
 # macOS
 .DS_Store
