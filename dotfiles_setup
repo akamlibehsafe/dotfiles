@@ -349,7 +349,7 @@ fi
 # Install Oh My Zsh if missing
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     dotfiles_ui_info "  Installing Oh My Zsh..."
-    RUNZSH=no CHSH=no sh -c \
+    RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c \
         "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
     dotfiles_ui_success "  Oh My Zsh installed"
 else
