@@ -631,9 +631,34 @@ fi
 
 phase_ok "Dock configured"
 
-# ─── Phase 14: Source shell ───────────────────────────────────────────────────
+# ─── Phase 14: Terminal font ──────────────────────────────────────────────────
 
-run_phase "Phase 14: Activate"
+run_phase "Phase 14: Terminal font"
+
+if fc-list 2>/dev/null | grep -qi "MesloLGS" || system_profiler SPFontsDataType 2>/dev/null | grep -qi "MesloLGS"; then
+    dotfiles_ui_info "  MesloLGS NF found — skipping install"
+else
+    dotfiles_ui_info "  Installing MesloLGS NF font..."
+    brew install --cask font-meslo-lg-nerd-font && dotfiles_ui_success "  MesloLGS NF installed" || \
+        dotfiles_ui_info "  Could not install font — skipping Terminal font config"
+fi
+
+dotfiles_ui_info "  Configuring macOS Terminal to use MesloLGS NF..."
+osascript <<'APPLESCRIPT' 2>/dev/null && dotfiles_ui_success "  Terminal font set to MesloLGS NF" || \
+    dotfiles_ui_info "  Could not set Terminal font (Terminal may not be running)"
+tell application "Terminal"
+    set font name of default settings to "MesloLGS-NF-Regular"
+    set font size of default settings to 13
+    set font name of startup settings to "MesloLGS-NF-Regular"
+    set font size of startup settings to 13
+end tell
+APPLESCRIPT
+
+phase_ok "Terminal font configured"
+
+# ─── Phase 15: Source shell ───────────────────────────────────────────────────
+
+run_phase "Phase 15: Activate"
 
 dotfiles_ui_info "  Sourcing ${SHELL_CONFIG}..."
 # We can source it here but the user's interactive shell needs a reload
@@ -646,7 +671,7 @@ phase_ok "Shell config sourced"
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 
-dotfiles_ui_section "dotfiles_setup complete!"
+dotfiles_ui_section "dotfiles_install complete!"
 
 dotfiles_ui_success "Your development environment is ready."
 echo ""
