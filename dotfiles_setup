@@ -232,7 +232,7 @@ for pkg in git git-lfs gh jq python node; do
 done
 
 # Initialise git-lfs globally
-git lfs install --system 2>/dev/null || git lfs install || true
+git lfs install --system --skip-repo 2>/dev/null || git lfs install --skip-repo || true
 
 phase_ok "Core tools ready"
 fi
