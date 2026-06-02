@@ -165,16 +165,18 @@ SSH_CONFIG="$HOME/.ssh/config"
 if [ -f "$SSH_CONFIG" ] && confirm "Remove dotfiles SSH host blocks from ~/.ssh/config?"; then
     for user in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
         host="$(dotfiles_account_ssh_host "$user")"
-        marker_begin="# dotfiles-managed-begin ${host}"
-        marker_end="# dotfiles-managed-end ${host}"
-        if grep -q "$marker_begin" "$SSH_CONFIG" 2>/dev/null; then
-            if [[ "$(uname)" == "Darwin" ]]; then
-                sed -i '' "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
-            else
-                sed -i "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
+        for prefix in "dotfiles-managed" "gitscripts-managed"; do
+            marker_begin="# ${prefix}-begin ${host}"
+            marker_end="# ${prefix}-end ${host}"
+            if grep -q "$marker_begin" "$SSH_CONFIG" 2>/dev/null; then
+                if [[ "$(uname)" == "Darwin" ]]; then
+                    sed -i '' "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
+                else
+                    sed -i "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
+                fi
+                dotfiles_ui_success "  Removed SSH block for ${host} (${prefix})"
             fi
-            dotfiles_ui_success "  Removed SSH block for ${host}"
-        fi
+        done
     done
 fi
 
