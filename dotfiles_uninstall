@@ -163,7 +163,7 @@ fi
 
 section "Remove ~/bin from PATH in shell config"
 
-if grep -q "HOME/bin" "$SHELL_CONFIG" 2>/dev/null; then
+if grep -qE "^[^#]*HOME/bin|# Add ~/bin to PATH" "$SHELL_CONFIG" 2>/dev/null; then
     if confirm "Remove ~/bin PATH addition from ${SHELL_CONFIG}?"; then
         dotfiles_remove_lines_matching "$SHELL_CONFIG" "# Add ~/bin to PATH"
         dotfiles_remove_lines_matching "$SHELL_CONFIG" 'HOME/bin:.*PATH'
