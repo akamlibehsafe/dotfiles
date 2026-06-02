@@ -429,6 +429,7 @@ run_phase "Phase 8: Apps"
 for app in iterm2 ghostty warp cursor claude claude-cli; do
     app_script="${SCRIPTS_ROOT}/apps/${app}"
     if [ -f "$app_script" ]; then
+        dotfiles_ui_section "${app}"
         if confirm "Install ${app}?"; then
             bash "$app_script"
         else
