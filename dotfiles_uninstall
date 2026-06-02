@@ -104,22 +104,26 @@ section "Remove ~/bin/ symlinks"
 
 source "${SCRIPTS_ROOT}/lib/manifest.sh"
 
-if confirm "Remove dotfiles symlinks from ~/bin/?"; then
-    for symlink in ${DOTFILES_BIN_SYMLINKS[@]+"${DOTFILES_BIN_SYMLINKS[@]}"} ${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]+"${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"}; do
-        target="$HOME/bin/$symlink"
-        if [ -L "$target" ] || [ -f "$target" ]; then
-            rm -f "$target"
-            dotfiles_ui_success "  removed ~/bin/$symlink"
-        fi
-    done
+_found_symlinks=false
+for symlink in ${DOTFILES_BIN_SYMLINKS[@]+"${DOTFILES_BIN_SYMLINKS[@]}"} ${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]+"${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"}; do
+    { [ -L "$HOME/bin/$symlink" ] || [ -f "$HOME/bin/$symlink" ]; } && _found_symlinks=true && break
+done
 
-    # Remove ~/bin if empty
-    if [ -d "$HOME/bin" ] && [ -z "$(ls -A "$HOME/bin" 2>/dev/null)" ]; then
-        if confirm "~/bin/ is now empty. Remove it?"; then
-            rmdir "$HOME/bin"
-            dotfiles_ui_success "  removed ~/bin/"
+if [ "$_found_symlinks" = true ]; then
+    if confirm "Remove dotfiles symlinks from ~/bin/?"; then
+        for symlink in ${DOTFILES_BIN_SYMLINKS[@]+"${DOTFILES_BIN_SYMLINKS[@]}"} ${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]+"${DOTFILES_DEPRECATED_BIN_SYMLINKS[@]}"}; do
+            target="$HOME/bin/$symlink"
+            if [ -L "$target" ] || [ -f "$target" ]; then
+                rm -f "$target"
+                dotfiles_ui_success "  removed ~/bin/$symlink"
+            fi
+        done
+        if [ -d "$HOME/bin" ] && [ -z "$(ls -A "$HOME/bin" 2>/dev/null)" ]; then
+            rmdir "$HOME/bin" && dotfiles_ui_success "  removed ~/bin/"
         fi
     fi
+else
+    dotfiles_ui_info "  No dotfiles symlinks found in ~/bin/, skipping"
 fi
 
 # ─── 3. Remove shell aliases ──────────────────────────────────────────────────
@@ -128,33 +132,45 @@ section "Remove shell aliases from shell config"
 
 SHELL_CONFIG="$(dotfiles_shell_config)"
 
-if confirm "Remove dotfiles aliases from ${SHELL_CONFIG}?"; then
-    dotfiles_remove_lines_matching "$SHELL_CONFIG" "# dotfiles aliases"
-    for alias_entry in ${DOTFILES_SHELL_ALIASES[@]+"${DOTFILES_SHELL_ALIASES[@]}"}; do
-        alias_name="${alias_entry%%|*}"
-        dotfiles_remove_lines_matching "$SHELL_CONFIG" "alias ${alias_name}="
-    done
-    dotfiles_ui_success "  Aliases removed"
+if grep -q "# dotfiles aliases" "$SHELL_CONFIG" 2>/dev/null; then
+    if confirm "Remove dotfiles aliases from ${SHELL_CONFIG}?"; then
+        dotfiles_remove_lines_matching "$SHELL_CONFIG" "# dotfiles aliases"
+        for alias_entry in ${DOTFILES_SHELL_ALIASES[@]+"${DOTFILES_SHELL_ALIASES[@]}"}; do
+            alias_name="${alias_entry%%|*}"
+            dotfiles_remove_lines_matching "$SHELL_CONFIG" "alias ${alias_name}="
+        done
+        dotfiles_ui_success "  Aliases removed"
+    fi
+else
+    dotfiles_ui_info "  No dotfiles aliases found in ${SHELL_CONFIG}, skipping"
 fi
 
 # ─── 4. Remove PAT exports ────────────────────────────────────────────────────
 
 section "Remove PAT exports from shell config"
 
-if confirm "Remove GH_TOKEN_* exports from ${SHELL_CONFIG}?"; then
-    dotfiles_remove_lines_matching "$SHELL_CONFIG" "GH_TOKEN_"
-    dotfiles_remove_lines_matching "$SHELL_CONFIG" "# dotfiles PAT"
-    dotfiles_ui_success "  PAT exports removed"
+if grep -q "GH_TOKEN_" "$SHELL_CONFIG" 2>/dev/null; then
+    if confirm "Remove GH_TOKEN_* exports from ${SHELL_CONFIG}?"; then
+        dotfiles_remove_lines_matching "$SHELL_CONFIG" "GH_TOKEN_"
+        dotfiles_remove_lines_matching "$SHELL_CONFIG" "# dotfiles PAT"
+        dotfiles_ui_success "  PAT exports removed"
+    fi
+else
+    dotfiles_ui_info "  No GH_TOKEN exports found in ${SHELL_CONFIG}, skipping"
 fi
 
 # ─── 5. Remove ~/bin PATH addition ───────────────────────────────────────────
 
 section "Remove ~/bin from PATH in shell config"
 
-if confirm "Remove ~/bin PATH addition from ${SHELL_CONFIG}?"; then
-    dotfiles_remove_lines_matching "$SHELL_CONFIG" "# Add ~/bin to PATH"
-    dotfiles_remove_lines_matching "$SHELL_CONFIG" 'HOME/bin:.*PATH'
-    dotfiles_ui_success "  PATH entry removed"
+if grep -q "HOME/bin" "$SHELL_CONFIG" 2>/dev/null; then
+    if confirm "Remove ~/bin PATH addition from ${SHELL_CONFIG}?"; then
+        dotfiles_remove_lines_matching "$SHELL_CONFIG" "# Add ~/bin to PATH"
+        dotfiles_remove_lines_matching "$SHELL_CONFIG" 'HOME/bin:.*PATH'
+        dotfiles_ui_success "  PATH entry removed"
+    fi
+else
+    dotfiles_ui_info "  No ~/bin PATH entry found in ${SHELL_CONFIG}, skipping"
 fi
 
 # ─── 6. Remove SSH config blocks ─────────────────────────────────────────────
@@ -207,55 +223,65 @@ fi
 
 section "Remove SSH keys"
 
-if confirm "Remove dotfiles SSH keys from ${DOTFILES_SSH_DIR}?"; then
-    if [ -d "$DOTFILES_SSH_DIR" ]; then
+if [ -d "$DOTFILES_SSH_DIR" ]; then
+    if confirm "Remove dotfiles SSH keys from ${DOTFILES_SSH_DIR}?"; then
         rm -rf "$DOTFILES_SSH_DIR"
         dotfiles_ui_success "  Removed ${DOTFILES_SSH_DIR}"
-    else
-        dotfiles_ui_info "  ${DOTFILES_SSH_DIR} not found, skipping"
     fi
+else
+    dotfiles_ui_info "  ${DOTFILES_SSH_DIR} not found, skipping"
 fi
 
 # ─── 9. Uninstall apps ───────────────────────────────────────────────────────
 
 section "Uninstall apps"
 
-if confirm "Uninstall Claude desktop?"; then brew_uninstall claude --cask; fi
-if confirm "Uninstall Claude CLI?"; then
-    command -v npm &>/dev/null && npm uninstall -g @anthropic-ai/claude-code 2>/dev/null || true
-    dotfiles_ui_success "  Claude CLI removed"
+[ -d "/Applications/Claude.app" ]   && { confirm "Uninstall Claude desktop?" && brew_uninstall claude --cask; } || dotfiles_ui_info "  Claude desktop not installed, skipping"
+if command -v claude &>/dev/null; then
+    if confirm "Uninstall Claude CLI?"; then
+        command -v npm &>/dev/null && npm uninstall -g @anthropic-ai/claude-code 2>/dev/null || true
+        dotfiles_ui_success "  Claude CLI removed"
+    fi
+else
+    dotfiles_ui_info "  Claude CLI not installed, skipping"
 fi
-if confirm "Uninstall Cursor?";        then brew_uninstall cursor --cask; fi
-if confirm "Uninstall Warp?";          then brew_uninstall warp --cask; fi
-if confirm "Uninstall Ghostty?";       then brew_uninstall ghostty --cask; fi
-if confirm "Uninstall iTerm2?";        then brew_uninstall iterm2 --cask; fi
+[ -d "/Applications/Cursor.app" ]   && { confirm "Uninstall Cursor?"  && brew_uninstall cursor --cask; }  || dotfiles_ui_info "  Cursor not installed, skipping"
+[ -d "/Applications/Warp.app" ]     && { confirm "Uninstall Warp?"    && brew_uninstall warp --cask; }    || dotfiles_ui_info "  Warp not installed, skipping"
+[ -d "/Applications/Ghostty.app" ]  && { confirm "Uninstall Ghostty?" && brew_uninstall ghostty --cask; } || dotfiles_ui_info "  Ghostty not installed, skipping"
+[ -d "/Applications/iTerm.app" ]    && { confirm "Uninstall iTerm2?"  && brew_uninstall iterm2 --cask; }  || dotfiles_ui_info "  iTerm2 not installed, skipping"
 
 # ─── 10. Remove Oh My Zsh and Powerlevel10k ──────────────────────────────────
 
 section "Remove Oh My Zsh and Powerlevel10k"
 
-if confirm "Remove Oh My Zsh (~/.oh-my-zsh)?"; then
-    if [ -d "$HOME/.oh-my-zsh" ]; then
-        rm -rf "$HOME/.oh-my-zsh"
-        dotfiles_ui_success "  Removed ~/.oh-my-zsh"
-    else
-        dotfiles_ui_info "  ~/.oh-my-zsh not found, skipping folder removal"
+if [ -d "$HOME/.oh-my-zsh" ] || grep -q "oh-my-zsh" "$HOME/.zshrc" 2>/dev/null; then
+    if confirm "Remove Oh My Zsh (~/.oh-my-zsh)?"; then
+        if [ -d "$HOME/.oh-my-zsh" ]; then
+            rm -rf "$HOME/.oh-my-zsh"
+            dotfiles_ui_success "  Removed ~/.oh-my-zsh"
+        fi
+        if [ -f "$HOME/.zshrc" ]; then
+            dotfiles_remove_lines_matching "$HOME/.zshrc" 'oh-my-zsh\.sh'
+            dotfiles_remove_lines_matching "$HOME/.zshrc" 'export ZSH='
+            dotfiles_remove_lines_matching "$HOME/.zshrc" 'ZSH_THEME='
+            dotfiles_remove_lines_matching "$HOME/.zshrc" 'zsh-syntax-highlighting\.zsh'
+            dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k-instant-prompt'
+            dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k\.zsh'
+            dotfiles_remove_lines_matching "$HOME/.zshrc" 'POWERLEVEL9K_DISABLE'
+            dotfiles_ui_success "  Removed oh-my-zsh references from ~/.zshrc"
+        fi
     fi
-    if [ -f "$HOME/.zshrc" ]; then
-        dotfiles_remove_lines_matching "$HOME/.zshrc" 'oh-my-zsh\.sh'
-        dotfiles_remove_lines_matching "$HOME/.zshrc" 'export ZSH='
-        dotfiles_remove_lines_matching "$HOME/.zshrc" 'ZSH_THEME='
-        dotfiles_remove_lines_matching "$HOME/.zshrc" 'zsh-syntax-highlighting\.zsh'
-        dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k-instant-prompt'
-        dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k\.zsh'
-        dotfiles_remove_lines_matching "$HOME/.zshrc" 'POWERLEVEL9K_DISABLE'
-        dotfiles_ui_success "  Removed oh-my-zsh references from ~/.zshrc"
-    fi
+else
+    dotfiles_ui_info "  Oh My Zsh not found, skipping"
 fi
 
-if [ -f "$HOME/.p10k.zsh" ] && confirm "Remove ~/.p10k.zsh?"; then
-    rm -f "$HOME/.p10k.zsh"
-    dotfiles_ui_success "  Removed ~/.p10k.zsh"
+if [ -f "$HOME/.p10k.zsh" ]; then
+    if confirm "Remove ~/.p10k.zsh?"; then
+        rm -f "$HOME/.p10k.zsh"
+        dotfiles_ui_success "  Removed ~/.p10k.zsh"
+    fi
+else
+    dotfiles_ui_info "  ~/.p10k.zsh not found, skipping"
 fi
 
 # ─── 11. Remove per-account repo folders ─────────────────────────────────────
