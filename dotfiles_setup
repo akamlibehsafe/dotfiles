@@ -167,13 +167,13 @@ echo ""
 CONF_ERRORS=0
 for user in "${DOTFILES_ACCOUNTS[@]}"; do
     pat="$(dotfiles_account_pat "$user")"
-    ssh_b64="$(dotfiles_account_ssh_b64 "$user")"
+    ssh_pem="$(dotfiles_account_ssh_pem "$user")"
 
     if [ -z "$pat" ]; then
         dotfiles_ui_error "  Missing 'pat' for account: ${user}"
         CONF_ERRORS=$((CONF_ERRORS + 1))
     fi
-    if [ -z "$ssh_b64" ]; then
+    if [ -z "$ssh_pem" ]; then
         dotfiles_ui_error "  Missing 'ssh_private' for account: ${user}"
         CONF_ERRORS=$((CONF_ERRORS + 1))
     fi
