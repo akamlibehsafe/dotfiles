@@ -203,12 +203,10 @@ _found_ssh_blocks=false
 if [ -f "$SSH_CONFIG" ]; then
     for _u in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
         _host="$(dotfiles_account_ssh_host "$_u")"
-        for _prefix in "dotfiles-managed" "gitscripts-managed"; do
-            grep -q "# ${_prefix}-begin ${_host}" "$SSH_CONFIG" 2>/dev/null && _found_ssh_blocks=true && break 2
-        done
+        grep -q "Host ${_host}" "$SSH_CONFIG" 2>/dev/null && _found_ssh_blocks=true && break
     done
 fi
-unset _u _host _prefix
+unset _u _host
 
 if [ "$_found_ssh_blocks" = true ]; then
     if confirm "Remove dotfiles SSH host blocks from ~/.ssh/config?"; then
@@ -226,6 +224,16 @@ if [ "$_found_ssh_blocks" = true ]; then
                     dotfiles_ui_success "  Removed SSH block for ${host} (${prefix})"
                 fi
             done
+
+            # Remove any unmarked Host block (left by older installs without markers)
+            if grep -q "^Host ${host}$" "$SSH_CONFIG" 2>/dev/null; then
+                if [[ "$(uname)" == "Darwin" ]]; then
+                    sed -i '' "/^Host ${host}$/,/^$/d" "$SSH_CONFIG" 2>/dev/null || true
+                else
+                    sed -i "/^Host ${host}$/,/^$/d" "$SSH_CONFIG" 2>/dev/null || true
+                fi
+                dotfiles_ui_success "  Removed unmarked SSH block for ${host}"
+            fi
         done
     fi
 else
