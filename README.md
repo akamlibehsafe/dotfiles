@@ -173,7 +173,7 @@ For testing (keeps repo folders):
 ./scripts/setup/setup_pats
 
 # Re-configure SSH keys and git identity
-./scripts/setup/setup_ssh --repair
+./scripts/setup/setup_identity --repair
 
 # Migrate HTTPS remotes to SSH aliases
 ./scripts/setup/setup_migrate --dry-run
@@ -207,7 +207,7 @@ dotfiles/
     ├── setup/                 ← setup & repair tools (run by path)
     │   ├── setup_check
     │   ├── setup_pats
-    │   ├── setup_ssh
+    │   ├── setup_identity
     │   ├── setup_migrate
     │   └── update_scripts
     ├── apps/                  ← app installers (called by dotfiles_install)

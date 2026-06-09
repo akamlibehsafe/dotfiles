@@ -153,6 +153,55 @@ echo "  shell       : $STATE_SHELL"
 echo "  symlinks    : $STATE_SYMLINKS"
 echo ""
 
+# ─── Pre-flight: legacy SSH cleanup ───────────────────────────────────────────
+# Detect and offer to remove SSH artifacts left by older installs (pre-v0.6.0).
+
+_legacy_ssh_keys=false
+_legacy_ssh_config=false
+
+[ -d "$HOME/.ssh/dotfiles" ] && _legacy_ssh_keys=true
+
+if [ -f "$HOME/.ssh/config" ]; then
+    grep -qE "dotfiles-managed|gitscripts-managed" "$HOME/.ssh/config" 2>/dev/null && \
+        _legacy_ssh_config=true
+fi
+
+if [ "$_legacy_ssh_keys" = true ] || [ "$_legacy_ssh_config" = true ]; then
+    dotfiles_ui_section "Legacy SSH cleanup"
+    dotfiles_ui_info "  Detected SSH artifacts from a previous install:"
+    [ "$_legacy_ssh_keys"   = true ] && dotfiles_ui_info "    ~/.ssh/dotfiles/ (SSH key files)"
+    [ "$_legacy_ssh_config" = true ] && dotfiles_ui_info "    ~/.ssh/config (dotfiles-managed host blocks)"
+    echo ""
+    dotfiles_ui_info "  These are no longer used — auth is now HTTPS+PAT+Keychain."
+    if confirm "Remove legacy SSH artifacts now?"; then
+        if [ "$_legacy_ssh_keys" = true ]; then
+            rm -rf "$HOME/.ssh/dotfiles"
+            dotfiles_ui_success "  Removed ~/.ssh/dotfiles/"
+        fi
+        if [ "$_legacy_ssh_config" = true ]; then
+            for _u in "${DOTFILES_ACCOUNTS[@]}"; do
+                _host="github-${_u}"
+                for _prefix in "dotfiles-managed" "gitscripts-managed"; do
+                    _begin="# ${_prefix}-begin ${_host}"
+                    _end="# ${_prefix}-end ${_host}"
+                    if grep -q "$_begin" "$HOME/.ssh/config" 2>/dev/null; then
+                        sed -i '' "/${_begin}/,/${_end}/d" "$HOME/.ssh/config" 2>/dev/null || true
+                        dotfiles_ui_success "  Removed SSH config block for ${_host}"
+                    fi
+                done
+                if grep -q "^Host ${_host}$" "$HOME/.ssh/config" 2>/dev/null; then
+                    sed -i '' "/^Host ${_host}$/,/^$/d" "$HOME/.ssh/config" 2>/dev/null || true
+                    dotfiles_ui_success "  Removed unmarked SSH config block for ${_host}"
+                fi
+            done
+            unset _u _host _prefix _begin _end
+        fi
+    else
+        dotfiles_ui_info "  Skipped — you can remove them manually later."
+    fi
+fi
+unset _legacy_ssh_keys _legacy_ssh_config
+
 # ─── Phase 1: Validate dotfiles.conf ─────────────────────────────────────────
 
 run_phase "Phase 1: Validate dotfiles.conf"
@@ -291,7 +340,7 @@ done
 
 # Set up git identity (includeIf per account folder)
 dotfiles_ui_info "  Running git identity setup..."
-bash "${SCRIPTS_ROOT}/setup/setup_ssh" --new-mac
+bash "${SCRIPTS_ROOT}/setup/setup_identity" --new-mac
 
 phase_ok "Auth configured"
 fi

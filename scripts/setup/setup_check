@@ -69,7 +69,7 @@ for user in "${DOTFILES_ACCOUNTS[@]}"; do
         KEYCHAIN_OK=$((KEYCHAIN_OK + 1))
     else
         dotfiles_ui_info "  ${user}: no Keychain credential"
-        ACTIONS+=("setup_ssh --repair → store Keychain credential for ${user}")
+        ACTIONS+=("setup_identity --repair → store Keychain credential for ${user}")
     fi
 done
 
@@ -87,12 +87,12 @@ if [ -f "$HOME/.gitconfig" ]; then
             INCLUDE_OK=$((INCLUDE_OK + 1))
         else
             dotfiles_ui_info "  ${inc}: not configured"
-            ACTIONS+=("setup_ssh --repair → configure git identity for ${user}")
+            ACTIONS+=("setup_identity --repair → configure git identity for ${user}")
         fi
     done
 else
     dotfiles_ui_info "  ~/.gitconfig not found"
-    ACTIONS+=("setup_ssh --repair → create ~/.gitconfig")
+    ACTIONS+=("setup_identity --repair → create ~/.gitconfig")
 fi
 
 # ─── Git credential helper ────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ if [ "$helper" = "osxkeychain" ]; then
     dotfiles_ui_success "  credential.helper = osxkeychain"
 else
     dotfiles_ui_info "  credential.helper = ${helper:-not set}"
-    ACTIONS+=("setup_ssh --repair → set git credential.helper = osxkeychain")
+    ACTIONS+=("setup_identity --repair → set git credential.helper = osxkeychain")
 fi
 
 # ─── Remotes ──────────────────────────────────────────────────────────────────

@@ -34,7 +34,7 @@ dotfiles/
     ├── setup/                 ← setup & repair tools (run by path when needed)
     │   ├── setup_check        ← read-only environment scan
     │   ├── setup_pats         ← PAT wizard
-    │   ├── setup_ssh          ← SSH keys + config + git identity
+    │   ├── setup_identity          ← SSH keys + config + git identity
     │   ├── setup_migrate      ← migrate HTTPS remotes to SSH aliases
     │   └── update_scripts     ← wire scripts/repo/* into ~/bin/
     ├── apps/                  ← pluggable app installers (called by dotfiles_install)
@@ -283,7 +283,7 @@ repo_clone <user/repo>
 - Missing or wrong arguments → print usage and exit
 - Unknown user → list configured accounts
 - Directory already exists → error with path
-- SSH not configured → direct to `setup_ssh`
+- SSH not configured → direct to `setup_identity`
 - Repo not found → error with diagnostic hint
 
 ---
@@ -338,11 +338,11 @@ Interactive PAT wizard. Prompts for each account's PAT, verifies against GitHub 
 ./scripts/setup/setup_pats [--force] [--no-zshrc]
 ```
 
-### `setup_ssh`
+### `setup_identity`
 SSH key installation, `~/.ssh/config` host alias blocks, and `includeIf` git identity config.
 
 ```bash
-./scripts/setup/setup_ssh [--dry-run] [--new-mac | --repair]
+./scripts/setup/setup_identity [--dry-run] [--new-mac | --repair]
 ```
 
 ### `setup_migrate`
@@ -432,7 +432,7 @@ Sourced by other scripts. Never executed directly.
 |---|---|---|
 | Entry points | `dotfiles_install`, `dotfiles_uninstall` | repo root |
 | Daily commands | `repo_init`, `repo_clone`, `repo_sync` | `scripts/repo/`, `~/bin/` |
-| Setup tools | `setup_check`, `setup_pats`, `setup_ssh` | `scripts/setup/` |
+| Setup tools | `setup_check`, `setup_pats`, `setup_identity` | `scripts/setup/` |
 | App installers | `iterm2`, `ghostty`, `warp`, `cursor` | `scripts/apps/` |
 | Lib modules | `common.sh`, `accounts.sh` | `scripts/lib/` |
 | Config file | `dotfiles.conf` | repo root (gitignored) |

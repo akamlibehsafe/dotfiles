@@ -1,6 +1,6 @@
 #!/bin/bash
-# setup_ssh — git identity (includeIf) and Keychain credential setup
-# Renamed from SSH-focused to identity+auth focused; SSH keys are no longer used.
+# setup_identity — git identity (includeIf) and Keychain credential setup
+# Configures per-account git identity and stores PATs in the macOS Keychain.
 
 set -euo pipefail
 
@@ -20,7 +20,7 @@ DRY_RUN=false
 MODE="repair"
 
 usage() {
-    echo "Usage: setup_ssh [--dry-run] [--new-mac | --repair]"
+    echo "Usage: setup_identity [--dry-run] [--new-mac | --repair]"
     echo ""
     echo "  Configure git identity (includeIf) and store PATs in macOS Keychain."
     echo ""
@@ -36,7 +36,7 @@ while [[ $# -gt 0 ]]; do
         --new-mac) MODE="new-mac"; shift ;;
         --repair)  MODE="repair"; shift ;;
         -h|--help) usage ;;
-        *) dotfiles_usage_error "Unknown option: $1" "setup_ssh [--dry-run] [--new-mac | --repair]" ;;
+        *) dotfiles_usage_error "Unknown option: $1" "setup_identity [--dry-run] [--new-mac | --repair]" ;;
     esac
 done
 
@@ -129,7 +129,7 @@ ensure_git_credential_config() {
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-dotfiles_ui_section "setup_ssh (mode=${MODE}, dry_run=${DRY_RUN})"
+dotfiles_ui_section "setup_identity (mode=${MODE}, dry_run=${DRY_RUN})"
 
 ensure_git_credential_config
 

@@ -19,7 +19,7 @@ dotfiles.conf.example                 ← config template (dotfiles.conf is giti
 config/                               ← personal config files applied by dotfiles_install
 scripts/
 ├── repo/     ← daily commands copied to ~/bin/ (repo_init, repo_clone, repo_sync)
-├── setup/    ← setup & repair tools, run by path only (setup_check, setup_pats, setup_ssh, setup_migrate, update_scripts)
+├── setup/    ← setup & repair tools, run by path only (setup_check, setup_pats, setup_identity, setup_migrate, update_scripts)
 ├── apps/     ← pluggable app installers (iterm2, ghostty, warp, cursor, claude, claude-cli)
 └── lib/      ← shared bash modules, sourced only (common.sh, accounts.sh, init.sh, manifest.sh)
 ```
@@ -29,7 +29,7 @@ scripts/
 - All internal functions and variables use the `dotfiles_` prefix
 - Entry points: `dotfiles_install`, `dotfiles_uninstall`
 - Daily commands: `repo_init`, `repo_clone`, `repo_sync`
-- Setup tools: `setup_check`, `setup_pats`, `setup_ssh`, `setup_migrate`, `update_scripts`
+- Setup tools: `setup_check`, `setup_pats`, `setup_identity`, `setup_migrate`, `update_scripts`
 - Config file: `dotfiles.conf` (gitignored); template: `dotfiles.conf.example`
 
 ## GitHub accounts
