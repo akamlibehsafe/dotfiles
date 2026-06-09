@@ -42,11 +42,12 @@ Three accounts are in use — all defined in `dotfiles.conf` (never hardcoded in
 ## Auth model
 
 - PATs stored as `GH_TOKEN_<username>` env vars, written to `~/.zshrc` by `dotfiles_install`
-- SSH private keys stored as full PEM blocks in `dotfiles.conf` under `ssh_private` directive — paste directly from 1Password, no encoding needed
-- SSH keys written to `~/.ssh/dotfiles/id_ed25519_<username>` by setup; public key derived via `ssh-keygen -y`
-- SSH host aliases `github-<username>` route the right key per account
-- Git `includeIf gitdir:` applies correct identity per folder automatically
+- PATs also stored in macOS Keychain via `git credential approve`, scoped per GitHub username
+- `git config --global credential.helper osxkeychain` — git picks up the right PAT automatically for any HTTPS remote
+- Remote URLs use `https://<username>@github.com/<username>/<repo>.git` — the username in the URL disambiguates multi-account Keychain lookups; no `credential.useHttpPath` needed
+- Git `includeIf gitdir:` applies correct commit identity (name + email) per account folder automatically
 - Scripts pick up auth from env vars first, fall back to `dotfiles.conf` values
+- No SSH keys — HTTPS+PAT works on all machines including corporate ones behind GlobalProtect VPN
 
 ## Versioning
 
@@ -69,7 +70,6 @@ Full test cycle before tagging a release. Run on the current machine (not a VM).
 ### 2. Verify clean state
 ```bash
 env | grep GH_TOKEN     # should return nothing
-ls ~/.ssh/dotfiles      # should not exist
 cat ~/.zshrc            # should have no oh-my-zsh or GH_TOKEN lines
 ```
 
@@ -84,9 +84,7 @@ cat ~/.zshrc            # should have no oh-my-zsh or GH_TOKEN lines
 ### 4. Verify install
 ```bash
 source ~/.zshrc         # should load cleanly with no errors
-ssh -T git@github-rbonon        # should say "successfully authenticated"
-ssh -T git@github-akamlibehsafe
-ssh -T git@github-fortegb
+scripts/setup/setup_check       # PATs valid, Keychain credentials present, identity configured
 repo_sync               # test daily command is available
 ```
 

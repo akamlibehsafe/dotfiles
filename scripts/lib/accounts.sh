@@ -7,7 +7,6 @@ DOTFILES_ACCOUNT_EMAILS=()
 DOTFILES_ACCOUNT_NAMES=()
 DOTFILES_ACCOUNT_CLONE=()
 DOTFILES_ACCOUNT_PATS=()
-DOTFILES_ACCOUNT_SSH_PEM=()
 DOTFILES_SHELL_ALIASES=()
 DOTFILES_GITHUB_ROOT="$HOME/Documents/GitHub"
 DOTFILES_ACCOUNTS_LOADED=false
@@ -53,7 +52,6 @@ dotfiles_load_accounts() {
     DOTFILES_ACCOUNT_NAMES=()
     DOTFILES_ACCOUNT_CLONE=()
     DOTFILES_ACCOUNT_PATS=()
-    DOTFILES_ACCOUNT_SSH_KEYS=()
     DOTFILES_SHELL_ALIASES=()
 
     local conf
@@ -68,25 +66,9 @@ dotfiles_load_accounts() {
     }
 
     local line rest user email gname clone_flag alias_name alias_path idx
-    local current_user="" collecting_pem=false pem_content="" pem_idx=""
+    local current_user=""
 
     while IFS= read -r line || [ -n "$line" ]; do
-        # Collect PEM block lines without stripping (content is whitespace-sensitive)
-        if [ "$collecting_pem" = true ]; then
-            case "$line" in
-                *"-----END OPENSSH PRIVATE KEY-----"*)
-                    pem_content="${pem_content}-----END OPENSSH PRIVATE KEY-----"$'\n'
-                    DOTFILES_ACCOUNT_SSH_PEM[$pem_idx]="$pem_content"
-                    collecting_pem=false
-                    pem_content=""
-                    ;;
-                *)
-                    pem_content="${pem_content}${line}"$'\n'
-                    ;;
-            esac
-            continue
-        fi
-
         # Strip comments and whitespace
         line="${line%%#*}"
         line="${line#"${line%%[![:space:]]*}"}"
@@ -117,7 +99,6 @@ dotfiles_load_accounts() {
                 DOTFILES_ACCOUNT_NAMES+=("${gname:-$user}")
                 DOTFILES_ACCOUNT_CLONE+=("yes")
                 DOTFILES_ACCOUNT_PATS+=("")
-                DOTFILES_ACCOUNT_SSH_PEM+=("")
                 current_user="$user"
                 ;;
 
@@ -128,16 +109,6 @@ dotfiles_load_accounts() {
                 fi
                 idx="$(dotfiles_account_index "$current_user")"
                 DOTFILES_ACCOUNT_PATS[$idx]="${line#pat }"
-                ;;
-
-            ssh_private\ "-----BEGIN"*)
-                if [ -z "$current_user" ]; then
-                    echo "dotfiles.conf: 'ssh_private' line before any 'account' block" >&2
-                    return 1
-                fi
-                pem_idx="$(dotfiles_account_index "$current_user")"
-                pem_content="-----BEGIN OPENSSH PRIVATE KEY-----"$'\n'
-                collecting_pem=true
                 ;;
 
             clone\ *)
@@ -213,12 +184,6 @@ dotfiles_account_pat() {
     local idx
     idx="$(dotfiles_account_index "$1")" || return 1
     echo "${DOTFILES_ACCOUNT_PATS[$idx]}"
-}
-
-dotfiles_account_ssh_pem() {
-    local idx
-    idx="$(dotfiles_account_index "$1")" || return 1
-    echo "${DOTFILES_ACCOUNT_SSH_PEM[$idx]}"
 }
 
 dotfiles_account_pat_var() {

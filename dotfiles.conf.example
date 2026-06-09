@@ -3,7 +3,7 @@
 # Copy to dotfiles.conf and fill in your real values:
 #   cp dotfiles.conf.example dotfiles.conf
 #
-# NEVER commit dotfiles.conf — it contains your PATs and SSH private keys.
+# NEVER commit dotfiles.conf — it contains your PATs.
 # It is listed in .gitignore.
 #
 # ─────────────────────────────────────────────────────────────────────────────
@@ -13,10 +13,6 @@
 #   Required scope: repo (full control of private repositories)
 #   Recommended expiration: No expiration
 #   Token format: ghp_ followed by 40 characters
-#
-# HOW TO GET YOUR SSH PRIVATE KEY
-#   Copy the private key from 1Password (or cat ~/.ssh/id_ed25519_youruser).
-#   Paste the full PEM block (including BEGIN/END lines) after ssh_private.
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Where your GitHub repositories are stored (one folder per username under here)
@@ -26,24 +22,15 @@ github_root=~/Documents/GitHub
 # One block per GitHub account.
 # account     <github-username> <commit-email> [Display Name]
 # pat         <your-classic-PAT-token>
-# ssh_private <paste full PEM block below this line>
 
 account youruser you@example.com "Your Name"
 pat ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-ssh_private -----BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAA...
------END OPENSSH PRIVATE KEY-----
 
 account yourotheruser other@example.com "Other Name"
 pat ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-ssh_private -----BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAA...
------END OPENSSH PRIVATE KEY-----
 
 
-
-
-# ─── Optional: skip bulk clone for an account during dotfiles_install ───────────
+# ─── Optional: skip bulk clone for an account during dotfiles_install ─────────
 # clone youruser no
 
 # ─── Optional: shell aliases (path under github_root, or "." = github_root) ──

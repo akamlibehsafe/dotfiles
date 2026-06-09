@@ -1,7 +1,7 @@
 #!/bin/bash
-# setup_migrate — migrate HTTPS remote URLs to SSH host alias format
+# setup_migrate — migrate SSH remote URLs to HTTPS format
 # Scans all repos under github_root and converts:
-#   https://github.com/user/repo.git → git@github-user:user/repo.git
+#   git@github-user:user/repo.git → https://user@github.com/user/repo.git
 
 set -euo pipefail
 
@@ -21,6 +21,10 @@ DRY_RUN=true  # default: safe mode
 
 usage() {
     echo "Usage: setup_migrate [--dry-run | --apply]"
+    echo ""
+    echo "  Migrate legacy SSH remote URLs to HTTPS."
+    echo "  Scans all repos under ${DOTFILES_GITHUB_ROOT} and converts:"
+    echo "    git@github-user:user/repo.git → https://user@github.com/user/repo.git"
     echo ""
     echo "  --dry-run   Show what would change (default)"
     echo "  --apply     Actually update remote URLs"
@@ -51,13 +55,13 @@ while IFS= read -r git_dir; do
     origin="$(git -C "$repo_root" remote get-url origin 2>/dev/null || echo "")"
     [ -z "$origin" ] && continue
 
-    # Skip already SSH
-    if dotfiles_remote_uses_ssh "$origin"; then
+    # Skip already HTTPS
+    if [[ "$origin" =~ ^https:// ]]; then
         SKIPPED=$((SKIPPED + 1))
         continue
     fi
 
-    # Parse HTTPS URL
+    # Parse SSH URL
     parsed="$(dotfiles_parse_remote "$origin" || true)"
     if [ -z "$parsed" ]; then
         dotfiles_ui_info "  Skipping (unrecognised URL): ${repo_root}"
@@ -75,7 +79,7 @@ while IFS= read -r git_dir; do
         continue
     fi
 
-    new_url="$(dotfiles_remote_ssh_url "$user" "$repo")"
+    new_url="$(dotfiles_remote_https_url "$user" "$repo")"
     echo "  ${repo_root}"
     echo "    ${origin}"
     echo "    → ${new_url}"

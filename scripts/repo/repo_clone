@@ -1,6 +1,6 @@
 #!/bin/bash
 # repo_clone — clone an existing GitHub repository into the correct folder
-# Clones into ~/Documents/GitHub/<user>/<repo>/ using SSH host alias.
+# Clones into ~/Documents/GitHub/<user>/<repo>/ using HTTPS with username-scoped auth.
 
 set -euo pipefail
 
@@ -62,7 +62,7 @@ DEST="${DOTFILES_GITHUB_ROOT}/${USERNAME}/${REPO_NAME}"
 [ -d "$DEST" ] && \
     dotfiles_die "Destination already exists: ${DEST}\nRemove it first or use git pull inside."
 
-CLONE_URL="$(dotfiles_remote_ssh_url "$USERNAME" "$REPO_NAME")"
+CLONE_URL="$(dotfiles_remote_https_url "$USERNAME" "$REPO_NAME")"
 
 dotfiles_ui_info "Cloning : ${USER_REPO}"
 dotfiles_ui_info "From    : ${CLONE_URL}"
@@ -81,7 +81,7 @@ CLONE_STATUS=$?
 set -e
 
 if [ "$CLONE_STATUS" -ne 0 ]; then
-    dotfiles_die "Clone failed.\nCheck that the repo exists and SSH is configured:\n  ssh -T git@$(dotfiles_account_ssh_host "$USERNAME")"
+    dotfiles_die "Clone failed.\nCheck that the repo exists and credentials are configured:\n  scripts/setup/setup_check"
 fi
 
 dotfiles_ui_success "Cloned successfully."
@@ -102,6 +102,6 @@ fi
 
 echo ""
 dotfiles_ui_success "Repository ready at: ${DEST}"
-echo "  Remote : $(git remote get-url origin)"
-echo "  Branch : $(git branch --show-current)"
-echo "  Identity: $(git config user.email)"
+echo "  Remote   : $(git remote get-url origin)"
+echo "  Branch   : $(git branch --show-current)"
+echo "  Identity : $(git config user.email)"

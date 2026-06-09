@@ -1,5 +1,5 @@
 #!/bin/bash
-# setup_check — read-only scan of PATs, SSH keys, git identity, and remotes
+# setup_check — read-only scan of PATs, Keychain credentials, git identity, and remotes
 # Run anytime to see the state of your environment.
 
 set -euo pipefail
@@ -17,15 +17,13 @@ source "${SCRIPTS_ROOT}/lib/init.sh"
 dotfiles_ui_colors
 
 ACTIONS=()
-PAT_OK=0; SSH_OK=0; INCLUDE_OK=0
+PAT_OK=0; KEYCHAIN_OK=0; INCLUDE_OK=0
 PAT_TOTAL=${#DOTFILES_ACCOUNTS[@]}
-SSH_TOTAL=${#DOTFILES_ACCOUNTS[@]}
 HTTPS_REMOTES=0; SSH_REMOTES=0; REPO_COUNT=0
 
 dotfiles_ui_section "dotfiles setup_check (read-only)"
 
 echo "GitHub root : ${DOTFILES_GITHUB_ROOT}"
-echo "SSH keys dir: ${DOTFILES_SSH_DIR}"
 echo "Accounts    : $(dotfiles_accounts_list)"
 echo ""
 
@@ -61,40 +59,17 @@ for user in "${DOTFILES_ACCOUNTS[@]}"; do
     esac
 done
 
-# ─── SSH keys ─────────────────────────────────────────────────────────────────
+# ─── Keychain credentials ─────────────────────────────────────────────────────
 
-dotfiles_ui_section "SSH keys and config"
+dotfiles_ui_section "Keychain credentials"
 
 for user in "${DOTFILES_ACCOUNTS[@]}"; do
-    key="$(dotfiles_account_key_path "$user")"
-    host="$(dotfiles_account_ssh_host "$user")"
-    key_ok=false; config_ok=false
-
-    if [ -f "$key" ] && [ -f "${key}.pub" ]; then
-        key_ok=true
-        dotfiles_ui_success "  Key: ${key}"
+    if dotfiles_check_keychain_credential "$user" 2>/dev/null; then
+        dotfiles_ui_success "  ${user}: credential present in Keychain"
+        KEYCHAIN_OK=$((KEYCHAIN_OK + 1))
     else
-        dotfiles_ui_info "  Key missing: ${key}"
-        ACTIONS+=("setup_ssh --repair → generate key for ${user}")
-    fi
-
-    if [ -f "$HOME/.ssh/config" ] && grep -q "Host ${host}" "$HOME/.ssh/config" 2>/dev/null; then
-        config_ok=true
-        dotfiles_ui_success "  SSH config Host ${host}: present"
-    else
-        dotfiles_ui_info "  SSH config Host ${host}: missing"
-        ACTIONS+=("setup_ssh --repair → add SSH config for ${user}")
-    fi
-
-    if [ "$key_ok" = true ] && [ "$config_ok" = true ]; then
-        ssh_out="$(ssh -o BatchMode=yes -o ConnectTimeout=8 -T "git@${host}" 2>&1 || true)"
-        if echo "$ssh_out" | grep -qi "successfully authenticated"; then
-            dotfiles_ui_success "  ssh -T git@${host}: authenticated"
-            SSH_OK=$((SSH_OK + 1))
-        else
-            dotfiles_ui_info "  ssh -T git@${host}: not verified (key added to GitHub?)"
-            ACTIONS+=("Add public key to GitHub account: ${user}")
-        fi
+        dotfiles_ui_info "  ${user}: no Keychain credential"
+        ACTIONS+=("setup_ssh --repair → store Keychain credential for ${user}")
     fi
 done
 
@@ -120,6 +95,18 @@ else
     ACTIONS+=("setup_ssh --repair → create ~/.gitconfig")
 fi
 
+# ─── Git credential helper ────────────────────────────────────────────────────
+
+dotfiles_ui_section "Git credential config"
+
+helper="$(git config --global credential.helper 2>/dev/null || echo "")"
+if [ "$helper" = "osxkeychain" ]; then
+    dotfiles_ui_success "  credential.helper = osxkeychain"
+else
+    dotfiles_ui_info "  credential.helper = ${helper:-not set}"
+    ACTIONS+=("setup_ssh --repair → set git credential.helper = osxkeychain")
+fi
+
 # ─── Remotes ──────────────────────────────────────────────────────────────────
 
 dotfiles_ui_section "Remotes under ${DOTFILES_GITHUB_ROOT}"
@@ -131,19 +118,19 @@ if [ -d "$DOTFILES_GITHUB_ROOT" ]; then
         repo_root="$(dirname "$git_dir")"
         origin="$(git -C "$repo_root" remote get-url origin 2>/dev/null || echo "")"
         [ -z "$origin" ] && continue
-        if [[ "$origin" =~ ^https://github\.com/ ]]; then
+        if [[ "$origin" =~ ^https:// ]]; then
             HTTPS_REMOTES=$((HTTPS_REMOTES + 1))
-            dotfiles_ui_info "  HTTPS remote: ${repo_root}"
-        elif [[ "$origin" =~ ^git@github- ]]; then
+        elif [[ "$origin" =~ ^git@ ]]; then
             SSH_REMOTES=$((SSH_REMOTES + 1))
+            dotfiles_ui_info "  SSH remote (needs migration): ${repo_root}"
         fi
     done < <(find "$DOTFILES_GITHUB_ROOT" -mindepth 3 -maxdepth 4 -type d -name .git 2>/dev/null)
 
     echo ""
-    echo "  Repos scanned : ${REPO_COUNT}"
-    echo "  SSH origins   : ${SSH_REMOTES}"
-    echo "  HTTPS origins : ${HTTPS_REMOTES}"
-    [ "$HTTPS_REMOTES" -gt 0 ] && ACTIONS+=("setup_migrate --apply → convert HTTPS remotes to SSH")
+    echo "  Repos scanned  : ${REPO_COUNT}"
+    echo "  HTTPS origins  : ${HTTPS_REMOTES}"
+    echo "  SSH origins    : ${SSH_REMOTES}"
+    [ "$SSH_REMOTES" -gt 0 ] && ACTIONS+=("setup_migrate --apply → convert legacy SSH remotes to HTTPS")
 else
     dotfiles_ui_info "  ${DOTFILES_GITHUB_ROOT} does not exist yet"
 fi
@@ -153,14 +140,14 @@ fi
 dotfiles_ui_section "Summary"
 
 PROFILE="partial"
-[ "$PAT_OK" -eq "$PAT_TOTAL" ] && [ "$SSH_OK" -eq "$SSH_TOTAL" ] && \
-    [ "$INCLUDE_OK" -eq "$PAT_TOTAL" ] && [ "$HTTPS_REMOTES" -eq 0 ] && PROFILE="configured"
-[ "$PAT_OK" -eq 0 ] && [ "$SSH_OK" -eq 0 ] && [ "$INCLUDE_OK" -eq 0 ] && PROFILE="greenfield"
+[ "$PAT_OK" -eq "$PAT_TOTAL" ] && [ "$KEYCHAIN_OK" -eq "$PAT_TOTAL" ] && \
+    [ "$INCLUDE_OK" -eq "$PAT_TOTAL" ] && [ "$SSH_REMOTES" -eq 0 ] && PROFILE="configured"
+[ "$PAT_OK" -eq 0 ] && [ "$KEYCHAIN_OK" -eq 0 ] && [ "$INCLUDE_OK" -eq 0 ] && PROFILE="greenfield"
 
-echo "  Profile   : ${PROFILE}"
-echo "  PATs OK   : ${PAT_OK}/${PAT_TOTAL}"
-echo "  SSH OK    : ${SSH_OK}/${SSH_TOTAL}"
-echo "  Identity  : ${INCLUDE_OK}/${PAT_TOTAL}"
+echo "  Profile     : ${PROFILE}"
+echo "  PATs OK     : ${PAT_OK}/${PAT_TOTAL}"
+echo "  Keychain OK : ${KEYCHAIN_OK}/${PAT_TOTAL}"
+echo "  Identity    : ${INCLUDE_OK}/${PAT_TOTAL}"
 
 if [ ${#ACTIONS[@]} -gt 0 ]; then
     echo ""

@@ -81,7 +81,7 @@ PAT="$(dotfiles_account_pat_resolved "$USERNAME" || true)"
 command -v curl &>/dev/null || dotfiles_die "curl not found."
 command -v git  &>/dev/null || dotfiles_die "git not found. Run dotfiles_install first."
 
-SSH_REMOTE="$(dotfiles_remote_ssh_url "$USERNAME" "$REPO_NAME")"
+REMOTE_URL="$(dotfiles_remote_https_url "$USERNAME" "$REPO_NAME")"
 
 dotfiles_ui_info "Account    : ${USERNAME}"
 dotfiles_ui_info "Repository : ${REPO_NAME} (${VISIBILITY})"
@@ -114,8 +114,6 @@ fi
 
 # ─── initialise git locally ───────────────────────────────────────────────────
 
-CURRENT_DIR="$(pwd -P)"
-
 if [ ! -d ".git" ]; then
     dotfiles_ui_info "Initialising git repository..."
     git init
@@ -146,11 +144,11 @@ fi
 # ─── set remote ───────────────────────────────────────────────────────────────
 
 if git remote get-url origin &>/dev/null 2>&1; then
-    git remote set-url origin "$SSH_REMOTE"
+    git remote set-url origin "$REMOTE_URL"
 else
-    git remote add origin "$SSH_REMOTE"
+    git remote add origin "$REMOTE_URL"
 fi
-dotfiles_ui_success "Remote set: ${SSH_REMOTE}"
+dotfiles_ui_success "Remote set: ${REMOTE_URL}"
 
 # ─── initial commit ───────────────────────────────────────────────────────────
 
@@ -192,5 +190,5 @@ if [ "$PUSH_STATUS" -eq 0 ]; then
     echo ""
     dotfiles_ui_success "Repository live at: https://github.com/${USER_REPO}"
 else
-    dotfiles_die "Push failed.\nCheck SSH setup: ssh -T git@$(dotfiles_account_ssh_host "$USERNAME")"
+    dotfiles_die "Push failed.\nCheck credentials: scripts/setup/setup_check"
 fi

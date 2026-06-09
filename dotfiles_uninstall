@@ -1,7 +1,6 @@
 #!/bin/bash
 # dotfiles_uninstall — remove everything installed by dotfiles_install
 # Interactive: prompts before each removal step.
-# Does NOT remove Homebrew.
 #
 # Usage: dotfiles_uninstall [--keep-repos]
 #   --keep-repos   Skip removal of per-account repository folders.
@@ -193,54 +192,33 @@ else
     dotfiles_ui_info "  No ~/bin PATH entry found in ${SHELL_CONFIG}, skipping"
 fi
 
-# ─── 7. Remove SSH config blocks ─────────────────────────────────────────────
+# ─── 7. Remove Keychain credentials ──────────────────────────────────────────
 
-section "Remove SSH config blocks"
+section "Remove Keychain credentials"
 
-SSH_CONFIG="$HOME/.ssh/config"
+_found_keychain=false
+for _u in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
+    dotfiles_check_keychain_credential "$_u" 2>/dev/null && _found_keychain=true && break
+done
+unset _u
 
-_found_ssh_blocks=false
-if [ -f "$SSH_CONFIG" ]; then
-    for _u in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
-        _host="$(dotfiles_account_ssh_host "$_u")"
-        grep -q "Host ${_host}" "$SSH_CONFIG" 2>/dev/null && _found_ssh_blocks=true && break
-    done
-fi
-unset _u _host
-
-if [ "$_found_ssh_blocks" = true ]; then
-    if confirm "Remove dotfiles SSH host blocks from ~/.ssh/config?"; then
+if [ "$_found_keychain" = true ]; then
+    if confirm "Remove GitHub PAT credentials from macOS Keychain?"; then
         for user in ${DOTFILES_ACCOUNTS[@]+"${DOTFILES_ACCOUNTS[@]}"}; do
-            host="$(dotfiles_account_ssh_host "$user")"
-            for prefix in "dotfiles-managed" "gitscripts-managed"; do
-                marker_begin="# ${prefix}-begin ${host}"
-                marker_end="# ${prefix}-end ${host}"
-                if grep -q "$marker_begin" "$SSH_CONFIG" 2>/dev/null; then
-                    if [[ "$(uname)" == "Darwin" ]]; then
-                        sed -i '' "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
-                    else
-                        sed -i "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG" 2>/dev/null || true
-                    fi
-                    dotfiles_ui_success "  Removed SSH block for ${host} (${prefix})"
-                fi
-            done
-
-            # Remove any unmarked Host block (left by older installs without markers)
-            if grep -q "^Host ${host}$" "$SSH_CONFIG" 2>/dev/null; then
-                if [[ "$(uname)" == "Darwin" ]]; then
-                    sed -i '' "/^Host ${host}$/,/^$/d" "$SSH_CONFIG" 2>/dev/null || true
+            if dotfiles_check_keychain_credential "$user" 2>/dev/null; then
+                if dotfiles_delete_keychain_credential "$user"; then
+                    dotfiles_ui_success "  Removed Keychain credential for ${user}"
                 else
-                    sed -i "/^Host ${host}$/,/^$/d" "$SSH_CONFIG" 2>/dev/null || true
+                    dotfiles_ui_info "  Could not remove Keychain credential for ${user}"
                 fi
-                dotfiles_ui_success "  Removed unmarked SSH block for ${host}"
             fi
         done
     fi
 else
-    dotfiles_ui_info "  No dotfiles SSH blocks found in ~/.ssh/config, skipping"
+    dotfiles_ui_info "  No dotfiles Keychain credentials found, skipping"
 fi
 
-# ─── 8. Remove git identity includeIf and per-account gitconfigs ─────────────
+# ─── 8. Remove git identity config ───────────────────────────────────────────
 
 section "Remove git identity config"
 
@@ -275,20 +253,7 @@ else
     dotfiles_ui_info "  No git identity config found, skipping"
 fi
 
-# ─── 9. Remove SSH keys ──────────────────────────────────────────────────────
-
-section "Remove SSH keys"
-
-if [ -d "$DOTFILES_SSH_DIR" ]; then
-    if confirm "Remove dotfiles SSH keys from ${DOTFILES_SSH_DIR}?"; then
-        rm -rf "$DOTFILES_SSH_DIR"
-        dotfiles_ui_success "  Removed ${DOTFILES_SSH_DIR}"
-    fi
-else
-    dotfiles_ui_info "  ${DOTFILES_SSH_DIR} not found, skipping"
-fi
-
-# ─── 10. Uninstall apps ───────────────────────────────────────────────────────
+# ─── 9. Uninstall apps ───────────────────────────────────────────────────────
 
 section "Uninstall apps"
 
@@ -312,7 +277,7 @@ fi
 [ -d "/Applications/Sublime Text.app" ] && { confirm "Uninstall Sublime Text?" && brew_uninstall sublime-text --cask; } || dotfiles_ui_info "  Sublime Text not installed, skipping"
 [ -d "/Applications/TextMate.app" ]     && { confirm "Uninstall TextMate?"     && brew_uninstall textmate --cask; }     || dotfiles_ui_info "  TextMate not installed, skipping"
 
-# ─── 11. Remove Oh My Zsh and Powerlevel10k ──────────────────────────────────
+# ─── 10. Remove Oh My Zsh and Powerlevel10k ──────────────────────────────────
 
 section "Remove Oh My Zsh and Powerlevel10k"
 
@@ -340,7 +305,6 @@ elif [ "$_omz_zshrc_refs" = true ] && [ -f "$HOME/.zshrc" ]; then
     dotfiles_remove_lines_matching "$HOME/.zshrc" 'export ZSH='
     dotfiles_remove_lines_matching "$HOME/.zshrc" 'ZSH_THEME='
     dotfiles_remove_lines_matching "$HOME/.zshrc" 'zsh-syntax-highlighting\.zsh'
-    # Remove entire p10k instant-prompt if/fi block
     sed -i '' '/p10k-instant-prompt/,/^fi$/d' "$HOME/.zshrc" 2>/dev/null || true
     dotfiles_remove_lines_matching "$HOME/.zshrc" 'p10k\.zsh'
     dotfiles_remove_lines_matching "$HOME/.zshrc" 'POWERLEVEL9K_DISABLE'
@@ -356,10 +320,9 @@ if [ -f "$HOME/.p10k.zsh" ]; then
     fi
 else
     dotfiles_ui_info "  ~/.p10k.zsh not found, skipping"
-
 fi
 
-# ─── 12. Remove per-account repo folders ─────────────────────────────────────
+# ─── 11. Remove per-account repo folders ─────────────────────────────────────
 
 section "Remove per-account repository folders"
 
@@ -384,7 +347,7 @@ else
     done
 fi
 
-# ─── 13. Remove Dock icons ────────────────────────────────────────────────────
+# ─── 12. Remove Dock icons ────────────────────────────────────────────────────
 
 section "Remove Dock icons"
 
@@ -408,7 +371,7 @@ else
     dotfiles_ui_info "  dockutil not found, skipping"
 fi
 
-# ─── 14. Reset default shell ─────────────────────────────────────────────────
+# ─── 13. Reset default shell ─────────────────────────────────────────────────
 
 section "Reset default shell"
 
@@ -423,7 +386,7 @@ else
 fi
 unset _current_shell
 
-# ─── 15. Remove Homebrew ──────────────────────────────────────────────────────
+# ─── 14. Remove Homebrew ──────────────────────────────────────────────────────
 
 section "Remove Homebrew"
 

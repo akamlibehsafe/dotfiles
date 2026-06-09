@@ -1,6 +1,6 @@
 #!/bin/bash
-# setup_ssh — SSH keys, ~/.ssh/config host aliases, includeIf git identity
-# Keys are installed from paths defined in dotfiles.conf (ssh_key field).
+# setup_ssh — git identity (includeIf) and Keychain credential setup
+# Renamed from SSH-focused to identity+auth focused; SSH keys are no longer used.
 
 set -euo pipefail
 
@@ -18,14 +18,15 @@ dotfiles_ui_colors
 
 DRY_RUN=false
 MODE="repair"
-MARKER_PREFIX="# dotfiles-managed"
 
 usage() {
     echo "Usage: setup_ssh [--dry-run] [--new-mac | --repair]"
     echo ""
+    echo "  Configure git identity (includeIf) and store PATs in macOS Keychain."
+    echo ""
     echo "  --dry-run   Show planned changes only, make no changes"
-    echo "  --new-mac   Install keys + full config (default for fresh Mac)"
-    echo "  --repair    Add only what is missing; do not touch working keys"
+    echo "  --new-mac   Full setup (default for fresh Mac)"
+    echo "  --repair    Add only what is missing"
     exit 0
 }
 
@@ -45,134 +46,6 @@ log_action() {
     else
         dotfiles_ui_success "$*"
     fi
-}
-
-# ─── Install SSH key from base64 in dotfiles.conf ─────────────────────────────
-
-install_key() {
-    local user="$1"
-    local b64 dest_key dest_pub
-
-    local pem dest_key dest_pub
-    pem="$(dotfiles_account_ssh_pem "$user")"
-    dest_key="$(dotfiles_account_key_path "$user")"
-    dest_pub="${dest_key}.pub"
-
-    if [ -z "$pem" ]; then
-        dotfiles_ui_info "  No ssh_private defined in dotfiles.conf for ${user} — skipping key install"
-        return 0
-    fi
-
-    if [ -f "$dest_key" ] && [ "$MODE" = "repair" ]; then
-        log_action "  Key already exists (not replacing): ${dest_key}"
-        return 0
-    fi
-
-    log_action "  Install key for ${user}: ${dest_key}"
-    [ "$DRY_RUN" = true ] && return 0
-
-    mkdir -p "$DOTFILES_SSH_DIR"
-    chmod 700 "$DOTFILES_SSH_DIR"
-
-    printf '%s\n' "$pem" > "$dest_key"
-    chmod 600 "$dest_key"
-
-    ssh-keygen -y -f "$dest_key" > "$dest_pub"
-    chmod 644 "$dest_pub"
-
-    # Add to macOS keychain agent
-    ssh-add --apple-use-keychain "$dest_key" 2>/dev/null || \
-        ssh-add "$dest_key" 2>/dev/null || \
-        dotfiles_ui_info "  Note: could not add key to ssh-agent (add manually: ssh-add ${dest_key})"
-}
-
-# ─── SSH config block ─────────────────────────────────────────────────────────
-
-ssh_config_block() {
-    local user="$1"
-    local host key
-    host="$(dotfiles_account_ssh_host "$user")"
-    key="$(dotfiles_account_key_path "$user")"
-    cat <<EOF
-Host ${host}
-  HostName ssh.github.com
-  User git
-  Port 443
-  IdentityFile ${key}
-  IdentitiesOnly yes
-  AddKeysToAgent yes
-  UseKeychain yes
-EOF
-}
-
-ensure_ssh_config_block() {
-    local user="$1"
-    local host config block marker_begin marker_end
-    host="$(dotfiles_account_ssh_host "$user")"
-    config="$HOME/.ssh/config"
-    marker_begin="${MARKER_PREFIX}-begin ${host}"
-    marker_end="${MARKER_PREFIX}-end ${host}"
-    block="$(ssh_config_block "$user")"
-
-    if [ -f "$config" ] && grep -q "Host ${host}" "$config" 2>/dev/null; then
-        log_action "  SSH config block already present: ${host}"
-        return 0
-    fi
-
-    log_action "  Add SSH config block: ${host}"
-    [ "$DRY_RUN" = true ] && { echo "$block"; return 0; }
-
-    mkdir -p "$HOME/.ssh"
-    chmod 700 "$HOME/.ssh"
-    touch "$config"
-    chmod 600 "$config"
-    {
-        echo ""
-        echo "${marker_begin}"
-        echo "$block"
-        echo "${marker_end}"
-    } >>"$config"
-}
-
-# ─── Prompt to add public key to GitHub ──────────────────────────────────────
-
-prompt_github_upload() {
-    local user="$1"
-    local pub
-    pub="$(dotfiles_account_pubkey_path "$user")"
-
-    [ "$DRY_RUN" = true ] && {
-        log_action "  Would prompt to add ${pub} to GitHub (${user})"
-        return 0
-    }
-
-    [ -f "$pub" ] || {
-        dotfiles_ui_info "  Public key not found: ${pub} — add to GitHub manually"
-        return 0
-    }
-
-    # Check if this public key is already registered on GitHub
-    local pat_var pat pub_content
-    pat_var="$(dotfiles_account_pat_var "$user")"
-    pat="${!pat_var:-}"
-    pub_content="$(cat "$pub")"
-    if [ -n "$pat" ] && command -v curl &>/dev/null; then
-        local keys_json key_match
-        keys_json="$(curl -sf -H "Authorization: token ${pat}" \
-            "https://api.github.com/user/keys" 2>/dev/null || true)"
-        key_match="$(echo "$keys_json" | grep -F "${pub_content%% *}" || true)"
-        if [ -n "$key_match" ]; then
-            dotfiles_ui_success "  SSH key already registered on GitHub"
-            return 0
-        fi
-    fi
-
-    echo ""
-    dotfiles_ui_prompt "Add SSH public key to GitHub account: ${user}"
-    echo "  GitHub → Settings → SSH and GPG keys → New SSH key"
-    pbcopy <"$pub" 2>/dev/null && echo "  Public key copied to clipboard." || \
-        echo "  Public key: $pub"
-    read -r -p "  Press Enter when done adding the key to GitHub..."
 }
 
 # ─── Git identity (includeIf) ─────────────────────────────────────────────────
@@ -195,6 +68,8 @@ ensure_gitconfig_include() {
         cat >"$global" <<'EOF'
 [init]
     defaultBranch = main
+[credential]
+    helper = osxkeychain
 EOF
     fi
 
@@ -215,30 +90,55 @@ EOF
 EOF
 }
 
+# ─── Keychain credential storage ──────────────────────────────────────────────
+
+ensure_keychain_credential() {
+    local user="$1"
+    local pat
+
+    pat="$(dotfiles_account_pat_resolved "$user" || true)"
+    if [ -z "$pat" ]; then
+        dotfiles_ui_info "  No PAT for ${user} — skipping Keychain storage"
+        return 0
+    fi
+
+    if [ "$MODE" = "repair" ] && dotfiles_check_keychain_credential "$user" 2>/dev/null; then
+        log_action "  Keychain credential already present for ${user}"
+        return 0
+    fi
+
+    log_action "  Store Keychain credential for ${user}"
+    [ "$DRY_RUN" = true ] && return 0
+
+    if dotfiles_store_keychain_credential "$user" "$pat"; then
+        dotfiles_ui_success "  Keychain: stored credential for ${user}"
+    else
+        dotfiles_ui_info "  Keychain: could not store credential for ${user} (store manually via setup_pats)"
+    fi
+}
+
+# ─── Git credential helper ────────────────────────────────────────────────────
+
+ensure_git_credential_config() {
+    log_action "  Configure git credential.helper = osxkeychain"
+    [ "$DRY_RUN" = true ] && return 0
+
+    git config --global credential.helper osxkeychain 2>/dev/null || \
+        dotfiles_ui_info "  Could not set credential.helper (set manually: git config --global credential.helper osxkeychain)"
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 dotfiles_ui_section "setup_ssh (mode=${MODE}, dry_run=${DRY_RUN})"
 
+ensure_git_credential_config
+
 for user in "${DOTFILES_ACCOUNTS[@]}"; do
     dotfiles_ui_prompt "--- ${user} ---"
-    install_key "$user"
-    ensure_ssh_config_block "$user"
-    [ "$DRY_RUN" = false ] && prompt_github_upload "$user" || true
     ensure_gitconfig_include "$user"
+    ensure_keychain_credential "$user"
     echo ""
 done
-
-# ─── Verify ───────────────────────────────────────────────────────────────────
-
-if [ "$DRY_RUN" = false ]; then
-    dotfiles_ui_section "Verify SSH connections"
-    for user in "${DOTFILES_ACCOUNTS[@]}"; do
-        host="$(dotfiles_account_ssh_host "$user")"
-        dotfiles_ui_info "Testing ssh -T git@${host}..."
-        ssh -o ConnectTimeout=10 -T "git@${host}" 2>&1 || true
-        echo ""
-    done
-fi
 
 dotfiles_ui_section "Done"
 if [ "$DRY_RUN" = true ]; then

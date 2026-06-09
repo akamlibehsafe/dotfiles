@@ -1,8 +1,6 @@
 #!/bin/bash
 # common.sh — shared helpers (source only; never run directly)
 
-DOTFILES_SSH_DIR="${DOTFILES_SSH_DIR:-$HOME/.ssh/dotfiles}"
-
 # shellcheck source=accounts.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/accounts.sh"
 
@@ -16,27 +14,15 @@ dotfiles_repo_root() {
     echo "$(cd "$(dotfiles_scripts_root)/.." && pwd -P)"
 }
 
-# --- Account / SSH helpers ---
-
-dotfiles_account_ssh_host() {
-    echo "github-$1"
-}
-
-dotfiles_account_key_path() {
-    echo "${DOTFILES_SSH_DIR}/id_ed25519_${1}"
-}
-
-dotfiles_account_pubkey_path() {
-    echo "$(dotfiles_account_key_path "$1").pub"
-}
+# --- Account / remote helpers ---
 
 dotfiles_account_gitdir() {
     echo "${DOTFILES_GITHUB_ROOT}/${1}/"
 }
 
-dotfiles_remote_ssh_url() {
+dotfiles_remote_https_url() {
     local user="$1" repo="$2"
-    echo "git@$(dotfiles_account_ssh_host "$user"):${user}/${repo}.git"
+    echo "https://${user}@github.com/${user}/${repo}.git"
 }
 
 dotfiles_is_known_account() {
@@ -45,10 +31,6 @@ dotfiles_is_known_account() {
         [[ "$a" == "$u" ]] && return 0
     done
     return 1
-}
-
-dotfiles_remote_uses_ssh() {
-    [[ "$1" =~ ^git@github- ]]
 }
 
 # Parse remote URL → "username reponame"; exit 1 if unrecognised
@@ -72,6 +54,32 @@ dotfiles_parse_remote() {
         return 0
     fi
     return 1
+}
+
+# --- Keychain credential helpers (macOS) ---
+
+# Store a PAT in the macOS Keychain directly via the security command.
+# Uses account=<user> + server=github.com so multiple accounts are stored independently.
+dotfiles_store_keychain_credential() {
+    local user="$1" pat="$2"
+    security add-internet-password \
+        -a "$user" \
+        -s "github.com" \
+        -r "htps" \
+        -w "$pat" \
+        -U 2>/dev/null
+}
+
+# Returns 0 if a Keychain entry exists for the given GitHub username.
+dotfiles_check_keychain_credential() {
+    local user="$1"
+    security find-internet-password -a "$user" -s "github.com" &>/dev/null
+}
+
+# Remove a PAT from the macOS Keychain.
+dotfiles_delete_keychain_credential() {
+    local user="$1"
+    security delete-internet-password -a "$user" -s "github.com" 2>/dev/null
 }
 
 # --- PAT loading ---
@@ -138,7 +146,7 @@ dotfiles_ui_colors() {
     RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
-    BLUE='\033[0;34m'
+    BLUE='\033[1;37m'
     CYAN='\033[0;36m'
     ORANGE='\033[1;31m'
     BOLD='\033[1m'

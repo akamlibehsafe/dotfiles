@@ -1,7 +1,6 @@
 #!/bin/bash
 # repo_sync — stage, commit, and push changes in the current repo
 # Automatically detects the GitHub account from the remote URL.
-# test: hook trigger
 
 set -euo pipefail
 
@@ -85,7 +84,7 @@ git remote get-url origin &>/dev/null || \
 REMOTE_URL="$(git remote get-url origin)"
 PARSED="$(dotfiles_parse_remote "$REMOTE_URL" || true)"
 [ -n "$PARSED" ] || \
-    dotfiles_die "Cannot parse remote URL: ${REMOTE_URL}\nExpected git@github-<user>:user/repo or https://github.com/user/repo"
+    dotfiles_die "Cannot parse remote URL: ${REMOTE_URL}\nExpected https://<user>@github.com/user/repo"
 
 USERNAME="$(echo "$PARSED" | awk '{print $1}')"
 REPO_NAME="$(echo "$PARSED" | awk '{print $2}')"
@@ -95,19 +94,6 @@ dotfiles_is_known_account "$USERNAME" || \
 
 dotfiles_ui_info "Account : ${USERNAME}"
 dotfiles_ui_info "Repo    : ${REPO_NAME}"
-
-# ─── auth ─────────────────────────────────────────────────────────────────────
-
-USE_SSH=false
-if dotfiles_remote_uses_ssh "$REMOTE_URL"; then
-    USE_SSH=true
-    dotfiles_ui_info "Auth    : SSH"
-else
-    PAT="$(dotfiles_account_pat_resolved "$USERNAME" || true)"
-    [ -n "$PAT" ] || \
-        dotfiles_die "No PAT found for ${USERNAME}.\nRun: scripts/setup/setup_pats\nOr migrate remote to SSH: scripts/setup/setup_migrate --apply"
-    dotfiles_ui_info "Auth    : PAT (HTTPS fallback)"
-fi
 
 # ─── branch ───────────────────────────────────────────────────────────────────
 
@@ -147,24 +133,14 @@ fi
 
 dotfiles_ui_info "Pushing to origin/${CURRENT_BRANCH}..."
 
-if [ "$USE_SSH" = true ]; then
-    set +e
-    git -c credential.helper= push -u origin "$CURRENT_BRANCH" 2>&1
-    PUSH_STATUS=$?
-    set -e
-else
-    ORIGINAL_URL="$(git remote get-url origin)"
-    git remote set-url origin "https://${PAT}@github.com/${USERNAME}/${REPO_NAME}.git"
-    set +e
-    git -c credential.helper= push -u origin "$CURRENT_BRANCH" 2>&1
-    PUSH_STATUS=$?
-    set -e
-    git remote set-url origin "$ORIGINAL_URL"
-fi
+set +e
+git push -u origin "$CURRENT_BRANCH" 2>&1
+PUSH_STATUS=$?
+set -e
 
 if [ "$PUSH_STATUS" -eq 0 ]; then
     dotfiles_ui_success "Pushed successfully."
     echo "  https://github.com/${USERNAME}/${REPO_NAME}"
 else
-    dotfiles_die "Push failed. Check your connection and credentials."
+    dotfiles_die "Push failed. Check credentials: scripts/setup/setup_check"
 fi

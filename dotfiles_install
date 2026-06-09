@@ -91,7 +91,7 @@ STATE_HOMEBREW=false
 STATE_CORE_TOOLS=false
 STATE_GITHUB_ROOT=false
 STATE_PATS=false
-STATE_SSH=false
+STATE_IDENTITY=false
 STATE_SHELL=false
 STATE_SYMLINKS=false
 
@@ -109,8 +109,6 @@ fi
 [ -d "$DOTFILES_GITHUB_ROOT" ] && STATE_GITHUB_ROOT=true
 
 # PATs — true only if GH_TOKEN_* exports are already present in shell config
-# (meaning a previous dotfiles_install already ran). On a clean machine this
-# will always be false even if dotfiles.conf has valid PATs.
 _pat_ok=true
 for _u in "${DOTFILES_ACCOUNTS[@]}"; do
     _pv="$(dotfiles_account_pat_var "$_u")"
@@ -119,22 +117,19 @@ done
 $_pat_ok && STATE_PATS=true
 unset _u _pv _pat_ok
 
-# SSH — keys exist, config blocks present, and all accounts authenticated
-_ssh_ok=true
+# Identity — includeIf blocks present and Keychain credentials stored
+_id_ok=true
 for _u in "${DOTFILES_ACCOUNTS[@]}"; do
-    _key="$(dotfiles_account_key_path "$_u")"
-    _host="$(dotfiles_account_ssh_host "$_u")"
-    if [ ! -f "$_key" ]; then
-        _ssh_ok=false; break
+    _gitdir="$(dotfiles_account_gitdir "$_u")"
+    _inc="gitdir:${_gitdir}"
+    _cfg="$HOME/.gitconfig-${_u}"
+    if ! grep -Fq "$_inc" "$HOME/.gitconfig" 2>/dev/null || [ ! -f "$_cfg" ]; then
+        _id_ok=false; break
     fi
-    if ! grep -q "Host ${_host}" "$HOME/.ssh/config" 2>/dev/null; then
-        _ssh_ok=false; break
-    fi
-    _out="$(ssh -o BatchMode=yes -o ConnectTimeout=5 -T "git@${_host}" 2>&1 || true)"
-    echo "$_out" | grep -qi "successfully authenticated" || { _ssh_ok=false; break; }
+    dotfiles_check_keychain_credential "$_u" 2>/dev/null || { _id_ok=false; break; }
 done
-$_ssh_ok && STATE_SSH=true
-unset _u _key _host _out _ssh_ok
+$_id_ok && STATE_IDENTITY=true
+unset _u _gitdir _inc _cfg _id_ok
 
 # Shell — Oh My Zsh + p10k present
 [ -d "$HOME/.oh-my-zsh" ] && [ -f "$HOME/.p10k.zsh" ] && STATE_SHELL=true
@@ -153,7 +148,7 @@ echo "  homebrew    : $STATE_HOMEBREW"
 echo "  core tools  : $STATE_CORE_TOOLS"
 echo "  github root : $STATE_GITHUB_ROOT"
 echo "  PATs        : $STATE_PATS"
-echo "  SSH         : $STATE_SSH"
+echo "  identity    : $STATE_IDENTITY"
 echo "  shell       : $STATE_SHELL"
 echo "  symlinks    : $STATE_SYMLINKS"
 echo ""
@@ -169,14 +164,9 @@ echo ""
 CONF_ERRORS=0
 for user in "${DOTFILES_ACCOUNTS[@]}"; do
     pat="$(dotfiles_account_pat "$user")"
-    ssh_pem="$(dotfiles_account_ssh_pem "$user")"
 
     if [ -z "$pat" ]; then
         dotfiles_ui_error "  Missing 'pat' for account: ${user}"
-        CONF_ERRORS=$((CONF_ERRORS + 1))
-    fi
-    if [ -z "$ssh_pem" ]; then
-        dotfiles_ui_error "  Missing 'ssh_private' for account: ${user}"
         CONF_ERRORS=$((CONF_ERRORS + 1))
     fi
 done
@@ -259,12 +249,12 @@ else
     phase_ok "Created: ${DOTFILES_GITHUB_ROOT}"
 fi
 
-# ─── Phase 5: Auth setup (PATs + SSH + git identity) ─────────────────────────
+# ─── Phase 5: Auth setup (PATs + Keychain + git identity) ────────────────────
 
 run_phase "Phase 5: Auth setup"
 
-if [ "$STATE_PATS" = true ] && [ "$STATE_SSH" = true ]; then
-    phase_ok "PATs and SSH already configured"
+if [ "$STATE_PATS" = true ] && [ "$STATE_IDENTITY" = true ]; then
+    phase_ok "PATs, Keychain credentials, and git identity already configured"
 else
 
 # Export PATs from dotfiles.conf into environment and shell config
@@ -284,62 +274,31 @@ for user in "${DOTFILES_ACCOUNTS[@]}"; do
     dotfiles_ui_success "  Exported: ${pat_var}"
 done
 
-# Run SSH setup
-dotfiles_ui_info "  Running SSH + git identity setup..."
+# Configure git credential helper and store PATs in macOS Keychain
+dotfiles_ui_info "  Configuring git credential helper..."
+git config --global credential.helper osxkeychain 2>/dev/null || \
+    dotfiles_ui_info "  Warning: could not set credential.helper"
+
+dotfiles_ui_info "  Storing credentials in macOS Keychain..."
+for user in "${DOTFILES_ACCOUNTS[@]}"; do
+    pat="$(dotfiles_account_pat "$user")"
+    if dotfiles_store_keychain_credential "$user" "$pat"; then
+        dotfiles_ui_success "  Keychain: stored credential for ${user}"
+    else
+        dotfiles_ui_info "  Keychain: could not store credential for ${user}"
+    fi
+done
+
+# Set up git identity (includeIf per account folder)
+dotfiles_ui_info "  Running git identity setup..."
 bash "${SCRIPTS_ROOT}/setup/setup_ssh" --new-mac
 
 phase_ok "Auth configured"
 fi
 
-# ─── Phase 6: SSH verification ───────────────────────────────────────────────
+# ─── Phase 6: Shell (Zsh, Oh My Zsh, p10k) ───────────────────────────────────
 
-run_phase "Phase 6: SSH verification"
-
-if [ "$STATE_SSH" = true ]; then
-    phase_ok "SSH already verified for all accounts"
-else
-
-SSH_FAILURES=0
-for user in "${DOTFILES_ACCOUNTS[@]}"; do
-    host="$(dotfiles_account_ssh_host "$user")"
-    dotfiles_ui_info "  Testing git@${host}..."
-    ssh_out="$(ssh -o BatchMode=yes -o ConnectTimeout=10 -T "git@${host}" 2>&1 || true)"
-    if echo "$ssh_out" | grep -qi "successfully authenticated"; then
-        dotfiles_ui_success "  ${host}: authenticated"
-    else
-        dotfiles_ui_info "  ${host}: not verified yet"
-        dotfiles_ui_info "  → Add the public key to GitHub as ${user}:"
-        dotfiles_ui_info "    GitHub → Settings → SSH and GPG keys → New SSH key"
-        dotfiles_ui_info "    Key file: $(dotfiles_account_pubkey_path "$user")"
-        SSH_FAILURES=$((SSH_FAILURES + 1))
-    fi
-done
-
-[ "$SSH_FAILURES" -gt 0 ] && {
-    echo ""
-    dotfiles_ui_prompt "Some SSH keys are not yet added to GitHub."
-    dotfiles_ui_prompt "Add them now, then press Enter to continue..."
-    read -r
-
-    # Re-verify
-    SSH_STILL_FAILING=0
-    for user in "${DOTFILES_ACCOUNTS[@]}"; do
-        host="$(dotfiles_account_ssh_host "$user")"
-        ssh_out="$(ssh -o BatchMode=yes -o ConnectTimeout=10 -T "git@${host}" 2>&1 || true)"
-        echo "$ssh_out" | grep -qi "successfully authenticated" || \
-            SSH_STILL_FAILING=$((SSH_STILL_FAILING + 1))
-    done
-
-    [ "$SSH_STILL_FAILING" -gt 0 ] && \
-        dotfiles_ui_info "  Warning: ${SSH_STILL_FAILING} account(s) still not verified. Run setup_check later."
-}
-
-phase_ok "SSH verification done"
-fi
-
-# ─── Phase 7: Shell (Zsh, Oh My Zsh, p10k) ───────────────────────────────────
-
-run_phase "Phase 7: Shell"
+run_phase "Phase 6: Shell"
 
 if [ "$STATE_SHELL" = true ]; then
     phase_ok "Shell already configured"
@@ -423,7 +382,7 @@ if [ -f "$P10K_CONFIG" ]; then
     dotfiles_ui_success "  Applied ~/.p10k.zsh from config/p10k.zsh"
 fi
 
-# Apply gitconfig base
+# Apply gitconfig base (only if not already present — identity setup may have created it)
 GITCONFIG_TEMPLATE="${REPO_ROOT}/config/gitconfig"
 if [ -f "$GITCONFIG_TEMPLATE" ] && [ ! -f "$HOME/.gitconfig" ]; then
     cp "$GITCONFIG_TEMPLATE" "$HOME/.gitconfig"
@@ -433,9 +392,9 @@ fi
 phase_ok "Shell configured"
 fi
 
-# ─── Phase 8: Apps ───────────────────────────────────────────────────────────
+# ─── Phase 7: Apps ───────────────────────────────────────────────────────────
 
-run_phase "Phase 8: Apps"
+run_phase "Phase 7: Apps"
 
 app_is_installed() {
     case "$1" in
@@ -471,9 +430,9 @@ done
 
 phase_ok "Apps done"
 
-# ─── Phase 9: Bulk clone ─────────────────────────────────────────────────────
+# ─── Phase 8: Bulk clone ─────────────────────────────────────────────────────
 
-run_phase "Phase 9: Bulk clone"
+run_phase "Phase 8: Bulk clone"
 
 command -v jq &>/dev/null || {
     dotfiles_ui_info "  jq not found — skipping bulk clone"
@@ -516,10 +475,10 @@ if command -v jq &>/dev/null && confirm "Clone all repos from your GitHub accoun
                 if [ -d "$dest" ]; then
                     dotfiles_ui_info "  Already exists: ${user}/${repo_name}"
                 else
-                    ssh_url="$(dotfiles_remote_ssh_url "$user" "$repo_name")"
+                    clone_url="$(dotfiles_remote_https_url "$user" "$repo_name")"
                     dotfiles_ui_info "  Cloning ${user}/${repo_name}..."
                     set +e
-                    git -c credential.helper= clone "$ssh_url" "$dest" 2>&1 | tail -1
+                    git clone "$clone_url" "$dest" 2>&1 | tail -1
                     clone_status=$?
                     set -e
                     if [ "$clone_status" -eq 0 ]; then
@@ -541,16 +500,16 @@ fi
 
 phase_ok "Clone phase done"
 
-# ─── Phase 10: Copy scripts to ~/bin/ ────────────────────────────────────────
+# ─── Phase 9: Copy scripts to ~/bin/ ────────────────────────────────────────
 
-run_phase "Phase 10: Install scripts"
+run_phase "Phase 9: Install scripts"
 
 bash "${SCRIPTS_ROOT}/setup/update_scripts"
 phase_ok "Scripts installed to ~/bin/"
 
-# ─── Phase 11: Shell aliases ─────────────────────────────────────────────────
+# ─── Phase 10: Shell aliases ─────────────────────────────────────────────────
 
-run_phase "Phase 11: Shell aliases"
+run_phase "Phase 10: Shell aliases"
 
 if grep -q "# dotfiles aliases" "$HOME/.zshrc" 2>/dev/null; then
     dotfiles_ui_info "  Aliases already present in ~/.zshrc"
@@ -574,9 +533,9 @@ fi
 
 phase_ok "Aliases done"
 
-# ─── Phase 12: Final verification ─────────────────────────────────────────────
+# ─── Phase 11: Final verification ─────────────────────────────────────────────
 
-run_phase "Phase 12: Verification"
+run_phase "Phase 11: Verification"
 
 # Source the shell config to pick up PATH changes
 export PATH="$HOME/bin:$PATH"
@@ -596,9 +555,9 @@ done
 
 phase_ok "Verification complete"
 
-# ─── Phase 13: Dock ──────────────────────────────────────────────────────────
+# ─── Phase 12: Dock ──────────────────────────────────────────────────────────
 
-run_phase "Phase 13: Dock"
+run_phase "Phase 12: Dock"
 
 DOCK_APPS=(
     "/Applications/iTerm.app"
@@ -640,9 +599,9 @@ fi
 
 phase_ok "Dock configured"
 
-# ─── Phase 14: Terminal font ──────────────────────────────────────────────────
+# ─── Phase 13: Terminal font ──────────────────────────────────────────────────
 
-run_phase "Phase 14: Terminal font"
+run_phase "Phase 13: Terminal font"
 
 if fc-list 2>/dev/null | grep -qi "MesloLGS" || system_profiler SPFontsDataType 2>/dev/null | grep -qi "MesloLGS"; then
     dotfiles_ui_info "  MesloLGS NF found — skipping install"
@@ -665,9 +624,9 @@ APPLESCRIPT
 
 phase_ok "Terminal font configured"
 
-# ─── Phase 15: Source shell ───────────────────────────────────────────────────
+# ─── Phase 14: Source shell ───────────────────────────────────────────────────
 
-run_phase "Phase 15: Activate"
+run_phase "Phase 14: Activate"
 
 dotfiles_ui_info "  Sourcing ${SHELL_CONFIG}..."
 # We can source it here but the user's interactive shell needs a reload
