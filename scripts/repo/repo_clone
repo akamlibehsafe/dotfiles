@@ -98,6 +98,14 @@ if command -v git-lfs &>/dev/null || git lfs version &>/dev/null 2>&1; then
     fi
 fi
 
+# ─── bake git identity into .git/config ──────────────────────────────────────
+
+GIT_NAME="$(dotfiles_account_git_name "$USERNAME")"
+GIT_EMAIL="$(dotfiles_account_email "$USERNAME")"
+git config --local user.name  "$GIT_NAME"
+git config --local user.email "$GIT_EMAIL"
+dotfiles_ui_success "Identity : ${GIT_NAME} <${GIT_EMAIL}>"
+
 # ─── summary ──────────────────────────────────────────────────────────────────
 
 echo ""

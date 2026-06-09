@@ -170,6 +170,14 @@ if [ "$HAS_COMMITS" = false ]; then
     dotfiles_ui_success "Empty initial commit created"
 fi
 
+# ─── bake git identity into .git/config ──────────────────────────────────────
+
+GIT_NAME="$(dotfiles_account_git_name "$USERNAME")"
+GIT_EMAIL="$(dotfiles_account_email "$USERNAME")"
+git config --local user.name  "$GIT_NAME"
+git config --local user.email "$GIT_EMAIL"
+dotfiles_ui_success "Identity : ${GIT_NAME} <${GIT_EMAIL}>"
+
 # ─── ensure branch name ───────────────────────────────────────────────────────
 
 CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || echo "")"

@@ -140,6 +140,33 @@ for user in "${DOTFILES_ACCOUNTS[@]}"; do
     echo ""
 done
 
+# ─── Repair: rescan existing repos and rewrite [user] in .git/config ─────────
+
+if [ "$MODE" = "repair" ] || [ "$MODE" = "new-mac" ]; then
+    dotfiles_ui_section "Updating .git/config identity in existing repos"
+
+    for user in "${DOTFILES_ACCOUNTS[@]}"; do
+        user_dir="${DOTFILES_GITHUB_ROOT}/${user}"
+        [ -d "$user_dir" ] || continue
+
+        git_name="$(dotfiles_account_git_name "$user")"
+        git_email="$(dotfiles_account_email "$user")"
+        repaired=0
+
+        while IFS= read -r git_dir; do
+            [ -z "$git_dir" ] && continue
+            repo_root="$(dirname "$git_dir")"
+            log_action "  ${repo_root}"
+            [ "$DRY_RUN" = true ] && continue
+            git config --local -C "$repo_root" user.name  "$git_name"  2>/dev/null || true
+            git config --local -C "$repo_root" user.email "$git_email" 2>/dev/null || true
+            repaired=$((repaired + 1))
+        done < <(find "$user_dir" -mindepth 2 -maxdepth 3 -type d -name .git 2>/dev/null)
+
+        [ "$DRY_RUN" = false ] && dotfiles_ui_success "  ${user}: updated ${repaired} repo(s)"
+    done
+fi
+
 dotfiles_ui_section "Done"
 if [ "$DRY_RUN" = true ]; then
     echo "Re-run without --dry-run to apply changes."
