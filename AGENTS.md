@@ -11,6 +11,8 @@ Personal macOS development environment bootstrap and daily GitHub workflow toolk
 - `dotfiles.conf.example` — template for the gitignored `dotfiles.conf`
 - `SPEC.md` — full specification, source of truth for all design decisions
 - `DECISIONS.md` — history of architectural decisions and their rationale
+- `templates/AGENTS.md` — generic AGENTS.md template copied into new repos by `repo_init`
+- `templates/DECISIONS.md` — generic DECISIONS.md template copied into new repos by `repo_init`
 
 ## Structure
 

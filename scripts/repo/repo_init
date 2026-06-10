@@ -170,6 +170,35 @@ if [ "$HAS_COMMITS" = false ]; then
     dotfiles_ui_success "Empty initial commit created"
 fi
 
+# ─── copy AI context templates ───────────────────────────────────────────────
+
+_templates_dir="$(cd "${_script_dir}" && cd "$(git -C "${_script_dir}" rev-parse --show-toplevel 2>/dev/null || echo "${_script_dir}/..")" && pwd -P)/templates"
+# When running from ~/bin/, resolve via the XDG config copy of the repo
+if [ ! -d "$_templates_dir" ]; then
+    _dotfiles_repo="$(dirname "$(readlink -f "${HOME}/.config/dotfiles/dotfiles.conf" 2>/dev/null || echo "")" 2>/dev/null || true)"
+    [ -d "${_dotfiles_repo}/templates" ] && _templates_dir="${_dotfiles_repo}/templates"
+fi
+
+if [ -d "$_templates_dir" ]; then
+    for _tmpl in AGENTS.md DECISIONS.md; do
+        if [ ! -f "$_tmpl" ] && [ -f "${_templates_dir}/${_tmpl}" ]; then
+            cp "${_templates_dir}/${_tmpl}" "./${_tmpl}"
+            dotfiles_ui_success "  Created ${_tmpl} from template"
+        fi
+    done
+    # Stage and commit the template files if any were added
+    if ! git diff --staged --quiet 2>/dev/null || [ -n "$(git ls-files --others --exclude-standard AGENTS.md DECISIONS.md 2>/dev/null)" ]; then
+        git add AGENTS.md DECISIONS.md 2>/dev/null || true
+        if ! git diff --staged --quiet 2>/dev/null; then
+            git commit -m "Add AI context files (AGENTS.md, DECISIONS.md)"
+            dotfiles_ui_success "  AI context files committed"
+        fi
+    fi
+else
+    dotfiles_ui_info "  templates/ not found — skipping AI context files"
+fi
+unset _templates_dir _dotfiles_repo _tmpl
+
 # ─── bake git identity into .git/config ──────────────────────────────────────
 
 GIT_NAME="$(dotfiles_account_git_name "$USERNAME")"
