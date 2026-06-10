@@ -4,7 +4,7 @@
 
 One repository, one goal: run `dotfiles_install` on a fresh macOS machine and get a fully working personal development environment. No manual steps after it finishes.
 
-A second set of daily commands (`repo_init`, `repo_clone`, `repo_sync`) handle GitHub workflow across multiple accounts from that point forward.
+A second set of day-to-day GitHub scripts (`repo_init`, `repo_clone`, `repo_sync`) handle GitHub workflow across multiple accounts from that point forward.
 
 ---
 
@@ -26,7 +26,7 @@ dotfiles/
 │   ├── ghostty/config
 │   └── iterm2/iTerm2 State.itermexport
 └── scripts/
-    ├── repo/                    ← daily commands (copied to ~/bin/ by update_scripts)
+    ├── repo/                    ← day-to-day GitHub scripts (copied to ~/bin/ by update_scripts)
     │   ├── repo_init
     │   ├── repo_clone
     │   └── repo_sync
@@ -468,7 +468,7 @@ Key functions in `common.sh`:
 | Pattern | Example | Location |
 |---|---|---|
 | Entry points | `dotfiles_install`, `dotfiles_uninstall` | repo root |
-| Daily commands | `repo_init`, `repo_clone`, `repo_sync` | `scripts/repo/`, `~/bin/` |
+| Day-to-day GitHub scripts | `repo_init`, `repo_clone`, `repo_sync` | `scripts/repo/`, `~/bin/` |
 | Setup tools | `setup_check`, `setup_pats`, `setup_identity` | `scripts/setup/` |
 | App installers | `iterm2`, `ghostty`, `warp`, `cursor` | `scripts/apps/` |
 | Lib modules | `common.sh`, `accounts.sh` | `scripts/lib/` |

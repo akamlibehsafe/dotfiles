@@ -692,7 +692,7 @@ dotfiles_ui_section "dotfiles_install complete!"
 
 dotfiles_ui_success "Your development environment is ready."
 echo ""
-echo "  Daily commands (available from anywhere):"
+echo "  Day-to-day GitHub scripts (available from anywhere):"
 echo "    repo_init <user/repo>     — create a new GitHub repo from local folder"
 echo "    repo_clone <user/repo>    — clone an existing GitHub repo"
 echo "    repo_sync [-m \"message\"]  — commit and push current repo"

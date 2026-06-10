@@ -54,14 +54,14 @@ cd /path/to/dotfiles
 - Remote URLs use `https://<username>@github.com/...` — username disambiguates multi-account Keychain lookups
 - Git identity set via `includeIf gitdir:` — right name/email used per account folder automatically
 
-**Daily commands** (copied to `~/bin/`, available everywhere):
+**Day-to-day GitHub scripts** (copied to `~/bin/`, available everywhere):
 - `repo_init` — turn a local folder into a new GitHub repo
 - `repo_clone` — clone an existing GitHub repo
 - `repo_sync` — commit and push current repo
 
 ---
 
-## Daily commands
+## Day-to-day GitHub scripts
 
 ### `repo_init <user/repo>`
 
@@ -135,7 +135,7 @@ Plain git commands (`git push`, `git pull`, `git commit`, etc.) work correctly f
 
 ---
 
-## How daily commands work
+## How day-to-day GitHub scripts work
 
 `dotfiles_install` copies `scripts/repo/*` and `scripts/lib/*` into `~/bin/` as standalone files. It also copies `dotfiles.conf` to `~/.config/dotfiles/dotfiles.conf` — a standard config location the scripts always check, regardless of where the installer was run from.
 
@@ -163,7 +163,7 @@ Everything `dotfiles_install` places outside the repo itself:
 
 | Location | Contents |
 |---|---|
-| `~/bin/repo_init`, `repo_clone`, `repo_sync` | Daily command scripts |
+| `~/bin/repo_init`, `repo_clone`, `repo_sync` | Day-to-day GitHub scripts |
 | `~/bin/lib/` | Shared library files the scripts depend on |
 | `~/.config/dotfiles/dotfiles.conf` | Copy of your config (including secrets) |
 | macOS Keychain | One PAT entry per GitHub account |
@@ -232,7 +232,7 @@ dotfiles/
 │   ├── ghostty/config           ← Ghostty config
 │   └── iterm2/                  ← iTerm2 profile export
 └── scripts/
-    ├── repo/                    ← daily commands (copied to ~/bin/)
+    ├── repo/                    ← day-to-day GitHub scripts (copied to ~/bin/)
     │   ├── repo_init
     │   ├── repo_clone
     │   └── repo_sync

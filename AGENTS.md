@@ -21,7 +21,7 @@ dotfiles_install / dotfiles_uninstall   ← repo root entry points
 dotfiles.conf.example                   ← config template (dotfiles.conf is gitignored)
 config/                                 ← personal config files applied by dotfiles_install
 scripts/
-├── repo/     ← daily commands copied to ~/bin/ (repo_init, repo_clone, repo_sync)
+├── repo/     ← day-to-day GitHub scripts copied to ~/bin/ (repo_init, repo_clone, repo_sync)
 ├── setup/    ← setup & repair tools, run by path only (setup_check, setup_pats, setup_identity, setup_migrate, update_scripts)
 ├── apps/     ← pluggable app installers (iterm2, ghostty, warp, cursor, claude, claude-cli)
 └── lib/      ← shared bash modules, sourced only (common.sh, accounts.sh, init.sh, manifest.sh)
@@ -31,7 +31,7 @@ scripts/
 
 - All internal functions and variables use the `dotfiles_` prefix
 - Entry points: `dotfiles_install`, `dotfiles_uninstall`
-- Daily commands: `repo_init`, `repo_clone`, `repo_sync`
+- Day-to-day GitHub scripts: `repo_init`, `repo_clone`, `repo_sync`
 - Setup tools: `setup_check`, `setup_pats`, `setup_identity`, `setup_migrate`, `update_scripts`
 - Config file: `dotfiles.conf` (gitignored); template: `dotfiles.conf.example`
 
@@ -88,7 +88,7 @@ cat ~/.zshrc            # should have no oh-my-zsh or GH_TOKEN lines
 ```bash
 source ~/.zshrc                   # should load cleanly with no errors
 scripts/setup/setup_check         # PATs valid, Keychain credentials present, identity configured
-repo_sync                         # test daily command is available
+repo_sync                         # test day-to-day GitHub scripts are available
 ```
 
 ### 5. Test repo cloning
