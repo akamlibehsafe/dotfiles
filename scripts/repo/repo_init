@@ -172,11 +172,12 @@ fi
 
 # ─── copy AI context templates ───────────────────────────────────────────────
 
-_templates_dir="$(cd "${_script_dir}" && cd "$(git -C "${_script_dir}" rev-parse --show-toplevel 2>/dev/null || echo "${_script_dir}/..")" && pwd -P)/templates"
-# When running from ~/bin/, resolve via the XDG config copy of the repo
+# XDG location (set by dotfiles_install, works from ~/bin/)
+_templates_dir="${HOME}/.config/dotfiles/templates"
+# Fallback: when running directly from the repo
 if [ ! -d "$_templates_dir" ]; then
-    _dotfiles_repo="$(dirname "$(readlink -f "${HOME}/.config/dotfiles/dotfiles.conf" 2>/dev/null || echo "")" 2>/dev/null || true)"
-    [ -d "${_dotfiles_repo}/templates" ] && _templates_dir="${_dotfiles_repo}/templates"
+    _repo_root="$(git -C "${_script_dir}" rev-parse --show-toplevel 2>/dev/null || true)"
+    [ -d "${_repo_root}/templates" ] && _templates_dir="${_repo_root}/templates"
 fi
 
 if [ -d "$_templates_dir" ]; then
@@ -197,7 +198,7 @@ if [ -d "$_templates_dir" ]; then
 else
     dotfiles_ui_info "  templates/ not found — skipping AI context files"
 fi
-unset _templates_dir _dotfiles_repo _tmpl
+unset _templates_dir _repo_root _tmpl
 
 # ─── bake git identity into .git/config ──────────────────────────────────────
 

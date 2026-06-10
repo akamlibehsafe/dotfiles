@@ -16,6 +16,8 @@ dotfiles/
 ├── dotfiles_uninstall           ← tears down what dotfiles_install built
 ├── dotfiles.conf.example        ← committed template
 ├── dotfiles.conf                ← gitignored, your copy (never commit)
+├── AGENTS.md                    ← AI agent context for this repo (auto-read by Claude Code)
+├── DECISIONS.md                 ← append-only architectural decision log
 ├── CHANGELOG.md
 ├── README.md
 ├── SPEC.md
@@ -25,6 +27,9 @@ dotfiles/
 │   ├── gitconfig                ← global Git config template
 │   ├── ghostty/config
 │   └── iterm2/iTerm2 State.itermexport
+├── templates/                   ← copied into new repos by repo_init and repo_clone
+│   ├── AGENTS.md                ← AI context template (fill in per project)
+│   └── DECISIONS.md             ← decision log template (append-only)
 └── scripts/
     ├── repo/                    ← day-to-day GitHub scripts (copied to ~/bin/ by update_scripts)
     │   ├── repo_init
@@ -170,6 +175,31 @@ The two are independent. Both trigger automatically.
 
 ---
 
+## AI context files
+
+### Purpose
+
+Provide continuity across sessions, machines, and AI tools (Claude Code, Cursor, etc.). Context from one session is available to the next without re-explaining.
+
+### `AGENTS.md`
+
+Auto-read by Claude Code and compatible agents at session start. Contains codebase overview, structure, naming conventions, important rules, and working instructions for AI agents. Every repo gets one via `repo_clone` or `repo_init`.
+
+On first session in a new repo, the AI agent should explore the codebase and fill in the placeholder sections. The file gets richer over time as work happens.
+
+### `DECISIONS.md`
+
+Append-only log of architectural decisions and their rationale. Any AI agent working on the repo should:
+- Read it before making significant changes
+- Append new decisions at the bottom after each session (dated entry)
+- Never modify or remove existing entries
+
+### Templates
+
+`templates/AGENTS.md` and `templates/DECISIONS.md` in this repo are the starter templates. `dotfiles_install` copies them to `~/.config/dotfiles/templates/` so they are always available to `repo_clone` and `repo_init` regardless of where the dotfiles repo is located.
+
+---
+
 ## Script: `dotfiles_install`
 
 ### Purpose
@@ -192,7 +222,7 @@ Safe to re-run — detects what is already configured and skips completed phases
 
 ### Phases
 
-1. **Validate `dotfiles.conf`** — all accounts have PAT defined
+1. **Validate `dotfiles.conf`** — all accounts have PAT defined; copies `dotfiles.conf` and `templates/` to `~/.config/dotfiles/`
 2. **Homebrew** — install if missing, update if present
 3. **Core tools** — Git, Git LFS, GitHub CLI, jq, Python, Node.js
 4. **GitHub root** — create `github_root` directory if missing
@@ -266,9 +296,10 @@ repo_init <user/repo> [--private | --public]
 3. Initialise git in the current directory if not already a repo
 4. Detect large files (>100MB) and configure Git LFS automatically
 5. Set HTTPS remote origin: `https://<user>@github.com/<user>/<repo>.git`
-6. Bake git identity (`user.name`, `user.email`) into `.git/config`
-7. Stage all files, create initial commit
-8. Push to GitHub
+6. Copy `AGENTS.md` and `DECISIONS.md` from `~/.config/dotfiles/templates/` if not present
+7. Bake git identity (`user.name`, `user.email`) into `.git/config`
+8. Stage all files, create initial commit
+9. Push to GitHub
 
 ### Error cases
 
@@ -295,8 +326,9 @@ repo_clone <user/repo>
 
 1. Validate `user/repo` format and that `user` is a known account
 2. Clone into `~/Documents/GitHub/<user>/<repo>/` via HTTPS
-3. Bake git identity (`user.name`, `user.email`) into `.git/config`
-4. Pull Git LFS files if present
+3. Copy `AGENTS.md` and `DECISIONS.md` from `~/.config/dotfiles/templates/` if not present
+4. Bake git identity (`user.name`, `user.email`) into `.git/config`
+5. Pull Git LFS files if present
 5. Print remote URL, branch, and identity
 
 ### Error cases

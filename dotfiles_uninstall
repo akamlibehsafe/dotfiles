@@ -169,13 +169,14 @@ section "Remove XDG config"
 
 XDG_CONF="${HOME}/.config/dotfiles/dotfiles.conf"
 if [ -f "$XDG_CONF" ]; then
-    if confirm "Remove ${XDG_CONF}?"; then
+    if confirm "Remove ${HOME}/.config/dotfiles/ (dotfiles.conf + templates)?"; then
         rm -f "$XDG_CONF"
+        rm -rf "${HOME}/.config/dotfiles/templates"
         rmdir "${HOME}/.config/dotfiles" 2>/dev/null || true
-        dotfiles_ui_success "  Removed ${XDG_CONF}"
+        dotfiles_ui_success "  Removed ${HOME}/.config/dotfiles/"
     fi
 else
-    dotfiles_ui_info "  ${XDG_CONF} not found, skipping"
+    dotfiles_ui_info "  ${HOME}/.config/dotfiles/ not found, skipping"
 fi
 
 # ─── 6. Remove ~/bin PATH addition ───────────────────────────────────────────

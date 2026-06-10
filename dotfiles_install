@@ -228,14 +228,19 @@ done
 
 phase_ok "dotfiles.conf looks valid"
 
-# Copy dotfiles.conf to XDG location so scripts in ~/bin/ can find it
-# regardless of where the installer was run from.
+# Copy dotfiles.conf and templates/ to XDG location so scripts in ~/bin/
+# can find them regardless of where the installer was run from.
 XDG_CONF_DIR="${HOME}/.config/dotfiles"
 XDG_CONF="${XDG_CONF_DIR}/dotfiles.conf"
 mkdir -p "$XDG_CONF_DIR"
 cp "${DOTFILES_CONF}" "$XDG_CONF"
 chmod 600 "$XDG_CONF"
 dotfiles_ui_success "  Copied dotfiles.conf → ${XDG_CONF}"
+
+if [ -d "${REPO_ROOT}/templates" ]; then
+    cp -r "${REPO_ROOT}/templates" "${XDG_CONF_DIR}/templates"
+    dotfiles_ui_success "  Copied templates/ → ${XDG_CONF_DIR}/templates/"
+fi
 
 # ─── Phase 2: Homebrew ───────────────────────────────────────────────────────
 

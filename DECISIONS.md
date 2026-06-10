@@ -108,4 +108,34 @@ This file is **append-only**. New sessions add entries at the bottom. Existing e
 - Any AI agent working on this repo should read `DECISIONS.md` before making significant changes
 - New decisions are appended at the bottom under a dated entry
 - Existing entries are never modified or removed
-- `DECISIONS.md` is excluded from release archives via `.gitattributes`
+
+**Note:** An earlier version of this entry mentioned `.gitattributes` exclusion from release archives. That decision was later reversed — `DECISIONS.md` and `AGENTS.md` ship with the repo (see entry below).
+
+---
+
+### `.gitattributes` export-ignore reverted
+
+**Decision:** `DECISIONS.md` and `AGENTS.md` are NOT excluded from release archives. They ship with the repo normally.
+
+**Rationale:** These are personal projects. There is no reason to hide AI context files from release archives. Keeping them in simplifies the setup and ensures anyone cloning the repo has full context.
+
+---
+
+### AI context templates system
+
+**Decision:** Add `templates/AGENTS.md` and `templates/DECISIONS.md` to the dotfiles repo. `repo_clone` and `repo_init` automatically copy them into every new repo they create or clone. `dotfiles_install` copies the `templates/` folder to `~/.config/dotfiles/templates/` so the scripts can find them when running from `~/bin/`.
+
+**Rationale:** Every project should start with an AI context system in place. Doing it manually per repo is friction that would be skipped in practice. Automating it ensures every repo has `AGENTS.md` and `DECISIONS.md` from day one, consistently, without thinking about it.
+
+**Implications:**
+- `repo_clone` and `repo_init` only copy templates if the files don't already exist — safe to re-run
+- Template resolution: primary path is `~/.config/dotfiles/templates/` (reliable from `~/bin/`); fallback is git-based repo root detection (for running directly from the dotfiles repo)
+- `dotfiles_uninstall` removes `~/.config/dotfiles/templates/` as part of the XDG config cleanup
+
+---
+
+### Terminology: "daily commands" → "day-to-day GitHub scripts"
+
+**Decision:** The three scripts (`repo_init`, `repo_clone`, `repo_sync`) are referred to as "day-to-day GitHub scripts" throughout documentation, not "daily commands".
+
+**Rationale:** "Daily commands" implied they must be used every day. "Day-to-day GitHub scripts" better describes their nature — tools for routine GitHub workflow, used as needed.

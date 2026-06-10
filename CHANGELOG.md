@@ -2,7 +2,7 @@
 
 ## 0.6.0 - 2026-06-09
 
-> **Auth model replaced.** SSH keys and SSH host aliases are gone. All GitHub authentication now uses HTTPS + PAT + macOS Keychain. Works on all machines including corporate ones where SSH is blocked by VPN or firewall. Git identity is now baked directly into each repo's `.git/config` at clone/init time, making commits correct regardless of where a repo lives on disk.
+> **Auth model replaced and AI context system introduced.** SSH keys and SSH host aliases are gone. All GitHub authentication now uses HTTPS + PAT + macOS Keychain — works on all machines including corporate ones behind VPN. Git identity is baked directly into each repo's `.git/config` at clone/init time. Every new repo now gets `AGENTS.md` and `DECISIONS.md` automatically, providing session continuity across machines and AI tools.
 
 ### Breaking changes
 
@@ -27,6 +27,9 @@ After changing a name or email in `dotfiles.conf`, running `setup_identity --rep
 **`setup_migrate` direction reversed**
 Previously migrated HTTPS → SSH. Now migrates legacy SSH → HTTPS, completing the transition for existing repos.
 
+**AI context system**
+Every repo created or cloned with `repo_init`/`repo_clone` now gets `AGENTS.md` and `DECISIONS.md` automatically copied from `templates/`. `AGENTS.md` is auto-read by Claude Code and provides codebase context. `DECISIONS.md` is an append-only log of architectural decisions. Both files provide continuity across sessions, machines, and AI tools (Claude Code, Cursor). `CLAUDE.md` renamed to `AGENTS.md` for tool-neutral naming.
+
 **Prompt color fix**
 "Install appX? (Y/n)" prompts changed from dark lilac (hard to read on dark backgrounds) to bold white.
 
@@ -41,6 +44,11 @@ Previously migrated HTTPS → SSH. Now migrates legacy SSH → HTTPS, completing
 - Legacy SSH cleanup: pre-flight in `dotfiles_install`, section 9 in `dotfiles_uninstall`
 - Identity baking in `repo_clone` and `repo_init`: `git config --local user.name/email`
 - Repo rescan in `setup_identity --repair/--new-mac`: updates `[user]` in all existing repos
+- `templates/AGENTS.md` and `templates/DECISIONS.md` — AI context starter templates
+- `AGENTS.md` and `DECISIONS.md` at repo root — AI context for this dotfiles repo itself
+- `repo_clone` and `repo_init` copy templates into every new repo automatically
+- `dotfiles_install` copies `templates/` to `~/.config/dotfiles/templates/` so scripts work from `~/bin/`
+- `dotfiles_uninstall` removes `~/.config/dotfiles/templates/` during XDG cleanup
 
 **Removed**
 - `ssh_private` directive and PEM parsing from `accounts.sh`
@@ -64,7 +72,10 @@ Previously migrated HTTPS → SSH. Now migrates legacy SSH → HTTPS, completing
 - `dotfiles.conf.example` → `ssh_private` blocks removed; comment header updated
 - `dotfiles_install` pre-flight → `STATE_SSH` replaced with `STATE_IDENTITY` (checks `includeIf` blocks + Keychain entries)
 - Prompt color (`dotfiles_ui_prompt`): `\033[0;34m` (dim blue/lilac) → `\033[1;37m` (bold white)
-- `CLAUDE.md`, `README.md`, `SPEC.md` — auth model, testing workflow, and script descriptions updated
+- `CLAUDE.md` renamed to `AGENTS.md` — tool-neutral name, auto-read by Claude Code and compatible agents
+- `README.md` — added designed workflow rules section (5 rules with correct/wrong examples), AI context files section
+- `SPEC.md` — updated auth model, script behaviors, added AI context files section and templates to layout
+- `config/gitconfig` — fixed stale `setup_ssh` comment reference
 
 ## 0.5.0 - 2026-06-02
 
