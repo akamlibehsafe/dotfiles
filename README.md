@@ -6,29 +6,19 @@ Personal macOS development environment setup and daily GitHub workflow toolkit. 
 
 ## Before you start
 
-Two files are needed at the repo root before running `dotfiles_install`. Neither is committed — both are gitignored.
+One file is needed at the repo root before running `dotfiles_install`. It is gitignored and never committed.
 
-### 1. `dotfiles.conf`
+### `dotfiles.conf`
 
-Copy the template and fill in your GitHub accounts, PATs, and SSH private keys:
+Copy the template and fill in your GitHub accounts and PATs:
 
 ```bash
 cp dotfiles.conf.example dotfiles.conf
 ```
 
-Edit `dotfiles.conf` with your real values. See `dotfiles.conf.example` for the full format and instructions on where to get PATs and how to encode your SSH keys.
+Edit `dotfiles.conf` with your real values. See `dotfiles.conf.example` for the full format and instructions on where to get PATs.
 
-### 2. SSH keys
-
-Paste each SSH private key as a full PEM block under `ssh_private` in `dotfiles.conf`. Copy directly from 1Password or from your key file:
-
-```
-ssh_private -----BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEA...
------END OPENSSH PRIVATE KEY-----
-```
-
-`dotfiles_install` writes the key to `~/.ssh/dotfiles/`, derives the public key automatically, and configures SSH host aliases per account. No pre-existing key files needed on the new machine.
+**Keep a copy of `dotfiles.conf` in a password manager** (e.g. 1Password). You will need it when setting up a new machine.
 
 ---
 
@@ -39,7 +29,7 @@ cd /path/to/dotfiles
 ./dotfiles_install
 ```
 
-`dotfiles_install` is safe to re-run — it detects what is already configured and skips those phases.
+`dotfiles_install` is safe to re-run — it detects what is already configured and skips those phases. On first run it detects and offers to clean up SSH artifacts left by older installs.
 
 ### What it installs
 
@@ -49,27 +39,20 @@ cd /path/to/dotfiles
 **Shell:**
 - Zsh, Oh My Zsh, Powerlevel10k (with your config from `config/p10k.zsh`)
 
-**Apps** (prompted, skipped if already installed, updated if already present):
+**Apps** (prompted, skipped if already installed):
 - iTerm2 (with bundled profile from `config/iterm2/`)
 - Ghostty (with config from `config/ghostty/`)
-- Warp
-- Cursor
-- Claude desktop + Claude CLI
-- Raycast
-- Typora
-- Arc
-- Zed
-- Sublime Text
-- TextMate
+- Warp, Cursor, Claude desktop, Claude CLI
+- Raycast, Typora, Arc, Zed, Sublime Text, TextMate
 
 **Dock:**
 - Pins all installed apps to the right end of the Dock (via dockutil)
 
-**GitHub:**
-- PAT exports written to `~/.zshrc`
-- SSH keys installed, host aliases configured per account
-- Git identity set via `includeIf gitdir:` — right account used automatically per folder
-- Optional bulk clone of all repos per account
+**GitHub auth (HTTPS + PAT + Keychain):**
+- PAT exports written to `~/.zshrc` as `GH_TOKEN_<username>`
+- PATs stored in macOS Keychain — git authenticates silently, no flags needed
+- Remote URLs use `https://<username>@github.com/...` — username disambiguates multi-account Keychain lookups
+- Git identity set via `includeIf gitdir:` — right name/email used per account folder automatically
 
 **Daily commands** (copied to `~/bin/`, available everywhere):
 - `repo_init` — turn a local folder into a new GitHub repo
@@ -80,32 +63,81 @@ cd /path/to/dotfiles
 
 ## Daily commands
 
+### `repo_init <user/repo>`
+
+Turn the current folder into a new GitHub repo and push it.
+
 ```bash
-# Create a new GitHub repo from the current folder
+cd ~/Documents/GitHub/fortegb/my-project
 repo_init fortegb/my-project
 repo_init akamlibehsafe/my-tool --public
+```
 
-# Clone an existing repo
+- Creates the repo on GitHub via API
+- Initialises git in the current directory
+- Sets HTTPS remote URL with username embedded
+- Bakes the correct git identity into `.git/config`
+- Detects large files (>100MB) and configures Git LFS automatically
+- Creates initial commit and pushes
+
+**Always use `repo_init` to create repos** — it ensures identity and remote URL are correctly configured from the start.
+
+### `repo_clone <user/repo>`
+
+Clone an existing GitHub repo into the correct managed folder.
+
+```bash
 repo_clone fortegb/my-project
+repo_clone akamlibehsafe/my-tool
+```
 
-# Commit and push
+- Clones into `~/Documents/GitHub/<user>/<repo>/`
+- Sets HTTPS remote URL with username embedded
+- Bakes the correct git identity (`user.name`, `user.email`) into `.git/config`
+- Pulls Git LFS files if present
+
+**Always use `repo_clone` instead of raw `git clone`** — it ensures the repo is in the right folder and has the correct identity baked in, so all subsequent plain git commands work correctly regardless of folder.
+
+### `repo_sync [-m "message"]`
+
+Stage, commit, and push all changes in the current repo.
+
+```bash
 repo_sync
 repo_sync -m "Fix login bug"
 ```
 
-All commands self-document when run without arguments or with `--help`.
+- Detects the GitHub account automatically from the remote URL
+- Stages all changes, prompts for commit message if not provided
+- Default message: `Update - YYYY-MM-DD HH:MM:SS`
+- Pushes to the current branch on origin
+
+All commands self-document with `--help`.
 
 ---
 
 ## Multi-account GitHub
 
-Repos live under `~/Documents/GitHub/<username>/`. Git automatically uses the correct identity and SSH key based on the folder — no manual switching needed. This works in the terminal, Cursor, Claude, and any other tool that uses git.
+Three accounts are supported. Repos are organised by account under `~/Documents/GitHub/`:
+
+```
+~/Documents/GitHub/
+├── fortegb/          ← construction company IT tools
+├── rbonon/           ← personal projects
+└── akamlibehsafe/    ← anonymous projects
+```
+
+**Identity** (commit author) is determined by folder — `includeIf gitdir:` in `~/.gitconfig` maps each subfolder to the right `user.name` and `user.email`. Additionally, `repo_clone` and `repo_init` bake the identity directly into each repo's `.git/config` as a local override, so commits are correct even if the repo moves out of its managed folder.
+
+**Authentication** (push/pull) is determined by the remote URL — `https://fortegb@github.com/...` causes git to look up `fortegb`'s PAT in the Keychain. The two mechanisms are independent and both trigger automatically.
+
+Plain git commands (`git push`, `git pull`, `git commit`, etc.) work correctly from inside any repo cloned or initialised with the dotfiles scripts — no flags, no account selection, no manual steps.
 
 ---
 
 ## How daily commands work
 
-`dotfiles_install` copies `scripts/repo/*` and `scripts/lib/*` into `~/bin/` as standalone files. It also copies `dotfiles.conf` to `~/.config/dotfiles/dotfiles.conf` — a standard config location that the scripts always check, regardless of where the installer was run from.
+`dotfiles_install` copies `scripts/repo/*` and `scripts/lib/*` into `~/bin/` as standalone files. It also copies `dotfiles.conf` to `~/.config/dotfiles/dotfiles.conf` — a standard config location the scripts always check, regardless of where the installer was run from.
 
 This means the commands are fully self-contained: you can run the installer from your Desktop, delete it afterwards, and `repo_init`, `repo_clone`, `repo_sync` keep working from anywhere.
 
@@ -127,16 +159,15 @@ To refresh manually at any time:
 
 ## What gets installed on this machine
 
-Everything `dotfiles_install` places outside the repo itself — and everything `dotfiles_uninstall` removes:
+Everything `dotfiles_install` places outside the repo itself:
 
 | Location | Contents |
 |---|---|
 | `~/bin/repo_init`, `repo_clone`, `repo_sync` | Daily command scripts |
 | `~/bin/lib/` | Shared library files the scripts depend on |
 | `~/.config/dotfiles/dotfiles.conf` | Copy of your config (including secrets) |
-| `~/.ssh/dotfiles/` | SSH private and public keys per account |
-| `~/.ssh/config` | SSH host alias blocks per account |
-| `~/.gitconfig` | `includeIf` blocks for per-account git identity |
+| macOS Keychain | One PAT entry per GitHub account |
+| `~/.gitconfig` | `credential.helper` + `includeIf` blocks per account |
 | `~/.gitconfig-<user>` | Per-account git name and email |
 | `~/.zshrc` | PAT exports, aliases, Oh My Zsh config |
 | `~/.oh-my-zsh/` | Oh My Zsh, Powerlevel10k, plugins |
@@ -153,7 +184,7 @@ Everything `dotfiles_install` places outside the repo itself — and everything 
 ./dotfiles_uninstall
 ```
 
-Interactive — prompts before each removal step, skips silently if something is already gone. Removes Dock icons added by setup. Homebrew removal is always the last step and is optional.
+Interactive — prompts before each removal step, skips silently if something is already gone. Detects and removes legacy SSH artifacts from older installs. Removes Keychain entries, git identity config, apps, Dock entries. Homebrew removal is always the last step and is optional.
 
 For testing (keeps repo folders):
 
@@ -166,16 +197,17 @@ For testing (keeps repo folders):
 ## Diagnostics and repair
 
 ```bash
-# Read-only scan of PATs, SSH, git identity, and remotes
+# Read-only scan of PATs, Keychain credentials, git identity, and remotes
 ./scripts/setup/setup_check
 
-# Re-configure PATs
+# Re-configure PATs and refresh Keychain entries
 ./scripts/setup/setup_pats
 
-# Re-configure SSH keys and git identity
+# Re-configure git identity (includeIf) and Keychain credentials
+# Also rescans all existing repos and rewrites .git/config [user] blocks
 ./scripts/setup/setup_identity --repair
 
-# Migrate HTTPS remotes to SSH aliases
+# Migrate legacy SSH remote URLs to HTTPS across all repos
 ./scripts/setup/setup_migrate --dry-run
 ./scripts/setup/setup_migrate --apply
 
@@ -190,32 +222,33 @@ For testing (keeps repo folders):
 ```
 dotfiles/
 ├── dotfiles_install             ← entry point: run on a fresh Mac
-├── dotfiles_uninstall         ← undo everything dotfiles_install did
-├── dotfiles.conf.example      ← template (copy to dotfiles.conf)
-├── dotfiles.conf              ← your config (gitignored, never commit)
+├── dotfiles_uninstall           ← undo everything dotfiles_install did
+├── dotfiles.conf.example        ← template (copy to dotfiles.conf)
+├── dotfiles.conf                ← your config (gitignored, never commit)
 ├── config/
-│   ├── p10k.zsh               ← Powerlevel10k config
-│   ├── zshrc                  ← Zsh config template
-│   ├── gitconfig              ← global Git config template
-│   ├── ghostty/config         ← Ghostty config
-│   └── iterm2/                ← iTerm2 profile export
+│   ├── p10k.zsh                 ← Powerlevel10k config
+│   ├── zshrc                    ← Zsh config template
+│   ├── gitconfig                ← global Git config template
+│   ├── ghostty/config           ← Ghostty config
+│   └── iterm2/                  ← iTerm2 profile export
 └── scripts/
-    ├── repo/                  ← daily commands (copied to ~/bin/ by update_scripts)
+    ├── repo/                    ← daily commands (copied to ~/bin/)
     │   ├── repo_init
     │   ├── repo_clone
     │   └── repo_sync
-    ├── setup/                 ← setup & repair tools (run by path)
+    ├── setup/                   ← setup & repair tools (run by path)
     │   ├── setup_check
     │   ├── setup_pats
     │   ├── setup_identity
     │   ├── setup_migrate
     │   └── update_scripts
-    ├── apps/                  ← app installers (called by dotfiles_install)
-    │   ├── iterm2
-    │   ├── ghostty
-    │   ├── warp
-    │   ├── cursor
-    │   ├── claude
-    │   └── claude-cli
-    └── lib/                   ← shared bash modules (sourced only)
+    ├── apps/                    ← app installers (called by dotfiles_install)
+    │   ├── iterm2, ghostty, warp, cursor
+    │   ├── claude, claude-cli
+    │   └── arc, zed, sublime-text, textmate, typora
+    └── lib/                     ← shared bash modules (sourced only)
+        ├── common.sh
+        ├── accounts.sh
+        ├── init.sh
+        └── manifest.sh
 ```

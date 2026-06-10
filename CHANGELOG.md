@@ -1,5 +1,71 @@
 # Changelog
 
+## 0.6.0 - 2026-06-09
+
+> **Auth model replaced.** SSH keys and SSH host aliases are gone. All GitHub authentication now uses HTTPS + PAT + macOS Keychain. Works on all machines including corporate ones where SSH is blocked by VPN or firewall. Git identity is now baked directly into each repo's `.git/config` at clone/init time, making commits correct regardless of where a repo lives on disk.
+
+### Breaking changes
+
+- `ssh_private` directive removed from `dotfiles.conf` — SSH private keys are no longer stored or used. Remove them from your `dotfiles.conf` and save the updated version to your password manager.
+- `setup_ssh` renamed to `setup_identity` — update any scripts or notes that referenced it.
+- Remote URLs changed from `git@github-<user>:<user>/<repo>.git` to `https://<user>@github.com/<user>/<repo>.git`. Existing repos with old SSH remotes can be migrated with `setup_migrate --apply`.
+
+### Highlights
+
+**HTTPS + PAT + Keychain auth (all machines)**
+Auth is now handled entirely by the macOS Keychain. PATs are stored once during `dotfiles_install` via the `security` CLI — no popup, no manual steps. Git finds the right PAT from the remote URL's embedded username. Works identically on Mac Mini, MacBook Pro, and MacBook Air (including behind GlobalProtect VPN where SSH is blocked).
+
+**Identity baked into every repo**
+`repo_clone` and `repo_init` now write `user.name` and `user.email` directly into each repo's `.git/config` as a local override. Commits are attributed correctly regardless of folder location. Plain git commands (`git push`, `git pull`, etc.) work correctly from inside any repo without concern about wrong account.
+
+**Legacy SSH cleanup**
+`dotfiles_install` pre-flight detects SSH artifacts left by older installs (`~/.ssh/dotfiles/`, SSH config blocks) and offers to remove them. `dotfiles_uninstall` does the same.
+
+**`setup_identity --repair` rescans all repos**
+After changing a name or email in `dotfiles.conf`, running `setup_identity --repair` updates the `[user]` block in every repo's `.git/config` under `github_root`.
+
+**`setup_migrate` direction reversed**
+Previously migrated HTTPS → SSH. Now migrates legacy SSH → HTTPS, completing the transition for existing repos.
+
+**Prompt color fix**
+"Install appX? (Y/n)" prompts changed from dark lilac (hard to read on dark backgrounds) to bold white.
+
+### Details
+
+**Added**
+- `dotfiles_remote_https_url()` in `common.sh` — builds `https://<user>@github.com/<user>/<repo>.git`
+- `dotfiles_store_keychain_credential()`, `dotfiles_check_keychain_credential()`, `dotfiles_delete_keychain_credential()` in `common.sh` — all use `security` CLI directly for consistency
+- Keychain storage step in `dotfiles_install` Phase 5 and `setup_identity`
+- Keychain removal step (section 7) in `dotfiles_uninstall`
+- Keychain credentials section in `setup_check`
+- Legacy SSH cleanup: pre-flight in `dotfiles_install`, section 9 in `dotfiles_uninstall`
+- Identity baking in `repo_clone` and `repo_init`: `git config --local user.name/email`
+- Repo rescan in `setup_identity --repair/--new-mac`: updates `[user]` in all existing repos
+
+**Removed**
+- `ssh_private` directive and PEM parsing from `accounts.sh`
+- `DOTFILES_SSH_DIR`, `dotfiles_account_ssh_host()`, `dotfiles_account_key_path()`, `dotfiles_account_pubkey_path()`, `dotfiles_remote_ssh_url()`, `dotfiles_remote_uses_ssh()` from `common.sh`
+- `DOTFILES_ACCOUNT_SSH_PEM` array from `accounts.sh`
+- Phase 6 (SSH verification) from `dotfiles_install`
+- `STATE_SSH` pre-flight check from `dotfiles_install`
+- SSH config block section (was 7) from `dotfiles_uninstall`
+- SSH keys section (was 9) from `dotfiles_uninstall`
+- SSH section from `setup_check`
+- SSH key install, SSH config block, and GitHub key upload prompt from `setup_ssh` (now `setup_identity`)
+- PAT URL injection from `repo_sync` (credential helper handles auth transparently)
+
+**Changed**
+- `setup_ssh` → renamed to `setup_identity`; now handles git identity + Keychain only
+- `setup_migrate` → direction reversed: SSH remotes → HTTPS (was HTTPS → SSH)
+- `setup_check` → SSH section replaced with Keychain credentials + git credential helper checks; SSH remotes now flagged for migration (previously HTTPS remotes were flagged)
+- `repo_clone` → uses HTTPS remote; bakes identity into `.git/config`
+- `repo_init` → uses HTTPS remote; bakes identity into `.git/config`
+- `repo_sync` → push simplified (credential helper handles auth; no PAT URL injection)
+- `dotfiles.conf.example` → `ssh_private` blocks removed; comment header updated
+- `dotfiles_install` pre-flight → `STATE_SSH` replaced with `STATE_IDENTITY` (checks `includeIf` blocks + Keychain entries)
+- Prompt color (`dotfiles_ui_prompt`): `\033[0;34m` (dim blue/lilac) → `\033[1;37m` (bold white)
+- `CLAUDE.md`, `README.md`, `SPEC.md` — auth model, testing workflow, and script descriptions updated
+
 ## 0.5.0 - 2026-06-02
 
 > **Complete rewrite and rename.** This release transforms `gitscripts` into a fully automated macOS bootstrap — run one script on a fresh Mac and get a complete development environment with no manual follow-up. Daily commands are self-contained and survive the installer being deleted. The uninstall is clean and complete.
