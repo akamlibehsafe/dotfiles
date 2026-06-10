@@ -106,6 +106,33 @@ git config --local user.name  "$GIT_NAME"
 git config --local user.email "$GIT_EMAIL"
 dotfiles_ui_success "Identity : ${GIT_NAME} <${GIT_EMAIL}>"
 
+# ─── copy AI context templates ───────────────────────────────────────────────
+
+_templates_dir="$(cd "${_script_dir}" && cd "$(git -C "${_script_dir}" rev-parse --show-toplevel 2>/dev/null || echo "${_script_dir}/..")" && pwd -P)/templates"
+if [ ! -d "$_templates_dir" ]; then
+    _dotfiles_repo="$(dirname "$(readlink -f "${HOME}/.config/dotfiles/dotfiles.conf" 2>/dev/null || echo "")" 2>/dev/null || true)"
+    [ -d "${_dotfiles_repo}/templates" ] && _templates_dir="${_dotfiles_repo}/templates"
+fi
+
+if [ -d "$_templates_dir" ]; then
+    _added=false
+    for _tmpl in AGENTS.md DECISIONS.md; do
+        if [ ! -f "$_tmpl" ] && [ -f "${_templates_dir}/${_tmpl}" ]; then
+            cp "${_templates_dir}/${_tmpl}" "./${_tmpl}"
+            git add "$_tmpl" 2>/dev/null || true
+            dotfiles_ui_success "  Created ${_tmpl} from template"
+            _added=true
+        fi
+    done
+    if [ "$_added" = true ]; then
+        git commit -m "Add AI context files (AGENTS.md, DECISIONS.md)" 2>/dev/null || true
+        dotfiles_ui_success "  AI context files committed"
+    fi
+else
+    dotfiles_ui_info "  templates/ not found — skipping AI context files"
+fi
+unset _templates_dir _dotfiles_repo _tmpl _added
+
 # ─── summary ──────────────────────────────────────────────────────────────────
 
 echo ""
