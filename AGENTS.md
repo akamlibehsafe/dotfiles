@@ -1,4 +1,4 @@
-# dotfiles — Claude Code context
+# dotfiles — AI agent context
 
 ## What this repo is
 
@@ -10,13 +10,14 @@ Personal macOS development environment bootstrap and daily GitHub workflow toolk
 - `dotfiles_uninstall` — tears down what dotfiles_install built, supports `--keep-repos`
 - `dotfiles.conf.example` — template for the gitignored `dotfiles.conf`
 - `SPEC.md` — full specification, source of truth for all design decisions
+- `DECISIONS.md` — history of architectural decisions and their rationale
 
 ## Structure
 
 ```
 dotfiles_install / dotfiles_uninstall   ← repo root entry points
-dotfiles.conf.example                 ← config template (dotfiles.conf is gitignored)
-config/                               ← personal config files applied by dotfiles_install
+dotfiles.conf.example                   ← config template (dotfiles.conf is gitignored)
+config/                                 ← personal config files applied by dotfiles_install
 scripts/
 ├── repo/     ← daily commands copied to ~/bin/ (repo_init, repo_clone, repo_sync)
 ├── setup/    ← setup & repair tools, run by path only (setup_check, setup_pats, setup_identity, setup_migrate, update_scripts)
@@ -42,16 +43,17 @@ Three accounts are in use — all defined in `dotfiles.conf` (never hardcoded in
 ## Auth model
 
 - PATs stored as `GH_TOKEN_<username>` env vars, written to `~/.zshrc` by `dotfiles_install`
-- PATs also stored in macOS Keychain via `git credential approve`, scoped per GitHub username
+- PATs also stored in macOS Keychain via `security` CLI, scoped per GitHub username
 - `git config --global credential.helper osxkeychain` — git picks up the right PAT automatically for any HTTPS remote
 - Remote URLs use `https://<username>@github.com/<username>/<repo>.git` — the username in the URL disambiguates multi-account Keychain lookups; no `credential.useHttpPath` needed
 - Git `includeIf gitdir:` applies correct commit identity (name + email) per account folder automatically
+- `repo_clone` and `repo_init` bake identity into each repo's `.git/config` as a local override
 - Scripts pick up auth from env vars first, fall back to `dotfiles.conf` values
 - No SSH keys — HTTPS+PAT works on all machines including corporate ones behind GlobalProtect VPN
 
 ## Versioning
 
-Currently at **v0.5.0**. Tag applied after full clean cycle passed on 2026-06-02.
+Currently at **v0.6.0**.
 
 ## Testing workflow
 
@@ -62,7 +64,6 @@ Full test cycle before tagging a release. Run on the current machine (not a VM).
 ./dotfiles_uninstall --keep-repos
 ```
 - Uninstall skips prompts for things already not present — just confirm what it finds
-- Second runs are mostly clean but not perfect (e.g. some sections may re-prompt if partial state remains); this is acceptable — the first run is what matters
 - Say **n** to Homebrew removal during iterative testing
 - When done, open a **new terminal** and run `source ~/.zshrc`
 - Verify no errors (no dangling oh-my-zsh references)
@@ -83,9 +84,9 @@ cat ~/.zshrc            # should have no oh-my-zsh or GH_TOKEN lines
 
 ### 4. Verify install
 ```bash
-source ~/.zshrc         # should load cleanly with no errors
-scripts/setup/setup_check       # PATs valid, Keychain credentials present, identity configured
-repo_sync               # test daily command is available
+source ~/.zshrc                   # should load cleanly with no errors
+scripts/setup/setup_check         # PATs valid, Keychain credentials present, identity configured
+repo_sync                         # test daily command is available
 ```
 
 ### 5. Test repo cloning
@@ -101,7 +102,7 @@ Verify `~/Documents/GitHub/<username>/` folders are gone.
 ### Release gate
 Tag only after a full clean cycle (uninstall → install → verify → uninstall) passes with no errors.
 ```bash
-git tag v0.5.0 && git push origin v0.5.0
+git tag v0.6.0 && git push origin v0.6.0
 ```
 
 ## Important rules
@@ -112,4 +113,13 @@ git tag v0.5.0 && git push origin v0.5.0
 - `scripts/setup/*` and `scripts/apps/*` are run by path only
 - All user-facing scripts must print usage and exit cleanly on wrong/missing arguments
 - `dotfiles_install` must exit 0 only when environment is fully ready
+- Always use `repo_clone` to clone repos — never raw `git clone`
+- Always use `repo_init` to create repos — never initialise manually
 - Renaming the local repo folder breaks the Claude Code session — user handles folder renames manually
+
+## Working with this repo as an AI agent
+
+- Read `DECISIONS.md` before starting work on any significant change — it explains the *why* behind design choices
+- When a session produces a new design decision, architectural change, or agreed rule, append it to `DECISIONS.md` under a new dated entry
+- Never overwrite or remove existing entries in `DECISIONS.md` — it is append-only
+- `SPEC.md` is the source of truth for current design; `DECISIONS.md` is the history of how it got there
