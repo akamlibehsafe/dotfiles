@@ -1,3 +1,0 @@
-# Files excluded from release archives (git archive / GitHub release zips)
-DECISIONS.md  export-ignore
-AGENTS.md     export-ignore
