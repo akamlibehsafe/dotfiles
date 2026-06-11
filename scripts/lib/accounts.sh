@@ -144,12 +144,12 @@ EOF
                 ;;
 
             ssh_private\ *|ssh_private|"-----BEGIN OPENSSH PRIVATE KEY-----"*|"-----END OPENSSH PRIVATE KEY-----"*)
-                cat >&2 <<'EOF'
-dotfiles.conf: your config file contains an 'ssh_private' block from an older
+                cat >&2 <<EOF
+$conf: this config file contains an 'ssh_private' block from an older
 version of dotfiles that no longer supports embedded SSH keys.
 
 Please migrate to the new format:
-  1. Remove all 'ssh_private' / 'ssh_pub' lines and the key content from dotfiles.conf
+  1. Remove all 'ssh_private' / 'ssh_pub' lines and the key content from $conf
   2. See dotfiles.conf.example for the current supported directives
 
 Your SSH keys should be managed separately (e.g. stored in ~/.ssh/).
