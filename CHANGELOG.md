@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.2 - 2026-06-11
+
+### Fixed
+
+- **`dotfiles_uninstall` aborts on legacy `ssh_private` conf** — `ssh_private` in `dotfiles.conf` now triggers a warning and continues with empty accounts instead of hard-exiting before any cleanup runs. Uninstall completes gracefully; the migration message tells the user what to fix.
+- **Declining an uninstall prompt printed "not installed, skipping"** — the `&&`/`||` operator-precedence pattern used for all ~13 app-uninstall lines was wrong: answering `n` caused the `||` branch to fire. Replaced with an `uninstall_app()` helper using explicit `if/then/else`. Declining now prints "kept".
+- **`raycast` silently skipped every install run** — `scripts/apps/raycast` does not exist, so the app was never installed despite being listed in the install loop and `app_is_installed`. Removed from the install loop and detection case; Dock handling remains (it's guarded).
+- **`source ~/.zshrc` tip was wrong on Apple Silicon** — Homebrew writes `shellenv` to `~/.zprofile`, not `~/.zshrc`. The post-install message now recommends opening a new terminal and explains why.
+
+### Changed
+
+- **`dotfiles_update` CASKS list** — added explanatory comment noting the parallel relationship with `dotfiles_install`'s app loop and that npm tools are handled separately in Phase 4.
+- **`dotfiles_uninstall` brew shellenv cleanup** — the two identical cleanup loops (post-Homebrew-removal and already-gone branches) are consolidated into one, using the existing `dotfiles_remove_lines_matching()` helper.
+- **iTerm2 profile import on already-installed** — instead of silently skipping the profile when iTerm2 was pre-installed, the script now asks "Import the dotfiles profile anyway?" so users on machines with existing iTerm2 can still apply the bundled profile.
+
 ## 0.6.1 - 2026-06-11
 
 ### Added

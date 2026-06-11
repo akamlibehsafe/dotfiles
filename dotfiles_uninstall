@@ -62,6 +62,20 @@ brew_uninstall() {
     fi
 }
 
+# uninstall_app <label> <app_path> <brew_cask>
+uninstall_app() {
+    local label="$1" app_path="$2" cask="$3"
+    if [ -d "$app_path" ]; then
+        if confirm "Uninstall ${label}?"; then
+            brew_uninstall "$cask" --cask
+        else
+            dotfiles_ui_info "  ${label} kept"
+        fi
+    else
+        dotfiles_ui_info "  ${label} not installed, skipping"
+    fi
+}
+
 # ─── 1. Check for unpushed git changes ────────────────────────────────────────
 
 section "Check for unpushed git changes"
@@ -305,34 +319,39 @@ fi
 
 section "Uninstall apps"
 
-[ -d "/Applications/Claude.app" ]   && { confirm "Uninstall Claude desktop?" && brew_uninstall claude --cask; } || dotfiles_ui_info "  Claude desktop not installed, skipping"
+uninstall_app "Claude"            "/Applications/Claude.app"              "claude"
 if command -v claude &>/dev/null; then
     if confirm "Uninstall Claude CLI?"; then
         command -v npm &>/dev/null && npm uninstall -g @anthropic-ai/claude-code 2>/dev/null || true
         dotfiles_ui_success "  Claude CLI removed"
+    else
+        dotfiles_ui_info "  Claude CLI kept"
     fi
 else
     dotfiles_ui_info "  Claude CLI not installed, skipping"
 fi
-[ -d "/Applications/Android Studio.app" ] && { confirm "Uninstall Android Studio?" && brew_uninstall android-studio --cask; } || dotfiles_ui_info "  Android Studio not installed, skipping"
+uninstall_app "Android Studio"    "/Applications/Android Studio.app"     "android-studio"
 if command -v openspec &>/dev/null; then
     if confirm "Uninstall openspec?"; then
         command -v npm &>/dev/null && npm uninstall -g @fission-ai/openspec 2>/dev/null || true
         dotfiles_ui_success "  openspec removed"
+    else
+        dotfiles_ui_info "  openspec kept"
     fi
 else
     dotfiles_ui_info "  openspec not installed, skipping"
 fi
-[ -d "/Applications/Cursor.app" ]       && { confirm "Uninstall Cursor?"       && brew_uninstall cursor --cask; }       || dotfiles_ui_info "  Cursor not installed, skipping"
-[ -d "/Applications/Warp.app" ]         && { confirm "Uninstall Warp?"         && brew_uninstall warp --cask; }         || dotfiles_ui_info "  Warp not installed, skipping"
-[ -d "/Applications/Ghostty.app" ]      && { confirm "Uninstall Ghostty?"      && brew_uninstall ghostty --cask; }      || dotfiles_ui_info "  Ghostty not installed, skipping"
-[ -d "/Applications/iTerm.app" ]        && { confirm "Uninstall iTerm2?"       && brew_uninstall iterm2 --cask; }       || dotfiles_ui_info "  iTerm2 not installed, skipping"
-[ -d "/Applications/Raycast.app" ]      && { confirm "Uninstall Raycast?"      && brew_uninstall raycast --cask; }      || dotfiles_ui_info "  Raycast not installed, skipping"
-[ -d "/Applications/Typora.app" ]       && { confirm "Uninstall Typora?"       && brew_uninstall typora --cask; }       || dotfiles_ui_info "  Typora not installed, skipping"
-[ -d "/Applications/Arc.app" ]          && { confirm "Uninstall Arc?"          && brew_uninstall arc --cask; }          || dotfiles_ui_info "  Arc not installed, skipping"
-[ -d "/Applications/Zed.app" ]          && { confirm "Uninstall Zed?"          && brew_uninstall zed --cask; }          || dotfiles_ui_info "  Zed not installed, skipping"
-[ -d "/Applications/Sublime Text.app" ] && { confirm "Uninstall Sublime Text?" && brew_uninstall sublime-text --cask; } || dotfiles_ui_info "  Sublime Text not installed, skipping"
-[ -d "/Applications/TextMate.app" ]     && { confirm "Uninstall TextMate?"     && brew_uninstall textmate --cask; }     || dotfiles_ui_info "  TextMate not installed, skipping"
+uninstall_app "Cursor"            "/Applications/Cursor.app"             "cursor"
+uninstall_app "Visual Studio Code" "/Applications/Visual Studio Code.app" "visual-studio-code"
+uninstall_app "Warp"              "/Applications/Warp.app"               "warp"
+uninstall_app "Ghostty"           "/Applications/Ghostty.app"            "ghostty"
+uninstall_app "iTerm2"            "/Applications/iTerm.app"              "iterm2"
+uninstall_app "Raycast"           "/Applications/Raycast.app"            "raycast"
+uninstall_app "Typora"            "/Applications/Typora.app"             "typora"
+uninstall_app "Arc"               "/Applications/Arc.app"                "arc"
+uninstall_app "Zed"               "/Applications/Zed.app"                "zed"
+uninstall_app "Sublime Text"      "/Applications/Sublime Text.app"       "sublime-text"
+uninstall_app "TextMate"          "/Applications/TextMate.app"           "textmate"
 
 # ─── 12. Remove Oh My Zsh and Powerlevel10k ─────────────────────────────────
 
@@ -408,7 +427,7 @@ fi
 
 section "Remove Dock icons"
 
-DOCK_APPS=("iTerm" "Ghostty" "Warp" "Cursor" "Claude" "Raycast" "Typora" "Arc" "Zed" "Sublime Text" "TextMate")
+DOCK_APPS=("iTerm" "Ghostty" "Warp" "Cursor" "Visual Studio Code" "Claude" "Raycast" "Typora" "Arc" "Android Studio" "Zed" "Sublime Text" "TextMate")
 
 if command -v dockutil &>/dev/null; then
     dock_changed=false
@@ -458,6 +477,16 @@ if command -v brew &>/dev/null; then
 else
     dotfiles_ui_info "  Homebrew not found, skipping"
 fi
+
+# Clean up brew shellenv lines regardless of whether brew was just removed or was already gone
+for _rc in "$HOME/.zshrc" "$HOME/.zprofile" "$HOME/.bash_profile" "$HOME/.bashrc"; do
+    [ -f "$_rc" ] || continue
+    if grep -q "brew shellenv" "$_rc" 2>/dev/null; then
+        dotfiles_remove_lines_matching "$_rc" "brew shellenv"
+        dotfiles_ui_success "  Removed brew shellenv from ${_rc}"
+    fi
+done
+unset _rc
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 

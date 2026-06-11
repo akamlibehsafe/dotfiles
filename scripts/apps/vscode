@@ -1,0 +1,33 @@
+#!/bin/bash
+# apps/vscode — install Visual Studio Code via Homebrew cask
+# Run standalone or called by dotfiles_install.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPTS_ROOT="$(cd "$(dirname "$_self")/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+dotfiles_ui_section "Visual Studio Code"
+
+if [ -d "/Applications/Visual Studio Code.app" ]; then
+    dotfiles_ui_info "Visual Studio Code already installed — checking for updates..."
+    brew upgrade --cask visual-studio-code 2>/dev/null && dotfiles_ui_success "Visual Studio Code updated" || dotfiles_ui_info "Visual Studio Code is up to date"
+else
+    if ! command -v brew &>/dev/null; then
+        dotfiles_ui_error "Homebrew is required to install Visual Studio Code."
+        exit 1
+    fi
+    dotfiles_ui_info "Installing Visual Studio Code..."
+    brew install --cask visual-studio-code
+    dotfiles_ui_success "Visual Studio Code installed"
+fi
+
+dotfiles_ui_success "Visual Studio Code setup complete"

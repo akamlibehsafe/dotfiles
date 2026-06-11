@@ -136,6 +136,40 @@ This file is **append-only**. New sessions add entries at the bottom. Existing e
 
 ### Terminology: "daily commands" → "day-to-day GitHub scripts"
 
+---
+
+## 2026-06-11 — v0.6.2 bug-fix and cleanup pass
+
+### `ssh_private` in conf: warn-and-continue, not hard-exit
+
+**Decision:** When `dotfiles_load_accounts` encounters an `ssh_private` block in `dotfiles.conf`, it prints the migration warning and returns 0 (with empty accounts), not 1.
+
+**Rationale:** `dotfiles_uninstall` was designed to run gracefully even with no conf (no-conf path returns 0). A conf *with* `ssh_private` was harder to deal with than a missing conf — the `return 1` propagated through `init.sh`'s `dotfiles_load_accounts || exit 1` and aborted uninstall before any cleanup ran. The migration scenario (user has old conf, wants to wipe and reinstall clean) is exactly when uninstall must succeed.
+
+**Implications:**
+- Scripts sourcing `init.sh` with a `ssh_private` conf will continue with empty accounts and skip account-specific steps — same behaviour as a missing conf
+- The printed warning tells the user what to fix before re-running `dotfiles_install`
+
+---
+
+### Uninstall app prompts use an explicit helper, not `&&`/`||` chains
+
+**Decision:** All app-uninstall prompts in `dotfiles_uninstall` use an `uninstall_app()` helper with explicit `if/then/else`, not the inline `[ -d app ] && { confirm && brew_uninstall; } || info` pattern.
+
+**Rationale:** The `&&`/`||` chain has a precedence bug: if the app is installed but the user declines the prompt, `confirm` returns non-zero, the entire compound group fails, and the `||` branch fires — printing "not installed, skipping" instead of "kept". Explicit if/else has no ambiguity.
+
+**Rule:** Never use `&&`/`||` chains for confirm-then-act logic in these scripts. Always use `if confirm "..."; then ... else ... fi`.
+
+---
+
+### `dotfiles_update` CASKS list is a manually maintained parallel
+
+**Decision:** `dotfiles_update` maintains its own `CASKS` array rather than importing a shared list from `manifest.sh`.
+
+**Rationale:** Cask upgrade names (e.g. `visual-studio-code`) differ from the install-loop app keys (e.g. `vscode`), and the update script needs raw Homebrew cask identifiers. Sharing a single array would require translating keys at call time. The parallel list is acceptable given the low churn — a comment in `dotfiles_update` flags it as a parallel that must be kept in sync with the install loop.
+
+**Rule:** When adding a new cask-based app to `dotfiles_install`, also add its Homebrew cask name to `dotfiles_update`'s `CASKS` array.
+
 **Decision:** The three scripts (`repo_init`, `repo_clone`, `repo_sync`) are referred to as "day-to-day GitHub scripts" throughout documentation, not "daily commands".
 
 **Rationale:** "Daily commands" implied they must be used every day. "Day-to-day GitHub scripts" better describes their nature — tools for routine GitHub workflow, used as needed.

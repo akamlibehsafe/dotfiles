@@ -459,8 +459,8 @@ app_is_installed() {
         claude)       [ -d "/Applications/Claude.app" ] ;;
         claude-cli)      command -v claude &>/dev/null ;;
         android-studio)  [ -d "/Applications/Android Studio.app" ] ;;
+        vscode)          [ -d "/Applications/Visual Studio Code.app" ] ;;
         openspec)        command -v openspec &>/dev/null ;;
-        raycast)         [ -d "/Applications/Raycast.app" ] ;;
         typora)       [ -d "/Applications/Typora.app" ] ;;
         arc)          [ -d "/Applications/Arc.app" ] ;;
         zed)          [ -d "/Applications/Zed.app" ] ;;
@@ -469,7 +469,7 @@ app_is_installed() {
     esac
 }
 
-for app in iterm2 ghostty warp cursor claude claude-cli android-studio openspec raycast typora arc zed sublime-text textmate; do
+for app in iterm2 ghostty warp cursor vscode claude claude-cli android-studio openspec typora arc zed sublime-text textmate; do
     app_script="${SCRIPTS_ROOT}/apps/${app}"
     if [ -f "$app_script" ]; then
         dotfiles_ui_section "${app}"
@@ -620,10 +620,12 @@ DOCK_APPS=(
     "/Applications/Ghostty.app"
     "/Applications/Warp.app"
     "/Applications/Cursor.app"
+    "/Applications/Visual Studio Code.app"
     "/Applications/Claude.app"
     "/Applications/Raycast.app"
     "/Applications/Typora.app"
     "/Applications/Arc.app"
+    "/Applications/Android Studio.app"
     "/Applications/Zed.app"
     "/Applications/Sublime Text.app"
     "/Applications/TextMate.app"
@@ -707,6 +709,7 @@ echo ""
 echo "  Diagnostics:"
 echo "    scripts/setup/setup_check — verify full environment"
 echo ""
-dotfiles_ui_info "Open a new terminal window to ensure all changes are active."
+dotfiles_ui_info "Open a new terminal to activate all changes (required on Apple Silicon — reloads brew shellenv from ~/.zprofile)."
+dotfiles_ui_info "Or for shell-only changes: source ~/.zshrc"
 echo ""
 dotfiles_ui_success "Happy coding! 🚀"

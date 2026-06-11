@@ -153,8 +153,11 @@ Please migrate to the new format:
   2. See dotfiles.conf.example for the current supported directives
 
 Your SSH keys should be managed separately (e.g. stored in ~/.ssh/).
+
+Account-specific steps will be skipped until the config is fixed.
 EOF
-                return 1
+                DOTFILES_ACCOUNTS_LOADED=true
+                return 0
                 ;;
 
             *)

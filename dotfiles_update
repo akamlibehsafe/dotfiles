@@ -1,0 +1,189 @@
+#!/bin/bash
+# dotfiles_update — update all managed software and shell tooling
+#
+# Usage: dotfiles_update [--greedy]
+#   --greedy   Also upgrade casks that ship their own auto-updater
+#              (Arc, Raycast, etc.). Off by default to avoid surprise
+#              major-version jumps.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+REPO_ROOT="$(cd "$(dirname "$_self")" && pwd -P)"
+SCRIPTS_ROOT="${REPO_ROOT}/scripts"
+
+# ─── macOS check ──────────────────────────────────────────────────────────────
+
+[[ "$OSTYPE" == "darwin"* ]] || {
+    echo "Error: dotfiles_update is for macOS only. Detected: $OSTYPE" >&2
+    exit 1
+}
+
+export DOTFILES_CONF="${REPO_ROOT}/dotfiles.conf"
+[ -f "$DOTFILES_CONF" ] || DOTFILES_CONF="${HOME}/.config/dotfiles/dotfiles.conf"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+# ─── args ─────────────────────────────────────────────────────────────────────
+
+GREEDY=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --greedy) GREEDY=true; shift ;;
+        -h|--help)
+            echo "Usage: dotfiles_update [--greedy]"
+            echo ""
+            echo "  --greedy   Also upgrade casks that self-update (Arc, Raycast, etc.)"
+            exit 0
+            ;;
+        *) dotfiles_usage_error "Unknown option: $1" "dotfiles_update [--greedy]" ;;
+    esac
+done
+
+# ─── helpers ──────────────────────────────────────────────────────────────────
+
+ok()   { dotfiles_ui_success "  ✓ $1"; }
+info() { dotfiles_ui_info    "  $1"; }
+fail() { dotfiles_ui_error   "  ✗ $1"; }
+
+# ─── Phase 1: Homebrew formulae ──────────────────────────────────────────────
+
+dotfiles_ui_section "Phase 1: Homebrew"
+
+if ! command -v brew &>/dev/null; then
+    fail "Homebrew not found — skipping"
+else
+    info "Updating Homebrew..."
+    brew update && ok "Homebrew index updated" || info "brew update failed — continuing"
+
+    info "Upgrading formulae..."
+    brew upgrade && ok "Formulae upgraded" || info "Some formulae could not be upgraded"
+
+    info "Running cleanup..."
+    brew cleanup --prune=7 &>/dev/null && ok "Cleanup done" || true
+fi
+
+# ─── Phase 2: Homebrew casks ─────────────────────────────────────────────────
+
+dotfiles_ui_section "Phase 2: Casks"
+
+# Keep this list in sync with the app loop in dotfiles_install.
+# cask names here must match Homebrew cask identifiers (not the install-loop app keys).
+# npm-managed tools (claude-cli → @anthropic-ai/claude-code, openspec) are handled in Phase 4.
+CASKS=(
+    iterm2
+    ghostty
+    warp
+    cursor
+    visual-studio-code
+    android-studio
+    claude
+    raycast
+    typora
+    arc
+    zed
+    sublime-text
+    textmate
+)
+
+if ! command -v brew &>/dev/null; then
+    info "Homebrew not found — skipping casks"
+else
+    UPGRADE_FLAGS=()
+    [ "$GREEDY" = true ] && UPGRADE_FLAGS=(--greedy)
+
+    for cask in "${CASKS[@]}"; do
+        if brew list --cask "$cask" &>/dev/null; then
+            info "Upgrading ${cask}..."
+            brew upgrade --cask "${UPGRADE_FLAGS[@]+"${UPGRADE_FLAGS[@]}"}" "$cask" \
+                && ok "${cask} upgraded" \
+                || info "${cask} is up to date"
+        else
+            info "${cask} not installed — skipping"
+        fi
+    done
+fi
+
+# ─── Phase 3: Oh My Zsh + plugins ────────────────────────────────────────────
+
+dotfiles_ui_section "Phase 3: Oh My Zsh"
+
+if [ -d "$HOME/.oh-my-zsh" ]; then
+    info "Updating Oh My Zsh..."
+    git -C "$HOME/.oh-my-zsh" pull --rebase --quiet \
+        && ok "Oh My Zsh updated" \
+        || fail "Oh My Zsh update failed"
+
+    PLUGINS_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins"
+    for plugin_dir in \
+        "${PLUGINS_DIR}/zsh-autosuggestions" \
+        "${PLUGINS_DIR}/zsh-syntax-highlighting"; do
+        if [ -d "$plugin_dir" ]; then
+            plugin_name="$(basename "$plugin_dir")"
+            info "Updating ${plugin_name}..."
+            git -C "$plugin_dir" pull --rebase --quiet \
+                && ok "${plugin_name} updated" \
+                || fail "${plugin_name} update failed"
+        fi
+    done
+
+    P10K_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+    if [ -d "$P10K_DIR" ]; then
+        info "Updating Powerlevel10k..."
+        git -C "$P10K_DIR" pull --rebase --quiet \
+            && ok "Powerlevel10k updated" \
+            || fail "Powerlevel10k update failed"
+    fi
+else
+    info "Oh My Zsh not found — skipping"
+fi
+
+# ─── Phase 4: npm global tools ───────────────────────────────────────────────
+
+dotfiles_ui_section "Phase 4: npm globals"
+
+if ! command -v npm &>/dev/null; then
+    info "npm not found — skipping"
+else
+    if command -v claude &>/dev/null; then
+        info "Updating Claude CLI..."
+        npm update -g @anthropic-ai/claude-code \
+            && ok "Claude CLI updated" \
+            || fail "Claude CLI update failed"
+    else
+        info "Claude CLI not installed — skipping"
+    fi
+
+    if command -v openspec &>/dev/null; then
+        info "Updating openspec..."
+        npm update -g @fission-ai/openspec \
+            && ok "openspec updated" \
+            || fail "openspec update failed"
+    else
+        info "openspec not installed — skipping"
+    fi
+fi
+
+# ─── Phase 5: ~/bin scripts ──────────────────────────────────────────────────
+
+dotfiles_ui_section "Phase 5: ~/bin scripts"
+
+bash "${SCRIPTS_ROOT}/setup/update_scripts" \
+    && ok "~/bin scripts refreshed" \
+    || fail "update_scripts failed"
+
+# ─── Done ─────────────────────────────────────────────────────────────────────
+
+dotfiles_ui_section "dotfiles_update complete!"
+dotfiles_ui_success "All managed software is up to date."
+echo ""
+dotfiles_ui_info "Re-open your terminal if shell tooling was updated."
+echo ""
+[ "$GREEDY" = false ] && dotfiles_ui_info "Tip: run with --greedy to also upgrade self-updating apps (Arc, Raycast, etc.)"

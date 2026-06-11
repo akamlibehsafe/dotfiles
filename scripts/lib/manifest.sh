@@ -43,6 +43,12 @@ DOTFILES_DEPRECATED_BIN_SYMLINKS=(
     "doc_new_adr"
     "doc_release"
     "doc_update_changelog"
+    # Pre-manifest leftovers
+    "bash_profile"
+    "bwify.zsh"
+    "git-credential-gh-token"
+    "shell_prompt_setup"
+    "verify_pat.sh"
 )
 
 # Scripts copied to ~/bin/ — format: "name:relative/path/from/scripts/"
