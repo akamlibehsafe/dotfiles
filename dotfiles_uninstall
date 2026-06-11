@@ -207,7 +207,21 @@ else
     dotfiles_ui_info "  No ~/bin PATH entry found in ${SHELL_CONFIG}, skipping"
 fi
 
-# ─── 7. Remove Keychain credentials ──────────────────────────────────────────
+# ─── 7. Remove Claude Code plugin ───────────────────────────────────────────
+
+section "Remove Claude Code plugin"
+
+PLUGIN_DEST="${HOME}/.claude/skills/dotfiles"
+if [ -d "$PLUGIN_DEST" ]; then
+    if confirm "Remove Claude Code dotfiles plugin (~/.claude/skills/dotfiles/)?"; then
+        rm -rf "$PLUGIN_DEST"
+        dotfiles_ui_success "  Removed ~/.claude/skills/dotfiles/"
+    fi
+else
+    dotfiles_ui_info "  ~/.claude/skills/dotfiles/ not found, skipping"
+fi
+
+# ─── 8. Remove Keychain credentials ─────────────────────────────────────────
 
 section "Remove Keychain credentials"
 

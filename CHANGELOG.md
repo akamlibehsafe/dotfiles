@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3 - 2026-06-11
+
+### Added
+
+- **Claude Code plugin** — `config/claude-plugin/` added to the repo. Contains the `/sync` command: stage all, commit with message (prompts if not provided), push. `dotfiles_install` (Phase 14) and `dotfiles_update` (Phase 6) both sync it to `~/.claude/skills/dotfiles/` automatically. `dotfiles_uninstall` removes it. Restart Claude Code after install/update to pick up changes.
+
 ## 0.6.2 - 2026-06-11
 
 ### Fixed

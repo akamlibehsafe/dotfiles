@@ -179,6 +179,22 @@ bash "${SCRIPTS_ROOT}/setup/update_scripts" \
     && ok "~/bin scripts refreshed" \
     || fail "update_scripts failed"
 
+# ─── Phase 6: Claude Code plugin ────────────────────────────────────────────
+
+dotfiles_ui_section "Phase 6: Claude Code plugin"
+
+PLUGIN_SRC="${REPO_ROOT}/config/claude-plugin"
+PLUGIN_DEST="${HOME}/.claude/skills/dotfiles"
+
+if [ -d "$PLUGIN_SRC" ]; then
+    info "Syncing dotfiles plugin to ~/.claude/skills/dotfiles/..."
+    mkdir -p "$PLUGIN_DEST"
+    rsync -a --delete "${PLUGIN_SRC}/" "${PLUGIN_DEST}/"
+    ok "Claude Code plugin synced (restart Claude Code to apply)"
+else
+    info "No claude-plugin config found — skipping"
+fi
+
 # ─── Done ─────────────────────────────────────────────────────────────────────
 
 dotfiles_ui_section "dotfiles_update complete!"

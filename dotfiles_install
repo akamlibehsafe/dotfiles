@@ -682,9 +682,24 @@ APPLESCRIPT
 
 phase_ok "Terminal font configured"
 
-# ─── Phase 14: Source shell ───────────────────────────────────────────────────
+# ─── Phase 14: Claude Code plugin ───────────────────────────────────────────
 
-run_phase "Phase 14: Activate"
+run_phase "Phase 14: Claude Code plugin"
+
+PLUGIN_SRC="${REPO_ROOT}/config/claude-plugin"
+PLUGIN_DEST="${HOME}/.claude/skills/dotfiles"
+
+if [ -d "$PLUGIN_SRC" ]; then
+    mkdir -p "$PLUGIN_DEST"
+    rsync -a --delete "${PLUGIN_SRC}/" "${PLUGIN_DEST}/"
+    phase_ok "Claude Code plugin installed (~/.claude/skills/dotfiles/)"
+else
+    phase_skip "Claude Code plugin (config/claude-plugin not found)"
+fi
+
+# ─── Phase 15: Source shell ───────────────────────────────────────────────────
+
+run_phase "Phase 15: Activate"
 
 dotfiles_ui_info "  Sourcing ${SHELL_CONFIG}..."
 # We can source it here but the user's interactive shell needs a reload
