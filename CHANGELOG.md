@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1 - 2026-06-11
+
+### Added
+
+- **Android Studio** — new `scripts/apps/android-studio` installer (Homebrew cask). Prompted during Phase 7; upgrades on re-run.
+- **openspec** — new `scripts/apps/openspec` installer (`npm install -g @fission-ai/openspec@latest`). Follows the same pattern as `claude-cli`. Uninstall via `npm uninstall -g @fission-ai/openspec`.
+
 ## 0.6.0 - 2026-06-09
 
 > **Auth model replaced and AI context system introduced.** SSH keys and SSH host aliases are gone. All GitHub authentication now uses HTTPS + PAT + macOS Keychain — works on all machines including corporate ones behind VPN. Git identity is baked directly into each repo's `.git/config` at clone/init time. Every new repo now gets `AGENTS.md` and `DECISIONS.md` automatically, providing session continuity across machines and AI tools.

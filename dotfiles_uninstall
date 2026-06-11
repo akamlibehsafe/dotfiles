@@ -314,6 +314,15 @@ if command -v claude &>/dev/null; then
 else
     dotfiles_ui_info "  Claude CLI not installed, skipping"
 fi
+[ -d "/Applications/Android Studio.app" ] && { confirm "Uninstall Android Studio?" && brew_uninstall android-studio --cask; } || dotfiles_ui_info "  Android Studio not installed, skipping"
+if command -v openspec &>/dev/null; then
+    if confirm "Uninstall openspec?"; then
+        command -v npm &>/dev/null && npm uninstall -g @fission-ai/openspec 2>/dev/null || true
+        dotfiles_ui_success "  openspec removed"
+    fi
+else
+    dotfiles_ui_info "  openspec not installed, skipping"
+fi
 [ -d "/Applications/Cursor.app" ]       && { confirm "Uninstall Cursor?"       && brew_uninstall cursor --cask; }       || dotfiles_ui_info "  Cursor not installed, skipping"
 [ -d "/Applications/Warp.app" ]         && { confirm "Uninstall Warp?"         && brew_uninstall warp --cask; }         || dotfiles_ui_info "  Warp not installed, skipping"
 [ -d "/Applications/Ghostty.app" ]      && { confirm "Uninstall Ghostty?"      && brew_uninstall ghostty --cask; }      || dotfiles_ui_info "  Ghostty not installed, skipping"

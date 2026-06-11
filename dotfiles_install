@@ -457,8 +457,10 @@ app_is_installed() {
         warp)         [ -d "/Applications/Warp.app" ] ;;
         cursor)       [ -d "/Applications/Cursor.app" ] ;;
         claude)       [ -d "/Applications/Claude.app" ] ;;
-        claude-cli)   command -v claude &>/dev/null ;;
-        raycast)      [ -d "/Applications/Raycast.app" ] ;;
+        claude-cli)      command -v claude &>/dev/null ;;
+        android-studio)  [ -d "/Applications/Android Studio.app" ] ;;
+        openspec)        command -v openspec &>/dev/null ;;
+        raycast)         [ -d "/Applications/Raycast.app" ] ;;
         typora)       [ -d "/Applications/Typora.app" ] ;;
         arc)          [ -d "/Applications/Arc.app" ] ;;
         zed)          [ -d "/Applications/Zed.app" ] ;;
@@ -467,7 +469,7 @@ app_is_installed() {
     esac
 }
 
-for app in iterm2 ghostty warp cursor claude claude-cli raycast typora arc zed sublime-text textmate; do
+for app in iterm2 ghostty warp cursor claude claude-cli android-studio openspec raycast typora arc zed sublime-text textmate; do
     app_script="${SCRIPTS_ROOT}/apps/${app}"
     if [ -f "$app_script" ]; then
         dotfiles_ui_section "${app}"

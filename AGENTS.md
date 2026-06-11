@@ -23,7 +23,7 @@ config/                                 ← personal config files applied by dot
 scripts/
 ├── repo/     ← day-to-day GitHub scripts copied to ~/bin/ (repo_init, repo_clone, repo_sync)
 ├── setup/    ← setup & repair tools, run by path only (setup_check, setup_pats, setup_identity, setup_migrate, update_scripts)
-├── apps/     ← pluggable app installers (iterm2, ghostty, warp, cursor, claude, claude-cli)
+├── apps/     ← pluggable app installers (iterm2, ghostty, warp, cursor, claude, claude-cli, android-studio, openspec)
 └── lib/      ← shared bash modules, sourced only (common.sh, accounts.sh, init.sh, manifest.sh)
 ```
 

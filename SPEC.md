@@ -431,6 +431,8 @@ Self-contained scripts, one per app. Called by `dotfiles_install` but also runna
 | `cursor` | Cursor via Homebrew cask | None |
 | `claude` | Claude desktop via Homebrew cask | None |
 | `claude-cli` | Claude CLI via npm | None |
+| `android-studio` | Android Studio via Homebrew cask | None |
+| `openspec` | openspec CLI via npm (`@fission-ai/openspec`) | None |
 | `arc` | Arc via Homebrew cask | None |
 | `zed` | Zed via Homebrew cask | None |
 | `sublime-text` | Sublime Text via Homebrew cask | None |

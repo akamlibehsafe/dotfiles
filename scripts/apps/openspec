@@ -1,0 +1,34 @@
+#!/bin/bash
+# apps/openspec — install openspec CLI via npm
+# Requires Node.js to be installed (core tool).
+# Run standalone or called by dotfiles_install.
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPTS_ROOT="$(cd "$(dirname "$_self")/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+dotfiles_ui_section "openspec"
+
+command -v npm &>/dev/null || {
+    dotfiles_ui_error "npm not found. Node.js must be installed first."
+    exit 1
+}
+
+if command -v openspec &>/dev/null; then
+    dotfiles_ui_success "openspec already installed: $(openspec --version 2>/dev/null || echo 'version unknown')"
+else
+    dotfiles_ui_info "Installing openspec via npm..."
+    npm install -g @fission-ai/openspec@latest
+    dotfiles_ui_success "openspec installed"
+fi
+
+dotfiles_ui_success "openspec setup complete"

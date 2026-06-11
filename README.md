@@ -43,6 +43,7 @@ cd /path/to/dotfiles
 - iTerm2 (with bundled profile from `config/iterm2/`)
 - Ghostty (with config from `config/ghostty/`)
 - Warp, Cursor, Claude desktop, Claude CLI
+- Android Studio, openspec
 - Raycast, Typora, Arc, Zed, Sublime Text, TextMate
 
 **Dock:**
@@ -339,6 +340,7 @@ dotfiles/
     ├── apps/                    ← app installers (called by dotfiles_install)
     │   ├── iterm2, ghostty, warp, cursor
     │   ├── claude, claude-cli
+    │   ├── android-studio, openspec
     │   └── arc, zed, sublime-text, textmate, typora
     └── lib/                     ← shared bash modules (sourced only)
         ├── common.sh
