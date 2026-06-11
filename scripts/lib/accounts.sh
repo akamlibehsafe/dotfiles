@@ -59,8 +59,20 @@ dotfiles_load_accounts() {
         # No conf found — warn but continue with empty accounts so that
         # dotfiles_uninstall can still run (it skips account-specific steps
         # gracefully when DOTFILES_ACCOUNTS is empty).
-        dotfiles_ui_info "Warning: dotfiles.conf not found — account-specific steps will be skipped."
-        dotfiles_ui_info "To run dotfiles_install, copy the template first: cp dotfiles.conf.example dotfiles.conf"
+        cat >&2 <<EOF
+Warning: dotfiles.conf not found — account-specific steps will be skipped.
+
+dotfiles.conf is looked up in these locations (in order):
+  1. \$DOTFILES_CONF env var (if set)
+  2. ${DOTFILES_REPO_ROOT:-(repo root, DOTFILES_REPO_ROOT not set)}/dotfiles.conf
+  3. ~/.config/dotfiles/dotfiles.conf
+
+To create one from the template:
+  cp dotfiles.conf.example dotfiles.conf   # then edit it
+
+If you store it in 1Password or another secret manager, restore it to one
+of the locations above before running dotfiles_install.
+EOF
         DOTFILES_ACCOUNTS_LOADED=true
         return 0
     }
