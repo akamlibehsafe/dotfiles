@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.4 - 2026-06-11
+
+### Added
+
+- **`ai-tools/` folder** — top-level home for AI assistant tools, separate from `config/` (which holds dotfiles-style config). Contains `claude/` and `cursor/` sub-trees.
+- **`ai-tools/claude/`** — Claude Code plugin now lives here. Contains `.claude-plugin/plugin.json` (name: `personal`), `commands/sync.md`, and `skills/` for future implicit skills. Symlinked to `~/.claude/skills/personal` so edits are live immediately.
+- **`ai-tools/cursor/skills/`** — placeholder for future Cursor skills. Symlinked to `~/.cursor/skills-cursor/personal`.
+- **`skills_sync`** — new day-to-day script (`scripts/setup/skills_sync`, copied to `~/bin/`). Pulls the dotfiles repo then verifies/recreates both AI tool symlinks. Use it at the start of a session on any machine to ensure skills are current.
+
+### Changed
+
+- **`config/claude-plugin/` → `ai-tools/claude/`** — moved and renamed. Plugin name changed from `dotfiles` to `personal` to be descriptive and avoid confusion with the repo name.
+- **`dotfiles_install` Phase 14** — replaced rsync copy with symlink creation for both Claude and Cursor.
+- **`dotfiles_update` Phase 6** — replaced rsync sync with symlink verification (recreates if missing or stale).
+- **`dotfiles_uninstall` section 7** — replaced `rm -rf` with `unlink` for Claude; added Cursor symlink removal.
+- **`manifest.sh`** — `skills_sync` added to `DOTFILES_BIN_ENTRIES` so `update_scripts` copies it to `~/bin/`.
+- **`AGENTS.md`** — updated structure diagram, naming conventions, and added AI tools authoring guide.
+
 ## 0.6.3 - 2026-06-11
 
 ### Added

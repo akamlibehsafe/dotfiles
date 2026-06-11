@@ -20,9 +20,16 @@ Personal macOS development environment bootstrap and daily GitHub workflow toolk
 dotfiles_install / dotfiles_uninstall   ← repo root entry points
 dotfiles.conf.example                   ← config template (dotfiles.conf is gitignored)
 config/                                 ← personal config files applied by dotfiles_install
+ai-tools/
+├── claude/                             ← symlinked to ~/.claude/skills/personal by dotfiles_install
+│   ├── .claude-plugin/plugin.json      ← plugin metadata (name: "personal")
+│   ├── commands/                       ← explicit slash commands (e.g. sync.md → /sync)
+│   └── skills/                         ← implicit skills loaded every session
+└── cursor/
+    └── skills/                         ← symlinked to ~/.cursor/skills-cursor/personal
 scripts/
 ├── repo/     ← day-to-day GitHub scripts copied to ~/bin/ (repo_init, repo_clone, repo_sync)
-├── setup/    ← setup & repair tools, run by path only (setup_check, setup_pats, setup_identity, setup_migrate, update_scripts)
+├── setup/    ← setup & repair tools; skills_sync is copied to ~/bin/, others run by path only
 ├── apps/     ← pluggable app installers (iterm2, ghostty, warp, cursor, claude, claude-cli, android-studio, openspec)
 └── lib/      ← shared bash modules, sourced only (common.sh, accounts.sh, init.sh, manifest.sh)
 ```
@@ -31,9 +38,19 @@ scripts/
 
 - All internal functions and variables use the `dotfiles_` prefix
 - Entry points: `dotfiles_install`, `dotfiles_uninstall`
-- Day-to-day GitHub scripts: `repo_init`, `repo_clone`, `repo_sync`
-- Setup tools: `setup_check`, `setup_pats`, `setup_identity`, `setup_migrate`, `update_scripts`
+- Day-to-day scripts (copied to `~/bin/`): `repo_init`, `repo_clone`, `repo_sync`, `skills_sync`
+- Setup tools (run by path only): `setup_check`, `setup_pats`, `setup_identity`, `setup_migrate`, `update_scripts`
 - Config file: `dotfiles.conf` (gitignored); template: `dotfiles.conf.example`
+
+## AI tools
+
+Skills and commands for Claude Code and Cursor live in `ai-tools/`. When creating new commands or skills:
+
+- New Claude commands (explicit slash commands) → `ai-tools/claude/commands/<name>.md`
+- New Claude skills (implicit, description-triggered) → `ai-tools/claude/skills/<name>/SKILL.md`
+- New Cursor skills → `ai-tools/cursor/skills/<name>/`
+
+Because `~/.claude/skills/personal` is a symlink to `ai-tools/claude/`, edits take effect immediately in the current session. Commit and push to persist across machines; run `skills_sync` on other machines to pull and re-verify symlinks.
 
 ## GitHub accounts
 
@@ -55,7 +72,7 @@ Three accounts are in use — all defined in `dotfiles.conf` (never hardcoded in
 
 ## Versioning
 
-Currently at **v0.6.0**.
+Currently at **v0.6.4**.
 
 ## Testing workflow
 
@@ -111,8 +128,8 @@ git tag v0.6.0 && git push origin v0.6.0
 
 - Never hardcode GitHub usernames — always read from `DOTFILES_ACCOUNTS[]`
 - Never commit `dotfiles.conf` or `PAT.md` — both are gitignored
-- `scripts/repo/*` and `scripts/lib/*` are copied to `~/bin/` by `update_scripts`
-- `scripts/setup/*` and `scripts/apps/*` are run by path only
+- `scripts/repo/*`, `scripts/lib/*`, and `scripts/setup/skills_sync` are copied to `~/bin/` by `update_scripts`
+- All other `scripts/setup/*` and `scripts/apps/*` are run by path only
 - All user-facing scripts must print usage and exit cleanly on wrong/missing arguments
 - `dotfiles_install` must exit 0 only when environment is fully ready
 - Always use `repo_clone` to clone repos — never raw `git clone`

@@ -56,6 +56,7 @@ DOTFILES_BIN_ENTRIES=(
     "repo_init:repo/repo_init"
     "repo_clone:repo/repo_clone"
     "repo_sync:repo/repo_sync"
+    "skills_sync:setup/skills_sync"
 )
 
 # Symlink names only (derived from DOTFILES_BIN_ENTRIES)

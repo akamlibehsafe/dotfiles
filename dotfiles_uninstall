@@ -207,19 +207,36 @@ else
     dotfiles_ui_info "  No ~/bin PATH entry found in ${SHELL_CONFIG}, skipping"
 fi
 
-# ─── 7. Remove Claude Code plugin ───────────────────────────────────────────
+# ─── 7. Remove AI tools symlinks ────────────────────────────────────────────
 
-section "Remove Claude Code plugin"
+section "Remove AI tools symlinks"
 
-PLUGIN_DEST="${HOME}/.claude/skills/dotfiles"
-if [ -d "$PLUGIN_DEST" ]; then
-    if confirm "Remove Claude Code dotfiles plugin (~/.claude/skills/dotfiles/)?"; then
-        rm -rf "$PLUGIN_DEST"
-        dotfiles_ui_success "  Removed ~/.claude/skills/dotfiles/"
+_claude_link="${HOME}/.claude/skills/personal"
+_cursor_link="${HOME}/.cursor/skills-cursor/personal"
+
+if [ -L "$_claude_link" ]; then
+    if confirm "Remove Claude AI tools symlink (~/.claude/skills/personal)?"; then
+        unlink "$_claude_link"
+        dotfiles_ui_success "  Removed ~/.claude/skills/personal"
+    else
+        dotfiles_ui_info "  kept"
     fi
 else
-    dotfiles_ui_info "  ~/.claude/skills/dotfiles/ not found, skipping"
+    dotfiles_ui_info "  ~/.claude/skills/personal not found, skipping"
 fi
+
+if [ -L "$_cursor_link" ]; then
+    if confirm "Remove Cursor AI tools symlink (~/.cursor/skills-cursor/personal)?"; then
+        unlink "$_cursor_link"
+        dotfiles_ui_success "  Removed ~/.cursor/skills-cursor/personal"
+    else
+        dotfiles_ui_info "  kept"
+    fi
+else
+    dotfiles_ui_info "  ~/.cursor/skills-cursor/personal not found, skipping"
+fi
+
+unset _claude_link _cursor_link
 
 # ─── 8. Remove Keychain credentials ─────────────────────────────────────────
 

@@ -179,21 +179,38 @@ bash "${SCRIPTS_ROOT}/setup/update_scripts" \
     && ok "~/bin scripts refreshed" \
     || fail "update_scripts failed"
 
-# ─── Phase 6: Claude Code plugin ────────────────────────────────────────────
+# ─── Phase 6: AI tools symlinks ─────────────────────────────────────────────
 
-dotfiles_ui_section "Phase 6: Claude Code plugin"
+dotfiles_ui_section "Phase 6: AI tools"
 
-PLUGIN_SRC="${REPO_ROOT}/config/claude-plugin"
-PLUGIN_DEST="${HOME}/.claude/skills/dotfiles"
+_ensure_symlink() {
+    local link="$1" target="$2" label="$3"
+    if [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ]; then
+        ok "${label} symlink OK"
+        return
+    fi
+    [ -L "$link" ] && rm "$link"
+    [ -e "$link" ] && rm -rf "$link"
+    mkdir -p "$(dirname "$link")"
+    ln -s "$target" "$link"
+    ok "${label} symlink recreated"
+}
 
-if [ -d "$PLUGIN_SRC" ]; then
-    info "Syncing dotfiles plugin to ~/.claude/skills/dotfiles/..."
-    mkdir -p "$PLUGIN_DEST"
-    rsync -a --delete "${PLUGIN_SRC}/" "${PLUGIN_DEST}/"
-    ok "Claude Code plugin synced (restart Claude Code to apply)"
+_ai_tools_root="${REPO_ROOT}/ai-tools"
+
+if [ -d "${_ai_tools_root}/claude" ]; then
+    _ensure_symlink "${HOME}/.claude/skills/personal" "${_ai_tools_root}/claude" "Claude"
 else
-    info "No claude-plugin config found — skipping"
+    info "ai-tools/claude not found — skipping Claude symlink"
 fi
+
+if [ -d "${_ai_tools_root}/cursor/skills" ]; then
+    _ensure_symlink "${HOME}/.cursor/skills-cursor/personal" "${_ai_tools_root}/cursor/skills" "Cursor"
+else
+    info "ai-tools/cursor/skills not found — skipping Cursor symlink"
+fi
+
+unset _ai_tools_root _ensure_symlink
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,91 @@
+#!/bin/bash
+# skills_sync — pull the dotfiles repo and verify AI tool symlinks
+#
+# Usage: skills_sync
+#   Pulls the dotfiles repo, then verifies (or recreates) the symlinks:
+#     ~/.claude/skills/personal        → dotfiles/ai-tools/claude/
+#     ~/.cursor/skills-cursor/personal → dotfiles/ai-tools/cursor/skills/
+
+set -euo pipefail
+
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _d="$(cd "$(dirname "$_self")" && pwd)"
+    _self="$(readlink "$_self")"
+    [[ "$_self" != /* ]] && _self="$_d/$_self"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd -P)"
+SCRIPTS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
+REPO_ROOT="$(cd "${SCRIPTS_ROOT}/.." && pwd -P)"
+
+source "${SCRIPTS_ROOT}/lib/init.sh"
+dotfiles_ui_colors
+
+ok()   { dotfiles_ui_success "  ✓ $1"; }
+info() { dotfiles_ui_info    "  $1"; }
+fail() { dotfiles_ui_error   "  ✗ $1"; }
+
+# ─── Pull dotfiles repo ───────────────────────────────────────────────────────
+
+dotfiles_ui_section "skills_sync"
+
+info "Pulling dotfiles repo..."
+if git -C "$REPO_ROOT" pull --rebase --quiet; then
+    ok "dotfiles repo up to date"
+else
+    fail "git pull failed — continuing with symlink check"
+fi
+
+# ─── Symlink helper ───────────────────────────────────────────────────────────
+
+ensure_symlink() {
+    local link="$1"
+    local target="$2"
+    local label="$3"
+
+    if [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ]; then
+        ok "${label} symlink OK"
+        return
+    fi
+
+    if [ -L "$link" ]; then
+        info "${label}: stale symlink — recreating"
+        rm "$link"
+    elif [ -e "$link" ]; then
+        info "${label}: found non-symlink at ${link} — removing"
+        rm -rf "$link"
+    fi
+
+    mkdir -p "$(dirname "$link")"
+    ln -s "$target" "$link"
+    ok "${label} symlink created"
+}
+
+# ─── Claude symlink ───────────────────────────────────────────────────────────
+
+CLAUDE_LINK="${HOME}/.claude/skills/personal"
+CLAUDE_TARGET="${REPO_ROOT}/ai-tools/claude"
+
+if [ -d "$CLAUDE_TARGET" ]; then
+    ensure_symlink "$CLAUDE_LINK" "$CLAUDE_TARGET" "Claude"
+else
+    info "ai-tools/claude not found — skipping Claude symlink"
+fi
+
+# ─── Cursor symlink ───────────────────────────────────────────────────────────
+
+CURSOR_LINK="${HOME}/.cursor/skills-cursor/personal"
+CURSOR_TARGET="${REPO_ROOT}/ai-tools/cursor/skills"
+
+if [ -d "$CURSOR_TARGET" ]; then
+    ensure_symlink "$CURSOR_LINK" "$CURSOR_TARGET" "Cursor"
+else
+    info "ai-tools/cursor/skills not found — skipping Cursor symlink"
+fi
+
+# ─── Done ─────────────────────────────────────────────────────────────────────
+
+echo ""
+dotfiles_ui_success "skills_sync complete."
+echo ""
+dotfiles_ui_info "Restart Claude Code / Cursor to pick up any skill changes."

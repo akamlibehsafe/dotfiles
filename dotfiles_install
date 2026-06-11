@@ -682,20 +682,38 @@ APPLESCRIPT
 
 phase_ok "Terminal font configured"
 
-# ─── Phase 14: Claude Code plugin ───────────────────────────────────────────
+# ─── Phase 14: AI tools symlinks ────────────────────────────────────────────
 
-run_phase "Phase 14: Claude Code plugin"
+run_phase "Phase 14: AI tools"
 
-PLUGIN_SRC="${REPO_ROOT}/config/claude-plugin"
-PLUGIN_DEST="${HOME}/.claude/skills/dotfiles"
+_ai_tools_root="${REPO_ROOT}/ai-tools"
 
-if [ -d "$PLUGIN_SRC" ]; then
-    mkdir -p "$PLUGIN_DEST"
-    rsync -a --delete "${PLUGIN_SRC}/" "${PLUGIN_DEST}/"
-    phase_ok "Claude Code plugin installed (~/.claude/skills/dotfiles/)"
+_ensure_symlink() {
+    local link="$1" target="$2" label="$3"
+    if [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ]; then
+        phase_ok "${label} symlink already correct"
+        return
+    fi
+    [ -L "$link" ] && rm "$link"
+    [ -e "$link" ] && rm -rf "$link"
+    mkdir -p "$(dirname "$link")"
+    ln -s "$target" "$link"
+    phase_ok "${label} symlink created"
+}
+
+if [ -d "${_ai_tools_root}/claude" ]; then
+    _ensure_symlink "${HOME}/.claude/skills/personal" "${_ai_tools_root}/claude" "Claude"
 else
-    phase_skip "Claude Code plugin (config/claude-plugin not found)"
+    phase_skip "Claude AI tools (ai-tools/claude not found)"
 fi
+
+if [ -d "${_ai_tools_root}/cursor/skills" ]; then
+    _ensure_symlink "${HOME}/.cursor/skills-cursor/personal" "${_ai_tools_root}/cursor/skills" "Cursor"
+else
+    phase_skip "Cursor AI tools (ai-tools/cursor/skills not found)"
+fi
+
+unset _ai_tools_root _ensure_symlink
 
 # ─── Phase 15: Source shell ───────────────────────────────────────────────────
 
