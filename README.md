@@ -317,6 +317,13 @@ dotfiles/
 ├── dotfiles.conf                ← your config (gitignored, never commit)
 ├── AGENTS.md                    ← AI agent context for this repo
 ├── DECISIONS.md                 ← architectural decision history
+├── ai-tools/                    ← AI assistant tools (symlinked into ~/.claude and ~/.cursor)
+│   ├── claude/                  ← symlinked to ~/.claude/skills/personal
+│   │   ├── .claude-plugin/plugin.json
+│   │   ├── commands/sync.md     ← /sync slash command
+│   │   └── skills/              ← implicit skills (description-triggered)
+│   └── cursor/
+│       └── skills/              ← symlinked to ~/.cursor/skills-cursor/personal
 ├── config/
 │   ├── p10k.zsh                 ← Powerlevel10k config
 │   ├── zshrc                    ← Zsh config template
@@ -331,12 +338,13 @@ dotfiles/
     │   ├── repo_init
     │   ├── repo_clone
     │   └── repo_sync
-    ├── setup/                   ← setup & repair tools (run by path)
+    ├── setup/                   ← setup & repair tools (run by path, except skills_sync)
     │   ├── setup_check
     │   ├── setup_pats
     │   ├── setup_identity
     │   ├── setup_migrate
-    │   └── update_scripts
+    │   ├── update_scripts
+    │   └── skills_sync          ← copied to ~/bin/; pulls repo + re-verifies AI symlinks
     ├── apps/                    ← app installers (called by dotfiles_install)
     │   ├── iterm2, ghostty, warp, cursor
     │   ├── claude, claude-cli

@@ -21,6 +21,13 @@ dotfiles/
 ├── CHANGELOG.md
 ├── README.md
 ├── SPEC.md
+├── ai-tools/                    ← AI assistant tools (symlinked by dotfiles_install Phase 14)
+│   ├── claude/                  ← symlinked to ~/.claude/skills/personal
+│   │   ├── .claude-plugin/plugin.json
+│   │   ├── commands/sync.md     ← /sync slash command
+│   │   └── skills/              ← implicit skills (description-triggered)
+│   └── cursor/
+│       └── skills/              ← symlinked to ~/.cursor/skills-cursor/personal
 ├── config/                      ← personal config files (applied by dotfiles_install)
 │   ├── p10k.zsh                 ← Powerlevel10k config
 │   ├── zshrc                    ← Zsh config template
@@ -35,12 +42,13 @@ dotfiles/
     │   ├── repo_init
     │   ├── repo_clone
     │   └── repo_sync
-    ├── setup/                   ← setup & repair tools (run by path when needed)
+    ├── setup/                   ← setup & repair tools; skills_sync also copied to ~/bin/
     │   ├── setup_check          ← read-only environment scan
     │   ├── setup_pats           ← PAT wizard
     │   ├── setup_identity       ← git identity + Keychain credential setup
     │   ├── setup_migrate        ← migrate legacy SSH remotes to HTTPS
-    │   └── update_scripts       ← wire scripts/repo/* into ~/bin/
+    │   ├── update_scripts       ← wire scripts/repo/* and skills_sync into ~/bin/
+    │   └── skills_sync          ← pull repo + re-verify AI symlinks; copied to ~/bin/
     ├── apps/                    ← pluggable app installers (called by dotfiles_install)
     └── lib/                     ← shared bash modules (sourced only, never run directly)
         ├── common.sh
@@ -235,7 +243,8 @@ Safe to re-run — detects what is already configured and skips completed phases
 11. **Verification** — confirm `repo_init`, `repo_clone`, `repo_sync` are on PATH
 12. **Dock** — pin installed apps via dockutil
 13. **Terminal font** — install MesloLGS NF, configure macOS Terminal
-14. **Activate** — source `~/.zshrc`
+14. **AI tools symlinks** — create `~/.claude/skills/personal → ai-tools/claude/` and `~/.cursor/skills-cursor/personal → ai-tools/cursor/skills/`; skips each silently if the source directory is absent
+15. **Activate** — source `~/.zshrc`
 
 ### Contract
 
@@ -260,20 +269,21 @@ Interactively removes everything `dotfiles_install` installed.
 ### Steps (in order)
 
 1. Check for unpushed git changes across `github_root`
-2. Remove `~/bin/` scripts (`repo_*` commands and `lib/`)
+2. Remove `~/bin/` scripts (`repo_*`, `skills_sync`, and `lib/`)
 3. Remove shell aliases from `~/.zshrc`
 4. Remove `GH_TOKEN_*` exports from `~/.zshrc`
 5. Remove XDG config (`~/.config/dotfiles/dotfiles.conf`)
 6. Remove `~/bin` PATH addition from `~/.zshrc`
-7. Remove Keychain credentials (one per account)
-8. Remove legacy SSH artifacts from older installs (if present)
-9. Remove git identity config (`~/.gitconfig-<user>` files and `includeIf` blocks)
-10. Uninstall apps (each prompted individually)
-11. Remove Oh My Zsh, Powerlevel10k, `~/.p10k.zsh`
-12. Remove per-account repo folders (destructive, confirmed explicitly)
-13. Remove Dock entries
-14. Reset default shell to `/bin/zsh`
-15. Remove Homebrew (optional, last step)
+7. Remove AI tools symlinks — `~/.claude/skills/personal` and `~/.cursor/skills-cursor/personal` (each prompted individually)
+8. Remove Keychain credentials (one per account)
+9. Remove legacy SSH artifacts from older installs (if present)
+10. Remove git identity config (`~/.gitconfig-<user>` files and `includeIf` blocks)
+11. Uninstall apps (each prompted individually)
+12. Remove Oh My Zsh, Powerlevel10k, `~/.p10k.zsh`
+13. Remove per-account repo folders (destructive, confirmed explicitly)
+14. Remove Dock entries
+15. Reset default shell to `/bin/zsh`
+16. Remove Homebrew (optional, last step)
 
 ---
 
@@ -371,7 +381,7 @@ repo_sync [-m "commit message"]
 
 ## Setup tools (`scripts/setup/`)
 
-Not copied to `~/bin/`. Run by path when needed.
+Most are run by path only. Exception: `skills_sync` is also copied to `~/bin/` by `update_scripts` for day-to-day use.
 
 ### `setup_check`
 
@@ -411,10 +421,18 @@ Converts `git@github-user:user/repo.git` → `https://user@github.com/user/repo.
 
 ### `update_scripts`
 
-Copies `scripts/repo/*` and `scripts/lib/*` to `~/bin/`. Updates PATH in shell config. Removes deprecated symlink names. Installs post-merge hook.
+Copies `scripts/repo/*`, `scripts/lib/*`, and `scripts/setup/skills_sync` to `~/bin/`. Updates PATH in shell config. Removes deprecated symlink names. Installs post-merge hook.
 
 ```bash
 ./scripts/setup/update_scripts
+```
+
+### `skills_sync`
+
+Pulls the dotfiles repo (`git pull`) then verifies and recreates the AI tools symlinks (`~/.claude/skills/personal` and `~/.cursor/skills-cursor/personal`). Run at the start of a session on any machine to ensure skills are current.
+
+```bash
+skills_sync
 ```
 
 ---
