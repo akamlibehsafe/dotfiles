@@ -22,7 +22,7 @@ dotfiles_account_gitdir() {
 
 dotfiles_remote_https_url() {
     local user="$1" repo="$2"
-    echo "https://${user}@github.com/${user}/${repo}.git"
+    echo "https://github.com/${user}/${repo}.git"
 }
 
 dotfiles_is_known_account() {

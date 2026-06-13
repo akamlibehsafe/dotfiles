@@ -173,3 +173,27 @@ This file is **append-only**. New sessions add entries at the bottom. Existing e
 **Decision:** The three scripts (`repo_init`, `repo_clone`, `repo_sync`) are referred to as "day-to-day GitHub scripts" throughout documentation, not "daily commands".
 
 **Rationale:** "Daily commands" implied they must be used every day. "Day-to-day GitHub scripts" better describes their nature — tools for routine GitHub workflow, used as needed.
+
+---
+
+## 2026-06-12 — `repo_init` credential bug fix
+
+### Remote URLs must not embed the username
+
+**Decision:** `dotfiles_remote_https_url()` produces `https://github.com/<user>/<repo>.git` — no username in the URL.
+
+**Rationale:** The original format `https://<user>@github.com/<user>/<repo>.git` was introduced in v0.6.0 with the intent of disambiguating multi-account Keychain lookups. In practice, embedding the username in the URL prevents the macOS Keychain credential helper from matching the stored entry on some git versions, causing git to fall back to an interactive password prompt. The credential helper resolves the correct PAT without the username hint when the repo's `.git/config` already has `user.name` baked in.
+
+**Implications:**
+- Existing repos cloned before this fix have `https://<user>@github.com/...` remotes. They will continue to work where the credential helper happens to match, but can be migrated with `git remote set-url origin https://github.com/<user>/<repo>.git`.
+- `setup_migrate` may be updated in a future version to rewrite old-format remotes.
+
+---
+
+### `repo_init` must not override the credential helper at push time
+
+**Decision:** The push in `repo_init` uses plain `git push`, never `git -c credential.helper= push`.
+
+**Rationale:** `git -c credential.helper=` clears all credential helpers for that invocation, forcing git to prompt interactively. This was the direct cause of the password prompt reported in v0.6.5. There is no valid reason for `repo_init` to bypass the configured credential helper — the PAT in the Keychain is precisely what should be used here.
+
+**Rule:** Never pass `-c credential.helper=` to any git call in these scripts. If auth is failing, debug the Keychain entry via `setup_check`, don't suppress the helper.

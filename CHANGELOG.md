@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.5 - 2026-06-12
+
+### Fixed
+
+- **`repo_init` prompted for GitHub password on push** — two compounding bugs caused git to ignore the stored PAT and fall back to interactive password prompt:
+  1. `git -c credential.helper= push` in `repo_init` explicitly cleared the credential helper for the push call, defeating the Keychain-based auth set up by `dotfiles_install`. Fixed to plain `git push`.
+  2. `dotfiles_remote_https_url()` in `scripts/lib/common.sh` produced `https://<user>@github.com/...` — embedding the username in the URL. On some git versions this prevents the credential helper from matching the stored Keychain entry. Fixed to `https://github.com/...` (no embedded username); the credential helper resolves the PAT without the hint.
+
 ## 0.6.4 - 2026-06-11
 
 ### Added
