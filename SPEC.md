@@ -293,6 +293,8 @@ Interactively removes everything `dotfiles_install` installed.
 
 Turn the current folder into a new GitHub repository and push it.
 
+> **NOTE:** the repo is initialised in the **current working directory (cwd)**. Navigate into the target folder before running — running from `~/Desktop` will init git in `~/Desktop` itself, not a subfolder.
+
 ### Usage
 
 ```bash
